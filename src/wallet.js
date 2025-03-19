@@ -1,4 +1,4 @@
-import PeerWallet from "ed25519-key-generator"
+import PeerWallet from "trac-wallet"
 
 class Wallet extends PeerWallet{
     constructor() {
