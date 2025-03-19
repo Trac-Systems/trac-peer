@@ -20,7 +20,7 @@ export class Peer extends ReadyResource {
     constructor(options = {}) {
         super();
         this.STORES_DIRECTORY = options.stores_directory;
-        this.KEY_PAIR_PATH = `${this.STORES_DIRECTORY}${options.store_name}/keypair.json`;
+        this.KEY_PAIR_PATH = `${this.STORES_DIRECTORY}${options.store_name}/db/keypair.json`;
         this.keyPair = null;
         this.store = new Corestore(this.STORES_DIRECTORY + options.store_name);
         this.msb = options.msb || null;
@@ -91,7 +91,7 @@ export class Peer extends ReadyResource {
                     } else if (op.type === 'addIndexer') {
                         const admin = await view.get('admin');
                         if(null !== admin && op.value.msg.key === op.key && op.value.msg.type === 'addIndexer') {
-                            const verified = _this.wallet.verify(JSON.stringify(op.value.msg), op.value.hash, admin.value);
+                            const verified = _this.wallet.verify(op.value.hash, JSON.stringify(op.value.msg), admin.value);
                             if(verified){
                                 const writerKey = b4a.from(op.key, 'hex');
                                 await base.addWriter(writerKey);
@@ -101,7 +101,7 @@ export class Peer extends ReadyResource {
                     } else if (op.type === 'addWriter') {
                         const admin = await view.get('admin');
                         if(null !== admin && op.value.msg.key === op.key && op.value.msg.type === 'addWriter') {
-                            const verified = _this.wallet.verify(JSON.stringify(op.value.msg), op.value.hash, admin.value);
+                            const verified = _this.wallet.verify(op.value.hash, JSON.stringify(op.value.msg), admin.value);
                             if(verified){
                                 const writerKey = b4a.from(op.key, 'hex');
                                 await base.addWriter(writerKey, { isIndexer : false });
@@ -113,7 +113,7 @@ export class Peer extends ReadyResource {
                         if(null !== admin && op.value.msg.key === op.key &&
                             op.value.msg.type === 'setAutoAddWriters' &&
                             (op.key === 'on' || op.key === 'off')) {
-                            const verified = _this.wallet.verify(JSON.stringify(op.value.msg), op.value.hash, admin.value);
+                            const verified = _this.wallet.verify(op.value.hash, JSON.stringify(op.value.msg), admin.value);
                             if(verified){
                                 await view.put('auto_add_writers', op.key);
                                 console.log(`Set auto_add_writers: ${op.key}`);
