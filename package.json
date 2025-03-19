@@ -1,0 +1,35 @@
+{
+  "name": "trac-peer",
+  "main": "src/index.js",
+  "pear": {
+    "name": "trac-peer",
+    "type": "terminal"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "pear run -d .",
+    "test": "brittle test/*.test.js"
+  },
+  "dependencies": {
+    "autobase": "7.0.45",
+    "b4a": "1.6.7",
+    "bare-fs": "4.0.1",
+    "bip39": "^3.1.0",
+    "brittle": "3.0.0",
+    "corestore": "7.0.22",
+    "debounceify": "1.1.0",
+    "ed25519-key-generator": "file:../ed25519-key-generator",
+    "hyperbee": "2.23.0",
+    "hypercore": "11.0.48",
+    "hypercore-crypto": "3.4.0",
+    "hyperdht": "6.19.0",
+    "hyperswarm": "4.8.4",
+    "is-options": "1.0.2",
+    "pear-interface": "1.0.0",
+    "protomux-wakeup": "^2.2.1",
+    "ready-resource": "^1.0.0",
+    "safety-catch": "1.0.2",
+    "sodium-native": "^4.3.3",
+    "xache": "1.2.0"
+  }
+}
