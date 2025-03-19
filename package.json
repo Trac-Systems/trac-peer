@@ -1,15 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "pear": {
-    "name": "trac-peer",
-    "type": "terminal"
-  },
   "type": "module",
-  "scripts": {
-    "dev": "pear run -d .",
-    "test": "brittle test/*.test.js"
-  },
   "dependencies": {
     "autobase": "7.0.45",
     "b4a": "1.6.7",
