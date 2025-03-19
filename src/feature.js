@@ -7,10 +7,12 @@ class Feature {
     }
 
     async append(key, value){
+        const hash = this.peer.wallet.sign(JSON.stringify(value));
         await this.peer.base.append({ type: 'feature', key: this.key + '_' + key, value : {
             dispatch : {
                 type : this.key + '_feature',
                 key : key,
+                hash : hash,
                 value : value
             }
         }});

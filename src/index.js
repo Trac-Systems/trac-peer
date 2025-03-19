@@ -76,7 +76,6 @@ export class Peer extends ReadyResource {
                         const msb_view_session = _this.msb.base.view.checkout(op.value.msbsl);
                         const post_tx = await msb_view_session.get(op.key);
                         await msb_view_session.close();
-
                         if (null !== post_tx &&
                             null === await view.get(op.key) &&
                             op.key === post_tx.value.tx &&
@@ -86,7 +85,16 @@ export class Peer extends ReadyResource {
                             console.log(`${op.key} appended`);
                         }
                     } else if (op.type === 'feature') {
-                        await _this.contract_instance.dispatch(op, node, view);
+                        const admin = await view.get('admin');
+                        if(null !== admin &&
+                            typeof op.value.dispatch === "object" &&
+                            typeof op.value.dispatch.hash === "string" &&
+                            typeof op.value.dispatch.value !== "undefined"){
+                            const verified = _this.wallet.verify(op.value.dispatch.hash, JSON.stringify(op.value.dispatch.value), admin.value);
+                            if(verified){
+                                await _this.contract_instance.dispatch(op, node, view);
+                            }
+                        }
                         console.log(`Feature ${op.key} appended`);
                     } else if (op.type === 'addIndexer') {
                         const admin = await view.get('admin');
