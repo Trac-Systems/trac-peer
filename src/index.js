@@ -170,8 +170,7 @@ export class Peer extends ReadyResource {
         this.init_contract_starting = true;
         this.protocol_instance = new this.protocol({
             peer : this,
-            base : this.base,
-            local_db : this.bee
+            base : this.base
         });
         this.contract_instance = new this.contract(this.protocol_instance);
     }

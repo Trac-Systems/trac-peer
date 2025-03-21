@@ -5,7 +5,6 @@ class Protocol{
     constructor(options = {}) {
         this.base = options.base || null;
         this.peer = options.peer || null;
-        this.local_db = options.local_db || null;
         this.options = options;
         this.input = null;
         this.tokenized_input = null;
@@ -73,6 +72,10 @@ class Protocol{
 
     async printOptions(){
         throw new Error('Not implemented: Protocol.printOptions()');
+    }
+
+    async get(key){
+        return await this.peer.base.view.get(key);
     }
 }
 
