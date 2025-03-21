@@ -6,6 +6,12 @@ class Feature {
         this.options = options;
     }
 
+    async get(key){
+        const result = await this.peer.base.view.get(key);
+        if(result === null) return null;
+        return result.value;
+    }
+
     async append(key, value){
         const hash = this.peer.wallet.sign(JSON.stringify(value));
         await this.peer.base.append({ type: 'feature', key: this.key + '_' + key, value : {

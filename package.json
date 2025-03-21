@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.0.5",
+  "version": "0.0.11",
   "type": "module",
   "dependencies": {
     "autobase": "7.0.45",
@@ -11,7 +11,7 @@
     "brittle": "3.0.0",
     "corestore": "7.0.22",
     "debounceify": "1.1.0",
-    "trac-wallet": "^0.0.1",
+    "trac-wallet": "^0.0.2",
     "hyperbee": "2.23.0",
     "hypercore": "11.0.48",
     "hypercore-crypto": "3.4.0",
@@ -24,5 +24,9 @@
     "safety-catch": "1.0.2",
     "sodium-native": "^4.3.3",
     "xache": "1.2.0"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
   }
 }

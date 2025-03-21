@@ -354,8 +354,8 @@ export class Peer extends ReadyResource {
                     await this.close();
                     process.exit(0);
                 case '/get_keys':
-                    console.log("Public Key: ", this.wallet.publicKey.toString('hex'));
-                    console.log("Secret Key: ", this.wallet.secretKey.toString('hex'));
+                    console.log("Public Key: ", this.wallet.publicKey);
+                    console.log("Secret Key: ", this.wallet.secretKey);
                     break;
                 default:
                     if (input.startsWith('/add_indexer') || input.startsWith('/add_writer')) {

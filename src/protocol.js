@@ -17,7 +17,7 @@ class Protocol{
     }
 
     async addFeature(key, feature){
-        const pk1 = this.peer.wallet.publicKey.toString('hex');
+        const pk1 = this.peer.wallet.publicKey;
         const pk2 = await this.base.view.get('admin');
         if(null === pk2 || pk1 !== pk2.value) throw new Error('addFeature(key, feature): Features only allowed for admin.');
         if(typeof this.features[key] !== "undefined") throw new Error('addFeature(key, feature): Feature key exists already.');
@@ -28,7 +28,8 @@ class Protocol{
     async broadcastTransaction(writer, obj){
         if((this.peer.wallet.publicKey !== null &&
             this.peer.wallet.secretKey !== null) &&
-            this.base.localWriter !== null && this.tokenized_input !== null)
+            this.base.localWriter !== null &&
+            this.tokenized_input !== null)
         {
             this.nonce = Date.now();
             const MSBwriter = writer;
@@ -47,7 +48,7 @@ class Protocol{
                 is: signature,
                 w: MSBwriter,
                 i: this.peer.writerLocalKey,
-                ipk: this.peer.wallet.publicKey.toString('hex'),
+                ipk: this.peer.wallet.publicKey,
                 ch : content_hash,
                 in : this.nonce
             });
