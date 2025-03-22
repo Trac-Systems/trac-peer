@@ -77,10 +77,10 @@ export class Peer extends ReadyResource {
                         const post_tx = await msb_view_session.get(op.key);
                         await msb_view_session.close();
                         if (null !== post_tx &&
-                            null === await view.get(op.key) &&
+                            null === await view.get('tx/'+op.key) &&
                             op.key === post_tx.value.tx &&
                             post_tx.value.ch === createHash('sha256').update(JSON.stringify(op.value.dispatch)).digest('hex')) {
-                            await view.put(op.key, op.value);
+                            await view.put('tx/'+op.key, op.value);
                             await _this.contract_instance.dispatch(op, node, view);
                             console.log(`${op.key} appended`);
                         }
@@ -89,43 +89,55 @@ export class Peer extends ReadyResource {
                         if(null !== admin &&
                             typeof op.value.dispatch === "object" &&
                             typeof op.value.dispatch.hash === "string" &&
-                            typeof op.value.dispatch.value !== "undefined"){
+                            typeof op.value.dispatch.value !== "undefined" &&
+                            null === await view.get('sh/'+op.value.dispatch.hash)){
                             const verified = _this.wallet.verify(op.value.dispatch.hash, JSON.stringify(op.value.dispatch.value), admin.value);
                             if(verified){
                                 await _this.contract_instance.dispatch(op, node, view);
                             }
+                            await view.put('sh/'+op.value.dispatch.hash, '');
                         }
                         console.log(`Feature ${op.key} appended`);
                     } else if (op.type === 'addIndexer') {
                         const admin = await view.get('admin');
-                        if(null !== admin && op.value.msg.key === op.key && op.value.msg.type === 'addIndexer') {
+                        if(null !== admin &&
+                            op.value.msg.key === op.key &&
+                            op.value.msg.type === 'addIndexer' &&
+                            null === await view.get('sh/'+op.op.value.hash)) {
                             const verified = _this.wallet.verify(op.value.hash, JSON.stringify(op.value.msg), admin.value);
                             if(verified){
                                 const writerKey = b4a.from(op.key, 'hex');
                                 await base.addWriter(writerKey);
                                 console.log(`Indexer added: ${op.key}`);
                             }
+                            await view.put('sh/'+op.op.value.hash, '');
                         }
                     } else if (op.type === 'addWriter') {
                         const admin = await view.get('admin');
-                        if(null !== admin && op.value.msg.key === op.key && op.value.msg.type === 'addWriter') {
+                        if(null !== admin &&
+                            op.value.msg.key === op.key &&
+                            op.value.msg.type === 'addWriter' &&
+                            null === await view.get('sh/'+op.op.value.hash)) {
                             const verified = _this.wallet.verify(op.value.hash, JSON.stringify(op.value.msg), admin.value);
                             if(verified){
                                 const writerKey = b4a.from(op.key, 'hex');
                                 await base.addWriter(writerKey, { isIndexer : false });
                                 console.log(`Writer added: ${op.key}`);
                             }
+                            await view.put('sh/'+op.op.value.hash, '');
                         }
                     } else if (op.type === 'setAutoAddWriters') {
                         const admin = await view.get('admin');
                         if(null !== admin && op.value.msg.key === op.key &&
                             op.value.msg.type === 'setAutoAddWriters' &&
-                            (op.key === 'on' || op.key === 'off')) {
+                            (op.key === 'on' || op.key === 'off') &&
+                            null === await view.get('sh/'+op.op.value.hash)) {
                             const verified = _this.wallet.verify(op.value.hash, JSON.stringify(op.value.msg), admin.value);
                             if(verified){
                                 await view.put('auto_add_writers', op.key);
                                 console.log(`Set auto_add_writers: ${op.key}`);
                             }
+                            await view.put('sh/'+op.op.value.hash, '');
                         }
                     } else if (op.type === 'autoAddWriter') {
                         const auto_add_writers = await view.get('auto_add_writers');

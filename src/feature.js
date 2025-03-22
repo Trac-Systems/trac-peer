@@ -19,7 +19,8 @@ class Feature {
                 type : this.key + '_feature',
                 key : key,
                 hash : hash,
-                value : value
+                value : value,
+                nonce : Math.random()
             }
         }});
     }

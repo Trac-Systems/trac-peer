@@ -1,5 +1,3 @@
-import BlindPairing from "blind-pairing";
-
 export function resolveNumberString(number, decimals){
 
     let splitted = number.split(".");
@@ -92,7 +90,7 @@ export async function setAutoAddWriters(input, peer){
     const splitted = input.split(' ');
     const value = splitted[1];
     if(value !== 'on' && value !== 'off') throw new Error('setAutoAddWriters: use on and off values.');
-    const msg = { type: 'setAutoAddWriters', key: value }
+    const msg = { type: 'setAutoAddWriters', key: value, nonce : Math.random() }
     const signature = {
         msg: msg
     };
@@ -110,7 +108,7 @@ export async function addAdmin(input, peer){
 export async function addWriter(input, peer){
     const splitted = input.split(' ');
     if(splitted[0] === '/add_indexer'){
-        const msg = { type: 'addIndexer', key: splitted[splitted.length - 1] }
+        const msg = { type: 'addIndexer', key: splitted[splitted.length - 1], nonce : Math.random() }
         const signature = {
             msg: msg
         };
@@ -118,7 +116,7 @@ export async function addWriter(input, peer){
         signature['hash'] = hash;
         peer.emit('announce', { op : 'append_writer', type: 'addIndexer', key: splitted[splitted.length - 1], value: signature });
     } else if(splitted[0] === '/add_writer') {
-        const msg = { type: 'addWriter', key: splitted[splitted.length - 1] }
+        const msg = { type: 'addWriter', key: splitted[splitted.length - 1], nonce : Math.random() }
         const signature = {
             msg: msg
         };

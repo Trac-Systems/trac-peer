@@ -19,6 +19,7 @@ class Contract {
 
     async put(key, value){
         if(typeof this.storage === "undefined" || this.storage === null) throw new Error('put(key,value): storage undefined');
+        if(key.startsWith('sh/') || key.startsWith('tx/') || key === 'admin') throw Error('put(key,value): ' + key + 'is reserved');
         return await this.storage.put(key, value);
     }
 }
