@@ -20,7 +20,7 @@ class Feature {
                 key : key,
                 hash : hash,
                 value : value,
-                nonce : Math.random()
+                nonce : Math.random() + '-' + Date.now()
             }
         }});
     }

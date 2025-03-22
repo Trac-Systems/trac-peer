@@ -30,7 +30,7 @@ class Protocol{
             this.base.localWriter !== null &&
             this.tokenized_input !== null)
         {
-            this.nonce = Date.now();
+            this.nonce = Math.random() + '-' + Date.now();
             const MSBwriter = writer;
             const content_hash = createHash('sha256').update(JSON.stringify(obj)).digest('hex');
             let tx = createHash('sha256').update(

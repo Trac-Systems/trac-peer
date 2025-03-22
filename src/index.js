@@ -92,7 +92,7 @@ export class Peer extends ReadyResource {
                             typeof op.value.dispatch.value !== "undefined" &&
                             null === await view.get('sh/'+op.value.dispatch.hash)){
                             const verified = _this.wallet.verify(op.value.dispatch.hash, JSON.stringify(op.value.dispatch.value), admin.value);
-                            if(verified){
+                            if(verified) {
                                 await _this.contract_instance.dispatch(op, node, view);
                             }
                             await view.put('sh/'+op.value.dispatch.hash, '');
