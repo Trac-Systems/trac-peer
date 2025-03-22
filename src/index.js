@@ -223,7 +223,7 @@ export class Peer extends ReadyResource {
                     delete this.protocol_instance.prepared_transactions_content[tx];
                     continue;
                 }
-                const msbsl = this.msb.base.view.core.signedLength;
+                const msbsl = this.msb.base.view.core.signedLength + 1;
                 const view_session = this.msb.base.view.checkout(msbsl);
                 const msb_tx = await view_session.get(tx);
                 await view_session.close();

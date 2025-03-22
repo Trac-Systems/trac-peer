@@ -12,7 +12,9 @@ class Contract {
 
     async get(key){
         if(typeof this.storage === "undefined" || this.storage === null) throw new Error('get(key): storage undefined');
-        return await this.storage.get(key);
+        const result = await this.storage.get(key);
+        if(null === result) return null;
+        return result.value;
     }
 
     async put(key, value){

@@ -75,7 +75,9 @@ class Protocol{
     }
 
     async get(key){
-        return await this.peer.base.view.get(key);
+        const result = await this.peer.base.view.get(key);
+        if(null === result) return null;
+        return result.value;
     }
 }
 
