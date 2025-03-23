@@ -26,7 +26,7 @@ class Protocol{
 
     async broadcastTransaction(writer, obj){
         if((this.peer.wallet.publicKey !== null &&
-            this.peer.wallet.secretKey !== null) &&
+                this.peer.wallet.secretKey !== null) &&
             this.base.localWriter !== null &&
             this.tokenized_input !== null)
         {
@@ -35,7 +35,7 @@ class Protocol{
             const content_hash = createHash('sha256').update(JSON.stringify(obj)).digest('hex');
             let tx = createHash('sha256').update(
                 MSBwriter + '-' +
-                this.peer.writerLocalKey + '-' +                
+                this.peer.writerLocalKey + '-' +
                 this.peer.wallet.publicKey + '-' +
                 content_hash + '-' +
                 this.nonce).digest('hex');
@@ -72,6 +72,13 @@ class Protocol{
 
     async printOptions(){
         throw new Error('Not implemented: Protocol.printOptions()');
+    }
+
+    async getSigned(key){
+        const view_session = this.peer.base.view.checkout(this.peer.base.view.core.signedLength);
+        const result = await view_session.get(key);
+        if(result === null) return null;
+        return result.value;
     }
 
     async get(key){

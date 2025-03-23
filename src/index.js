@@ -58,6 +58,8 @@ export class Peer extends ReadyResource {
         this.base = new Autobase(this.store, this.bootstrap, {
             valueEncoding: 'json',
 
+            ackInterval: 1000,
+
             open(store) {
                 _this.bee = new Hyperbee(store.get('view'), {
                     extension: false,
@@ -168,6 +170,7 @@ export class Peer extends ReadyResource {
         }
         if (this.replicate) await this._replicate();
         await this.txChannel();
+        this.updater();
         const auto_add_writers = await this.base.view.get('auto_add_writers');
         if(!this.base.writable && null !== auto_add_writers && auto_add_writers.value === 'on'){
             this.emit('announce', {
@@ -223,6 +226,13 @@ export class Peer extends ReadyResource {
         this.tx_swarm.join(channelBuffer, { server: true, client: true });
         await this.tx_swarm.flush();
         console.log('Joined MSB TX channel');
+    }
+
+    async updater(){
+        while(true){
+            await this.base.append(null);
+            await this.sleep(10_000);
+        }
     }
 
     async tx_observer(){
