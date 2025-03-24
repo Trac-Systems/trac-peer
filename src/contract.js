@@ -22,6 +22,12 @@ class Contract {
         if(key.startsWith('sh/') || key.startsWith('tx/') || key === 'admin') throw Error('put(key,value): ' + key + 'is reserved');
         return await this.storage.put(key, value);
     }
+
+    async emptyPromise(){
+        return new Promise((resolve) => {
+            resolve();
+        });
+    }
 }
 
 export default Contract;

@@ -1,5 +1,6 @@
 export function resolveNumberString(number, decimals){
-
+    number = number + '';
+    decimals = isNaN(decimals) ? 18 : parseInt(decimals);
     let splitted = number.split(".");
     if(splitted.length == 1 && decimals > 0){
         splitted[1] = '';
@@ -39,7 +40,8 @@ export function resolveNumberString(number, decimals){
 }
 
 export function formatNumberString(string, decimals) {
-
+    string = string + '';
+    decimals = isNaN(decimals) ? 18 : parseInt(decimals);
     let pos = string.length - decimals;
 
     if(decimals == 0) {
