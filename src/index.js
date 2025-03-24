@@ -72,10 +72,11 @@ export class Peer extends ReadyResource {
                 const batch = view.batch();
 
                 for (const node of nodes) {
-                    if(!node.value || !node.value.type) continue;
+                    if(node.value === undefined || node.value.type === undefined) continue;
                     const op = node.value;
                     if (op.type === 'tx') {
-                        if(!op.key || !op.value || !op.value.dispatch) continue;
+                        if(op.key === undefined || op.value === undefined || op.value.dispatch === undefined) continue;
+
                         const msb_view_session = _this.msb.base.view.checkout(op.value.msbsl);
                         const post_tx = await msb_view_session.get(op.key);
                         await msb_view_session.close();
@@ -90,7 +91,9 @@ export class Peer extends ReadyResource {
                             console.log(`${op.key} appended`);
                         }
                     } else if (op.type === 'feature') {
-                        if(!op.key || !op.value || !op.value.dispatch || !op.value.dispatch.hash || !op.value.dispatch.value) continue;
+                        if(op.key === undefined || op.value === undefined || op.value.dispatch === undefined ||
+                            op.value.dispatch.hash === undefined || op.value.dispatch.value === undefined) continue;
+
                         const admin = await batch.get('admin');
                         if(null !== admin &&
                             typeof op.value.dispatch === "object" &&
@@ -105,7 +108,9 @@ export class Peer extends ReadyResource {
                         }
                         console.log(`Feature ${op.key} appended`);
                     } else if (op.type === 'addIndexer') {
-                        if(!op.key || !op.value || !op.value.hash || !op.value.msg || !op.value.msg.key || !op.value.msg.type) continue;
+                        if(op.key === undefined || op.value === undefined || op.value.hash === undefined ||
+                            op.value.msg === undefined || op.value.msg.key === undefined || op.value.msg.type === undefined) continue;
+
                         const admin = await batch.get('admin');
                         if(null !== admin &&
                             op.value.msg.key === op.key &&
@@ -120,7 +125,9 @@ export class Peer extends ReadyResource {
                             await batch.put('sh/'+op.value.hash, '');
                         }
                     } else if (op.type === 'addWriter') {
-                        if(!op.key || !op.value || !op.value.hash || !op.value.msg || !op.value.msg.key || !op.value.msg.type) continue;
+                        if(op.key === undefined || op.value === undefined || op.value.hash === undefined ||
+                            op.value.msg === undefined || op.value.msg.key === undefined || op.value.msg.type === undefined) continue;
+
                         const admin = await batch.get('admin');
                         if(null !== admin &&
                             op.value.msg.key === op.key &&
@@ -135,7 +142,9 @@ export class Peer extends ReadyResource {
                             await batch.put('sh/'+op.value.hash, '');
                         }
                     } else if (op.type === 'setAutoAddWriters') {
-                        if(!op.key || !op.value || !op.value.hash || !op.value.msg || !op.value.msg.key || !op.value.msg.type) continue;
+                        if(op.key === undefined || op.value === undefined || op.value.hash === undefined ||
+                            op.value.msg === undefined || op.value.msg.key === undefined || op.value.msg.type === undefined) continue;
+
                         const admin = await batch.get('admin');
                         if(null !== admin && op.value.msg.key === op.key &&
                             op.value.msg.type === 'setAutoAddWriters' &&
@@ -149,7 +158,7 @@ export class Peer extends ReadyResource {
                             await batch.put('sh/'+op.value.hash, '');
                         }
                     } else if (op.type === 'autoAddWriter') {
-                        if(!op.key) continue;
+                        if(op.key === undefined) continue;
                         const auto_add_writers = await batch.get('auto_add_writers');
                         if(null !== auto_add_writers && auto_add_writers.value === 'on'){
                             const writerKey = b4a.from(op.key, 'hex');
@@ -157,7 +166,7 @@ export class Peer extends ReadyResource {
                         }
                         console.log(`Writer auto added: ${op.key}`);
                     } else if (op.type === 'addAdmin') {
-                        if(!op.key) continue;
+                        if(op.key === undefined) continue;
                         const bootstrap = Buffer(node.from.key).toString('hex')
                         if(null === await batch.get('admin') && bootstrap === _this.bootstrap){
                             await batch.put('admin', op.key);
