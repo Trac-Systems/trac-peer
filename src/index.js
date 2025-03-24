@@ -69,6 +69,8 @@ export class Peer extends ReadyResource {
             apply: async (nodes, view, base) => {
                 if(this.contract_instance === null) await this.initContract();
 
+                const batch = view.batch();
+
                 for (const node of nodes) {
                     if(!node.value || !node.value.type) continue;
                     const op = node.value;
@@ -78,77 +80,77 @@ export class Peer extends ReadyResource {
                         const post_tx = await msb_view_session.get(op.key);
                         await msb_view_session.close();
                         if (null !== post_tx &&
-                            null === await view.get('tx/'+op.key) &&
+                            null === await batch.get('tx/'+op.key) &&
                             post_tx.value &&
                             post_tx.value.tx &&
                             op.key === post_tx.value.tx &&
                             post_tx.value.ch === createHash('sha256').update(JSON.stringify(op.value.dispatch)).digest('hex')) {
-                            await view.put('tx/'+op.key, op.value);
-                            await _this.contract_instance.dispatch(op, node, view);
+                            await batch.put('tx/'+op.key, op.value);
+                            await _this.contract_instance.dispatch(op, node, batch);
                             console.log(`${op.key} appended`);
                         }
                     } else if (op.type === 'feature') {
                         if(!op.key || !op.value || !op.value.dispatch || !op.value.dispatch.hash || !op.value.dispatch.value) continue;
-                        const admin = await view.get('admin');
+                        const admin = await batch.get('admin');
                         if(null !== admin &&
                             typeof op.value.dispatch === "object" &&
                             typeof op.value.dispatch.hash === "string" &&
                             typeof op.value.dispatch.value !== "undefined" &&
-                            null === await view.get('sh/'+op.value.dispatch.hash)){
+                            null === await batch.get('sh/'+op.value.dispatch.hash)){
                             const verified = _this.wallet.verify(op.value.dispatch.hash, JSON.stringify(op.value.dispatch.value), admin.value);
                             if(verified) {
-                                await _this.contract_instance.dispatch(op, node, view);
+                                await _this.contract_instance.dispatch(op, node, batch);
                             }
-                            await view.put('sh/'+op.value.dispatch.hash, '');
+                            await batch.put('sh/'+op.value.dispatch.hash, '');
                         }
                         console.log(`Feature ${op.key} appended`);
                     } else if (op.type === 'addIndexer') {
                         if(!op.key || !op.value || !op.value.hash || !op.value.msg || !op.value.msg.key || !op.value.msg.type) continue;
-                        const admin = await view.get('admin');
+                        const admin = await batch.get('admin');
                         if(null !== admin &&
                             op.value.msg.key === op.key &&
                             op.value.msg.type === 'addIndexer' &&
-                            null === await view.get('sh/'+op.value.hash)) {
+                            null === await batch.get('sh/'+op.value.hash)) {
                             const verified = _this.wallet.verify(op.value.hash, JSON.stringify(op.value.msg), admin.value);
                             if(verified){
                                 const writerKey = b4a.from(op.key, 'hex');
                                 await base.addWriter(writerKey);
                                 console.log(`Indexer added: ${op.key}`);
                             }
-                            await view.put('sh/'+op.value.hash, '');
+                            await batch.put('sh/'+op.value.hash, '');
                         }
                     } else if (op.type === 'addWriter') {
                         if(!op.key || !op.value || !op.value.hash || !op.value.msg || !op.value.msg.key || !op.value.msg.type) continue;
-                        const admin = await view.get('admin');
+                        const admin = await batch.get('admin');
                         if(null !== admin &&
                             op.value.msg.key === op.key &&
                             op.value.msg.type === 'addWriter' &&
-                            null === await view.get('sh/'+op.value.hash)) {
+                            null === await batch.get('sh/'+op.value.hash)) {
                             const verified = _this.wallet.verify(op.value.hash, JSON.stringify(op.value.msg), admin.value);
                             if(verified){
                                 const writerKey = b4a.from(op.key, 'hex');
                                 await base.addWriter(writerKey, { isIndexer : false });
                                 console.log(`Writer added: ${op.key}`);
                             }
-                            await view.put('sh/'+op.value.hash, '');
+                            await batch.put('sh/'+op.value.hash, '');
                         }
                     } else if (op.type === 'setAutoAddWriters') {
                         if(!op.key || !op.value || !op.value.hash || !op.value.msg || !op.value.msg.key || !op.value.msg.type) continue;
-                        const admin = await view.get('admin');
+                        const admin = await batch.get('admin');
                         if(null !== admin && op.value.msg.key === op.key &&
                             op.value.msg.type === 'setAutoAddWriters' &&
                             (op.key === 'on' || op.key === 'off') &&
-                            null === await view.get('sh/'+op.value.hash)) {
+                            null === await batch.get('sh/'+op.value.hash)) {
                             const verified = _this.wallet.verify(op.value.hash, JSON.stringify(op.value.msg), admin.value);
                             if(verified){
-                                await view.put('auto_add_writers', op.key);
+                                await batch.put('auto_add_writers', op.key);
                                 console.log(`Set auto_add_writers: ${op.key}`);
                             }
-                            await view.put('sh/'+op.value.hash, '');
+                            await batch.put('sh/'+op.value.hash, '');
                         }
                     } else if (op.type === 'autoAddWriter') {
                         if(!op.key) continue;
-                        const auto_add_writers = await view.get('auto_add_writers');
+                        const auto_add_writers = await batch.get('auto_add_writers');
                         if(null !== auto_add_writers && auto_add_writers.value === 'on'){
                             const writerKey = b4a.from(op.key, 'hex');
                             await base.addWriter(writerKey, { isIndexer : false });
@@ -157,12 +159,15 @@ export class Peer extends ReadyResource {
                     } else if (op.type === 'addAdmin') {
                         if(!op.key) continue;
                         const bootstrap = Buffer(node.from.key).toString('hex')
-                        if(null === await view.get('admin') && bootstrap === _this.bootstrap){
-                            await view.put('admin', op.key);
+                        if(null === await batch.get('admin') && bootstrap === _this.bootstrap){
+                            await batch.put('admin', op.key);
                             console.log(`Admin added: ${op.key}`);
                         }
                     }
                 }
+
+                await batch.flush();
+                await batch.close();
             }
         })
         this.base.on('warning', (e) => console.log(e))

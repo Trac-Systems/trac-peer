@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.0.30",
+  "version": "0.0.31",
   "type": "module",
   "dependencies": {
     "autobase": "7.0.45",
