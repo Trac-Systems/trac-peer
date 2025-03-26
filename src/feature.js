@@ -20,14 +20,16 @@ class Feature {
     }
 
     async append(key, value){
-        const hash = this.peer.wallet.sign(JSON.stringify(value));
+        const nonce = Math.random() + '-' + Date.now();
+        const hash = this.peer.wallet.sign(JSON.stringify(value) + nonce);
         await this.peer.base.append({ type: 'feature', key: this.key + '_' + key, value : {
                 dispatch : {
                     type : this.key + '_feature',
                     key : key,
                     hash : hash,
                     value : value,
-                    nonce : Math.random() + '-' + Date.now()
+                    nonce : nonce,
+                    address : this.peer.wallet.publicKey
                 }
             }});
     }

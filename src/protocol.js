@@ -40,7 +40,7 @@ class Protocol{
                 content_hash + '-' +
                 this.nonce).digest('hex');
             tx = createHash('sha256').update(tx).digest('hex');
-            const signature = this.peer.wallet.sign(tx);
+            const signature = this.peer.wallet.sign(tx + this.nonce);
             this.peer.emit('tx', {
                 op: 'pre-tx',
                 tx: tx,

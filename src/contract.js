@@ -19,7 +19,9 @@ class Contract {
 
     async put(key, value){
         if(typeof this.storage === "undefined" || this.storage === null) throw new Error('put(key,value): storage undefined');
-        if(key.startsWith('sh/') || key.startsWith('tx/') || key === 'admin') throw Error('put(key,value): ' + key + 'is reserved');
+        if(key.startsWith('sh/') || key.startsWith('tx/') || key === 'msgl' || key.startsWith('kcin/') || key.startsWith('delm/') ||
+            key.startsWith('msg/') || key === 'admin' || key === 'auto_add_writers' || key.startsWith('nick/') || key.startsWith('mod/') ||
+            key === 'chat_status' || key.startsWith('mtd/') || key === 'delml') throw Error('put(key,value): ' + key + 'is reserved');
         return await this.storage.put(key, value);
     }
 
