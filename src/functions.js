@@ -75,7 +75,7 @@ export function restoreManifest(parsedManifest) {
 
     if (Array.isArray(parsedManifest.signers)) {
         parsedManifest.signers = parsedManifest.signers.map(signer => {
-            if(signer.namespace && signer.namespace.data &&signer.publicKey && signer.publicKey.data){ 
+            if(signer.namespace && signer.namespace.data &&signer.publicKey && signer.publicKey.data){
                 return {
                     ...signer,
                     namespace: Buffer.from(signer.namespace.data),
@@ -101,6 +101,34 @@ export function jsonStringify(value){
         console.log(e);
     }
     return null;
+}
+
+export async function setWhitelistStatus(input, peer){
+    const splitted = yargs(input).parse();
+    const value = splitted.user;
+    const status = parseInt(splitted.status) === 1;
+    const nonce = Math.random() + '-' + Date.now();
+    const signature = { dispatch : {
+            type : 'setWhitelistStatus',
+            user: value,
+            status : status,
+            address : peer.wallet.publicKey
+        }};
+    const hash = peer.wallet.sign(JSON.stringify(signature) + nonce);
+    await peer.base.append({type: 'setWhitelistStatus', value: signature, hash : hash, nonce: nonce });
+}
+
+export async function enableWhitelist(input, peer){
+    const splitted = yargs(input).parse();
+    const value = splitted.enabled === 1;
+    const nonce = Math.random() + '-' + Date.now();
+    const signature = { dispatch : {
+            type : 'enableWhitelist',
+            enabled: value,
+            address : peer.wallet.publicKey
+        }};
+    const hash = peer.wallet.sign(JSON.stringify(signature) + nonce);
+    await peer.base.append({type: 'enableWhitelist', value: signature, hash : hash, nonce: nonce });
 }
 
 export async function deleteMessage(input, peer){
@@ -169,19 +197,19 @@ export async function postMessage(input, peer){
     const value = splitted.message;
     const nonce = Math.random() + '-' + Date.now();
     const signature = { dispatch : {
-        type : 'msg',
-        msg: value,
-        address : peer.wallet.publicKey,
-        attachments : [],
-        deleted_by : null
-    }};
+            type : 'msg',
+            msg: value,
+            address : peer.wallet.publicKey,
+            attachments : [],
+            deleted_by : null
+        }};
     const hash = peer.wallet.sign(JSON.stringify(signature) + nonce);
     await peer.base.append({type: 'msg', value: signature, hash : hash, nonce: nonce });
 }
 
 export async function setChatStatus(input, peer){
-    const splitted = input.split(' ');
-    const value = splitted[1];
+    const splitted = yargs(input).parse();
+    const value = splitted.enabled === 1 ? 'on' : 'off';
     const nonce = Math.random() + '-' + Date.now();
     if(value !== 'on' && value !== 'off') throw new Error('setChatStatus: use on and off values.');
     const msg = { type: 'setChatStatus', key: value }
@@ -193,8 +221,8 @@ export async function setChatStatus(input, peer){
 }
 
 export async function setAutoAddWriters(input, peer){
-    const splitted = input.split(' ');
-    const value = splitted[1];
+    const splitted = yargs(input).parse();
+    const value = splitted.enabled === 1 ? 'on' : 'off';
     const nonce = Math.random() + '-' + Date.now();
     if(value !== 'on' && value !== 'off') throw new Error('setAutoAddWriters: use on and off values.');
     const msg = { type: 'setAutoAddWriters', key: value }
@@ -206,27 +234,28 @@ export async function setAutoAddWriters(input, peer){
 }
 
 export async function addAdmin(input, peer){
-    const splitted = input.split(' ');
-    const publicKey = splitted[1];
+    const splitted = yargs(input).parse();
+    const publicKey = splitted.address;
     await peer.base.append({ type: 'addAdmin', key: publicKey });
 }
 
 export async function addWriter(input, peer){
     const splitted = input.split(' ');
+    const parsed = yargs(input).parse();
     const nonce = Math.random() + '-' + Date.now();
     if(splitted[0] === '/add_indexer'){
-        const msg = { type: 'addIndexer', key: splitted[splitted.length - 1] }
+        const msg = { type: 'addIndexer', key: parsed.key }
         const signature = {
             msg: msg
         };
         const hash = peer.wallet.sign(JSON.stringify(msg) + nonce);
-        peer.emit('announce', { op : 'append_writer', type: 'addIndexer', key: splitted[splitted.length - 1], value: signature, hash: hash, nonce: nonce });
+        peer.emit('announce', { op : 'append_writer', type: 'addIndexer', key: parsed.key, value: signature, hash: hash, nonce: nonce });
     } else if(splitted[0] === '/add_writer') {
-        const msg = { type: 'addWriter', key: splitted[splitted.length - 1] }
+        const msg = { type: 'addWriter', key: parsed.key }
         const signature = {
             msg: msg
         };
         const hash = peer.wallet.sign(JSON.stringify(msg) + nonce);
-        peer.emit('announce', { op : 'append_writer', type: 'addWriter', key: splitted[splitted.length - 1], value: signature, hash: hash, nonce : nonce });
+        peer.emit('announce', { op : 'append_writer', type: 'addWriter', key: parsed.key, value: signature, hash: hash, nonce : nonce });
     }
 }

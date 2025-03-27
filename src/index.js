@@ -10,7 +10,8 @@ import {createHash} from "node:crypto";
 import w from 'protomux-wakeup';
 const wakeup = new w();
 import {addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
-    postMessage, jsonStringify, visibleLength, setNick, muteStatus} from "./functions.js";
+    enableWhitelist, postMessage, jsonStringify, visibleLength, setNick,
+    muteStatus, setWhitelistStatus} from "./functions.js";
 export {default as Protocol} from "./protocol.js";
 export {default as Contract} from "./contract.js";
 export {default as Feature} from "./feature.js";
@@ -100,10 +101,22 @@ export class Peer extends ReadyResource {
                             op.value.dispatch.address === undefined || typeof op.value.dispatch.address !== "string" ||
                             op.nonce === undefined || op.hash === undefined) continue;
 
+                        const admin = await batch.get('admin');
                         let muted = false;
                         const mute_status = await batch.get('mtd/'+op.value.dispatch.address);
                         if(null !== mute_status){
                             muted = mute_status.value;
+                        }
+                        const whitelist_status = await batch.get('wlst');
+                        if(null !== whitelist_status && true === whitelist_status.value) {
+                            muted = true;
+                            const whitelisted = await batch.get('wl/'+op.value.dispatch.address);
+                            if(null !== whitelisted && true === whitelisted.value) {
+                                muted = false;
+                            }
+                        }
+                        if(null !== admin && admin.value === op.value.dispatch.address) {
+                            muted = false;
                         }
                         const str_value = jsonStringify(op.value);
                         const chat_status = await batch.get('chat_status');
@@ -357,6 +370,41 @@ export class Peer extends ReadyResource {
                             }
                         }
                         await batch.put('sh/'+op.hash, '');
+                    } else if(op.type === 'setWhitelistStatus') {
+                        if(op.value === undefined || op.value.dispatch === undefined || op.value.dispatch.user === undefined ||
+                            typeof op.value.dispatch.user !== "string" || op.value.dispatch.type === undefined ||
+                            op.value.dispatch.address === undefined || typeof op.value.dispatch.address !== "string" ||
+                            op.nonce === undefined || op.value.dispatch.status === undefined || typeof op.value.dispatch.status !== 'boolean' ||
+                            op.hash === undefined) continue;
+
+                        const admin = await batch.get('admin');
+                        const str_value = jsonStringify(op.value);
+                        if(null !== admin && null !== str_value &&
+                            null === await batch.get('sh/'+op.hash)){
+                            const verified = _this.wallet.verify(op.hash, str_value + op.nonce, admin.value);
+                            if(verified) {
+                                await batch.put('wl/'+op.value.dispatch.user, op.value.dispatch.status);
+                                console.log(`Changed whitelist status ${op.value.dispatch.user} to ${op.value.dispatch.status}`);
+                            }
+                        }
+                        await batch.put('sh/'+op.hash, '');
+                    } else if(op.type === 'enableWhitelist') {
+                        if(op.value === undefined || op.value.dispatch === undefined || op.value.dispatch.type === undefined ||
+                            op.value.dispatch.address === undefined || typeof op.value.dispatch.address !== "string" ||
+                            op.nonce === undefined || op.value.dispatch.enabled === undefined || typeof op.value.dispatch.enabled !== 'boolean' ||
+                            op.hash === undefined) continue;
+
+                        const admin = await batch.get('admin');
+                        const str_value = jsonStringify(op.value);
+                        if(null !== admin && null !== str_value &&
+                            null === await batch.get('sh/'+op.hash)){
+                            const verified = _this.wallet.verify(op.hash, str_value + op.nonce, admin.value);
+                            if(verified) {
+                                await batch.put('wlst', op.value.dispatch.enabled);
+                                console.log(`Changed whitelist enabled ${op.value.dispatch.enabled}`);
+                            }
+                        }
+                        await batch.put('sh/'+op.hash, '');
                     }
                 }
 
@@ -563,19 +611,28 @@ export class Peer extends ReadyResource {
         });
 
         console.log('Node started. Available commands:');
-        console.log('- /add_admin: Only once on bootstrap node! Enter a wallet public key to assign admin rights to it.');
-        console.log('- /add_indexer: Only admin. Enter a peer writer key as argument to get included as indexer for this network.');
-        console.log('- /add_writer: Only admin. Enter a peer writer key as argument to get included as writer.');
-        console.log('- /set_auto_add_writers: Only admin. Use "on" or "off" as 2nd parameter to allow/disallow peers automatically being added as writers.');
-        console.log('- /set_chat_status: Only admin. Use "on" or "off" as 2nd parameter to enable/disable the built-in chat system.');
-        console.log('- /post: Post a message like \'/post --message "Hello"\'. Chat must be enabled.');
-        console.log('- /set_nick: Change your nickname like this \'/set_nick --nick "Peter"\'. Chat must be enabled. Can be edited by admin and mods using the optional --user <address> flag..');
-        console.log('- /mute_status: Only admin and mods. Mute or unmute a user by their address like this \'/mute_status --user "<address>" --muted 1\'.');
-        console.log('- /set_mod: Only admin. Set a user as mod like this \'/set_mod --user "<address>" --mod 1\'.');
-        console.log('- /delete_message: Delete a messages like \'/delete_message --id 1\'. Chat must be enabled.');
-        console.log('- /dag: check system properties such as writer key, DAG, etc.');
-        console.log('- /get_keys: prints your public and private keys. Be careful and never share your private key!');
-        console.log('- /exit: Exit the program');
+        console.log(' ');
+        console.log('- Setup Commands:');
+        console.log('- /add_admin | Works only once and only on bootstrap node! Enter a wallet address to assign admin rights: \'/add_admin --address "<address>"\'.');
+        console.log('- /add_indexer | Only admin. Enter a peer writer key to get included as indexer for this network: \'/add_indexer --key "<key>"\'.');
+        console.log('- /add_writer | Only admin. Enter a peer writer key to get included as writer for this network: \'/add_writer --key "<key>"\'.');
+        console.log('- /set_auto_add_writers | Only admin. Allow any peer to join as writer automatically: \'/set_auto_add_writers --enabled 1\'');
+        console.log(' ');
+        console.log('- Chat Commands:');
+        console.log('- /set_chat_status | Only admin. Enable/disable the built-in chat system: \'/set_chat_status --enabled 1\'. The chat system is disabled by default.');
+        console.log('- /post | Post a message: \'/post --message "Hello"\'. Chat must be enabled.');
+        console.log('- /set_nick | Change your nickname like this \'/set_nick --nick "Peter"\'. Chat must be enabled. Can be edited by admin and mods using the optional --user <address> flag.');
+        console.log('- /mute_status | Only admin and mods. Mute or unmute a user by their address: \'/mute_status --user "<address>" --muted 1\'.');
+        console.log('- /set_mod | Only admin. Set a user as mod: \'/set_mod --user "<address>" --mod 1\'.');
+        console.log('- /delete_message | Delete a message: \'/delete_message --id 1\'. Chat must be enabled.');
+        console.log('- /enable_whitelist | Only admin. Enable/disable chat whitelists: \'/enable_whitelist --enabled 1\'.');
+        console.log('- /set_whitelist_status | Only admin. Add/remove users to/from the chat whitelist: \'/set_whitelist_status --user "<address>" --status 1\'.');
+        console.log(' ');
+        console.log('- System Commands:');
+        console.log('- /dag | check system properties such as writer key, DAG, etc.');
+        console.log('- /get_keys | prints your public and private keys. Be careful and never share your private key!');
+        console.log('- /exit | Exit the program');
+
         this.protocol_instance.printOptions();
 
         rl.on('line', async (input) => {
@@ -593,26 +650,34 @@ export class Peer extends ReadyResource {
                     console.log("Secret Key: ", this.wallet.secretKey);
                     break;
                 default:
-                    if (input.startsWith('/add_indexer') || input.startsWith('/add_writer')) {
-                        await addWriter(input, this);
-                    } else if (input.startsWith('/add_admin')) {
-                        await addAdmin(input, this);
-                    } else if (input.startsWith('/set_auto_add_writers')) {
-                        await setAutoAddWriters(input, this);
-                    } else if (input.startsWith('/set_chat_status')) {
-                        await setChatStatus(input, this);
-                    } else if (input.startsWith('/post')) {
-                        await postMessage(input, this);
-                    } else if (input.startsWith('/set_nick')) {
-                        await setNick(input, this);
-                    } else if (input.startsWith('/mute_status')) {
-                        await muteStatus(input, this);
-                    } else if (input.startsWith('/set_mod')) {
-                        await setMod(input, this);
-                    } else if (input.startsWith('/delete_message')) {
-                        await deleteMessage(input, this);
-                    } else {
-                        this.protocol_instance.execute(input);
+                    try {
+                        if (input.startsWith('/add_indexer') || input.startsWith('/add_writer')) {
+                            await addWriter(input, this);
+                        } else if (input.startsWith('/add_admin')) {
+                            await addAdmin(input, this);
+                        } else if (input.startsWith('/set_auto_add_writers')) {
+                            await setAutoAddWriters(input, this);
+                        } else if (input.startsWith('/set_chat_status')) {
+                            await setChatStatus(input, this);
+                        } else if (input.startsWith('/post')) {
+                            await postMessage(input, this);
+                        } else if (input.startsWith('/set_nick')) {
+                            await setNick(input, this);
+                        } else if (input.startsWith('/mute_status')) {
+                            await muteStatus(input, this);
+                        } else if (input.startsWith('/set_mod')) {
+                            await setMod(input, this);
+                        } else if (input.startsWith('/delete_message')) {
+                            await deleteMessage(input, this);
+                        } else if (input.startsWith('/enable_whitelist')) {
+                            await enableWhitelist(input, this);
+                        } else if (input.startsWith('/set_whitelist_status')) {
+                            await setWhitelistStatus(input, this);
+                        } else {
+                            this.protocol_instance.execute(input);
+                        }
+                    } catch(e) {
+                        console.log('Command failed:', e.message);
                     }
             }
             rl.prompt();
