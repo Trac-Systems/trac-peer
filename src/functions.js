@@ -105,7 +105,7 @@ export function jsonStringify(value){
 
 export async function setWhitelistStatus(input, peer){
     const splitted = yargs(input).parse();
-    const value = splitted.user;
+    const value = ''+splitted.user;
     const status = parseInt(splitted.status) === 1;
     const nonce = Math.random() + '-' + Date.now();
     const signature = { dispatch : {
@@ -133,7 +133,7 @@ export async function enableWhitelist(input, peer){
 
 export async function deleteMessage(input, peer){
     const splitted = yargs(input).parse();
-    const value = splitted.id;
+    const value = parseInt(splitted.id);
     const nonce = Math.random() + '-' + Date.now();
     const signature = { dispatch : {
             type : 'deleteMessage',
@@ -144,9 +144,22 @@ export async function deleteMessage(input, peer){
     await peer.base.append({type: 'deleteMessage', value: signature, hash : hash, nonce: nonce });
 }
 
+export async function updateAdmin(input, peer){
+    const splitted = yargs(input).parse();
+    const value = ''+splitted.address === 'null' ? null : ''+splitted.address;
+    const nonce = Math.random() + '-' + Date.now();
+    const signature = { dispatch : {
+            type : 'updateAdmin',
+            admin: value,
+            address : peer.wallet.publicKey
+        }};
+    const hash = peer.wallet.sign(JSON.stringify(signature) + nonce);
+    await peer.base.append({type: 'updateAdmin', value: signature, hash : hash, nonce: nonce });
+}
+
 export async function setMod(input, peer){
     const splitted = yargs(input).parse();
-    const value = splitted.user;
+    const value = ''+splitted.user;
     const mod = parseInt(splitted.mod) === 1;
     const nonce = Math.random() + '-' + Date.now();
     const signature = { dispatch : {
@@ -161,7 +174,7 @@ export async function setMod(input, peer){
 
 export async function muteStatus(input, peer){
     const splitted = yargs(input).parse();
-    const value = splitted.user;
+    const value = ''+splitted.user;
     const muted = parseInt(splitted.muted) === 1;
     const nonce = Math.random() + '-' + Date.now();
     const signature = { dispatch : {
@@ -176,10 +189,10 @@ export async function muteStatus(input, peer){
 
 export async function setNick(input, peer){
     const splitted = yargs(input).parse();
-    const value = splitted.nick;
+    const value = ''+splitted.nick;
     let user = null;
     if(splitted.user !== undefined){
-        user = splitted.user;
+        user = ''+splitted.user;
     }
     const nonce = Math.random() + '-' + Date.now();
     const signature = { dispatch : {
@@ -195,6 +208,7 @@ export async function setNick(input, peer){
 export async function postMessage(input, peer){
     const splitted = yargs(input).parse();
     if(typeof splitted.message === "boolean" || splitted.message === undefined) throw new Error('Empty message not allowed');
+    const reply_to = splitted.reply_to !== undefined ? parseInt(splitted.reply_to) : null;
     const value = '' + splitted.message;
     const nonce = Math.random() + '-' + Date.now();
     const signature = { dispatch : {
@@ -202,7 +216,8 @@ export async function postMessage(input, peer){
             msg: value,
             address : peer.wallet.publicKey,
             attachments : [],
-            deleted_by : null
+            deleted_by : null,
+            reply_to : reply_to
         }};
     const hash = peer.wallet.sign(JSON.stringify(signature) + nonce);
     await peer.base.append({type: 'msg', value: signature, hash : hash, nonce: nonce });
@@ -210,7 +225,7 @@ export async function postMessage(input, peer){
 
 export async function setChatStatus(input, peer){
     const splitted = yargs(input).parse();
-    const value = splitted.enabled === 1 ? 'on' : 'off';
+    const value = parseInt(splitted.enabled) === 1 ? 'on' : 'off';
     const nonce = Math.random() + '-' + Date.now();
     if(value !== 'on' && value !== 'off') throw new Error('setChatStatus: use on and off values.');
     const msg = { type: 'setChatStatus', key: value }
@@ -223,7 +238,7 @@ export async function setChatStatus(input, peer){
 
 export async function setAutoAddWriters(input, peer){
     const splitted = yargs(input).parse();
-    const value = splitted.enabled === 1 ? 'on' : 'off';
+    const value = parseInt(splitted.enabled) === 1 ? 'on' : 'off';
     const nonce = Math.random() + '-' + Date.now();
     if(value !== 'on' && value !== 'off') throw new Error('setAutoAddWriters: use on and off values.');
     const msg = { type: 'setAutoAddWriters', key: value }
@@ -236,7 +251,7 @@ export async function setAutoAddWriters(input, peer){
 
 export async function addAdmin(input, peer){
     const splitted = yargs(input).parse();
-    const publicKey = splitted.address;
+    const publicKey = ''+splitted.address;
     await peer.base.append({ type: 'addAdmin', key: publicKey });
 }
 
@@ -245,18 +260,18 @@ export async function addWriter(input, peer){
     const parsed = yargs(input).parse();
     const nonce = Math.random() + '-' + Date.now();
     if(splitted[0] === '/add_indexer'){
-        const msg = { type: 'addIndexer', key: parsed.key }
+        const msg = { type: 'addIndexer', key: ''+parsed.key }
         const signature = {
             msg: msg
         };
         const hash = peer.wallet.sign(JSON.stringify(msg) + nonce);
         peer.emit('announce', { op : 'append_writer', type: 'addIndexer', key: parsed.key, value: signature, hash: hash, nonce: nonce });
     } else if(splitted[0] === '/add_writer') {
-        const msg = { type: 'addWriter', key: parsed.key }
+        const msg = { type: 'addWriter', key: ''+parsed.key }
         const signature = {
             msg: msg
         };
         const hash = peer.wallet.sign(JSON.stringify(msg) + nonce);
-        peer.emit('announce', { op : 'append_writer', type: 'addWriter', key: parsed.key, value: signature, hash: hash, nonce : nonce });
+        peer.emit('announce', { op : 'append_writer', type: 'addWriter', key: ''+parsed.key, value: signature, hash: hash, nonce : nonce });
     }
 }

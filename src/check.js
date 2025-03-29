@@ -1,16 +1,78 @@
 import Validator from 'fastest-validator';
+import WAValidator from 'multicoin-address-validator';
 
 class Check {
 
     constructor() {
-        this.validator = new Validator();
+        this.validator = new Validator({
+            useNewCustomCheckerFunction: true,
+            messages: {
+                bufferedHex: "The '{field}' field must a hex! Actual: {actual}",
+                bigint: "The '{field}' field must a biginteger or a biginteger string! Actual: {actual}",
+                bitcoin: "The '{field}' field must a valid Bitcoin address! Actual: {actual}"
+            },
+            customFunctions : {
+                bitcoinAddress : (value, errors)=>{
+                    let result = false
+                    try{
+                        result = WAValidator.validate(value, 'Bitcoin', { networkType : 'both' });
+                    } catch (e) {}
+                    if (false === result)
+                        return false;
+                    return true;
+                }
+            }
+        });
+
+        this.validator.add("bigint", function({ schema, messages }, path, context) {
+            return {
+                source: `
+                    let result = false
+                    try{ 
+                        BigInt(value);
+                     } catch (e) {}
+                    if (false === result)
+                        ${this.makeError({ type: "bigint",  actual: "value", messages })}
+                    return value
+                `
+            };
+        });
+
+        this.validator.add("is_hex", function({ schema, messages }, path, context) {
+            return {
+                source: `
+                    let buf = null
+                    let result = false
+                    try{ 
+                        buf = Buffer.from(value, 'hex')
+                        result = value === buf.toString('hex')
+                     } catch (e) {}
+                    if (false === result)
+                        ${this.makeError({ type: "bufferedHex",  actual: "value", messages })}
+                    return value
+                `
+            };
+        });
+
+        this.validator.add("bitcoin_address", function({ schema, messages }, path, context) {
+            return {
+                source: `
+                    const result = context.customFunctions.bitcoinAddress(value, errors);
+                    if(false === result) ${this.makeError({ type: "bitcoin",  actual: "value", messages })}
+                    return value;
+                `
+            };
+        });
+
         this._node = this.compileNode();
         this._tx = this.compileTx();
         this._post_tx = this.compilePostTx();
         this._msg = this.compileMsg();
         this._feature = this.compileFeature();
         this._add_writer = this.compileAddWriter();
+        this._auto_add_writers = this.compileSetAutoAddWriters();
         this._key = this.compileKey();
+        this._update_admin = this.compileUpdateAdmin();
         this._nick = this.compileNick();
         this._mute = this.compileMute();
         this._delete_message = this.compileDeleteMessage();
@@ -22,14 +84,14 @@ class Check {
     compileEnableWhitelist (){
         const schema = {
             nonce: { type : "string", min : 1 },
-            hash: { type : "string", hex : null },
+            hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
                     enabled : { type : "boolean" },
                     type : { type : "string", min : 1 },
-                    address : { type : "string", hex : null }
+                    address : { type : "is_hex" }
                 }
             }
         };
@@ -44,15 +106,15 @@ class Check {
     compileWhitelistStatus (){
         const schema = {
             nonce: { type : "string", min : 1 },
-            hash: { type : "string", hex : null },
+            hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
                     status : { type : "boolean" },
                     type : { type : "string", min : 1 },
-                    address : { type : "string", hex : null },
-                    user : { type : "string", hex : null }
+                    address : { type : "is_hex" },
+                    user : { type : "is_hex" }
                 }
             }
         };
@@ -67,15 +129,16 @@ class Check {
     compileMod (){
         const schema = {
             nonce: { type : "string", min : 1 },
-            hash: { type : "string", hex : null },
+            hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
                     mod : { type : "boolean" },
                     type : { type : "string", min : 1 },
-                    address : { type : "string", hex : null },
-                    user : { type : "string", hex : null }
+                    address : { type : "is_hex" },
+                    user : { type : "is_hex" },
+                    deleted_by : { type : "is_hex" }
                 }
             }
         };
@@ -90,15 +153,15 @@ class Check {
     compileDeleteMessage (){
         const schema = {
             nonce: { type : "string", min : 1 },
-            hash: { type : "string", hex : null },
+            hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
                     id : { type : "number", integer: true, min : 0 },
                     type : { type : "string", min : 1 },
-                    address : { type : "string", hex : null },
-                    deleted_by : { type : "string", hex : null, nullable : true }
+                    address : { type : "is_hex" },
+                    deleted_by : { type : "is_hex", nullable : true }
                 }
             }
         };
@@ -113,15 +176,15 @@ class Check {
     compileMute (){
         const schema = {
             nonce: { type : "string", min : 1 },
-            hash: { type : "string", hex : null },
+            hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
                     muted : { type : "boolean" },
                     type : { type : "string", min : 1 },
-                    address : { type : "string", hex : null },
-                    user : { type : "string", hex : null }
+                    address : { type : "is_hex" },
+                    user : { type : "is_hex" }
                 }
             }
         };
@@ -136,15 +199,15 @@ class Check {
     compileNick (){
         const schema = {
             nonce: { type : "string", min : 1 },
-            hash: { type : "string", hex : null },
+            hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
                     nick : { type : "string", min : 1 },
                     type : { type : "string", min : 1 },
-                    address : { type : "string", hex : null },
-                    initiator : { type : "string", hex : null }
+                    address : { type : "is_hex" },
+                    initiator : { type : "is_hex" }
                 }
             }
         };
@@ -158,7 +221,7 @@ class Check {
 
     compileKey() {
         const schema = {
-            key: { type : 'string', hex: null }
+            key: { type : "is_hex" }
         };
         return this.validator.compile(schema);
     }
@@ -168,22 +231,61 @@ class Check {
         return res === true;
     }
 
-    setStatus(op){
-        // currently same as addWriter
-        return this.addWriter(op);
+    compileUpdateAdmin() {
+        const schema = {
+            nonce: { type : "string", min : 1 },
+            hash: { type : "is_hex" },
+            value : {
+                $$type: "object",
+                dispatch : {
+                    $$type : "object",
+                    admin : { type : "is_hex", nullable : true },
+                    type : { type : "string", min : 1 },
+                    address : { type : "is_hex" }
+                }
+            }
+        };
+        return this.validator.compile(schema);
     }
 
-    compileAddWriter (){
+    updateAdmin(op){
+        const res = this._update_admin(op);
+        return res === true;
+    }
+
+    compileSetAutoAddWriters (){
         const schema = {
-            key: { type : "string", hex : null },
-            hash : { type : "string", hex : null },
+            key: { type : "string", min : 1 },
+            hash : { type : "is_hex" },
             nonce : { type : "string", min : 1 },
             value : {
                 $$type: "object",
                 msg : {
                     $$type : "object",
                     type : { type : "string", min : 1 },
-                    key: { type : "string", hex : null }
+                    key: { type : "string", min : 1 }
+                }
+            }
+        };
+        return this.validator.compile(schema);
+    }
+
+    setAutoAddWriters(op){
+        const res = this._auto_add_writers(op);
+        return res === true;
+    }
+
+    compileAddWriter (){
+        const schema = {
+            key: { type : "is_hex" },
+            hash : { type : "is_hex" },
+            nonce : { type : "string", min : 1 },
+            value : {
+                $$type: "object",
+                msg : {
+                    $$type : "object",
+                    type : { type : "string", min : 1 },
+                    key: { type : "is_hex" }
                 }
             }
         };
@@ -209,7 +311,7 @@ class Check {
                     $$type : "object",
                     value : { type : "any", nullable : true },
                     nonce: { type : "string", min : 1 },
-                    hash: { type : "string", hex : null }
+                    hash: { type : "is_hex" }
                 }
             }
         };
@@ -224,7 +326,7 @@ class Check {
     compileMsg (){
         const schema = {
             nonce: { type : "string", min : 1 },
-            hash: { type : "string", hex : null },
+            hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
@@ -232,8 +334,9 @@ class Check {
                     attachments : { type : "array", items : "string" },
                     msg : { type : "string", min : 1 },
                     type : { type : "string", min : 1 },
-                    address : { type : "string", hex : null },
-                    deleted_by : { type : "string", hex : null, nullable : true }
+                    address : { type : "is_hex" },
+                    deleted_by : { type : "is_hex", nullable : true },
+                    reply_to : { type : "number", integer : true, min : 0, nullable : true },
                 }
             }
         };
@@ -249,8 +352,8 @@ class Check {
         const schema = {
             value : {
                 $$type: "object",
-                tx : { type : "string", hex : null },
-                ch : { type : "string", hex : null }
+                tx : { type : "is_hex" },
+                ch : { type : "is_hex" }
             }
         };
         return this.validator.compile(schema);

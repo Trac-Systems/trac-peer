@@ -1,5 +1,3 @@
-import Validator from 'fastest-validator';
-
 class Contract {
 
     constructor(protocol, options = {}) {
@@ -12,9 +10,8 @@ class Contract {
         this.schemata = {};
         this.message_handler = null;
         this.root = null;
-        this.validator = new Validator();
 
-        this.enter_execute_schema = this.validator.compile({
+        this.enter_execute_schema = this.protocol.peer.check.validator.compile({
             value : {
                 $$type: "object",
                 dispatch : {
@@ -24,7 +21,7 @@ class Contract {
             }
         });
 
-        this.tx_schema = this.validator.compile({
+        this.tx_schema = this.protocol.peer.check.validator.compile({
             key : { type : "string", hex : null },
             value : {
                 $$type: "object",
@@ -35,7 +32,7 @@ class Contract {
             }
         });
 
-        this.address_schema = this.validator.compile({
+        this.address_schema = this.protocol.peer.check.validator.compile({
             value : {
                 $$type: "object",
                 dispatch : {
@@ -45,7 +42,7 @@ class Contract {
             }
         });
 
-        this.textkey_schema = this.validator.compile({
+        this.textkey_schema = this.protocol.peer.check.validator.compile({
             key : { type : "string", min : 1 }
         });
     }
@@ -67,6 +64,7 @@ class Contract {
 
         this.tx = op.type === 'tx' ? op.key : null;
         this.op = op.value.dispatch;
+        this.value = this.op.value !== undefined ? this.op.value : null;
         this.node = node;
         this.storage = storage;
         this.root = op;
@@ -102,7 +100,7 @@ class Contract {
     }
 
     addSchema(type, schema){
-        this.schemata[type] = this.validator.compile(schema);
+        this.schemata[type] = this.protocol.peer.check.validator.compile(schema);
     }
 
     addFeature(type, func) {
@@ -135,8 +133,9 @@ class Contract {
     async put(key, value){
         if(typeof this.storage === "undefined" || this.storage === null) throw new Error('put(key,value): storage undefined');
         if(key.startsWith('sh/') || key.startsWith('tx/') || key === 'msgl' || key.startsWith('kcin/') || key.startsWith('delm/') ||
-            key.startsWith('msg/') || key === 'admin' || key === 'auto_add_writers' || key.startsWith('nick/') || key.startsWith('mod/') ||
-            key === 'chat_status' || key.startsWith('mtd/') || key === 'delml' || key === 'wlst' || key.startsWith('wl/'))
+            key.startsWith('umsg/') || key.startsWith('umsg/') || key.startsWith('msgl/') || key === 'admin' || key === 'auto_add_writers'
+            || key.startsWith('nick/') || key.startsWith('mod/') || key === 'chat_status' || key.startsWith('mtd/') || key === 'delml' ||
+            key === 'wlst' || key.startsWith('wl/'))
             throw Error('put(key,value): ' + key + 'is reserved');
         return await this.storage.put(key, value);
     }
