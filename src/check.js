@@ -72,6 +72,7 @@ class Check {
         this._add_writer = this.compileAddWriter();
         this._auto_add_writers = this.compileSetAutoAddWriters();
         this._key = this.compileKey();
+        this._chat_status = this.compileSetChatStatus();
         this._update_admin = this.compileUpdateAdmin();
         this._nick = this.compileNick();
         this._mute = this.compileMute();
@@ -137,8 +138,7 @@ class Check {
                     mod : { type : "boolean" },
                     type : { type : "string", min : 1 },
                     address : { type : "is_hex" },
-                    user : { type : "is_hex" },
-                    deleted_by : { type : "is_hex" }
+                    user : { type : "is_hex" }
                 }
             }
         };
@@ -272,6 +272,28 @@ class Check {
 
     setAutoAddWriters(op){
         const res = this._auto_add_writers(op);
+        return res === true;
+    }
+
+    compileSetChatStatus (){
+        const schema = {
+            key: { type : "string", min : 1 },
+            hash : { type : "is_hex" },
+            nonce : { type : "string", min : 1 },
+            value : {
+                $$type: "object",
+                msg : {
+                    $$type : "object",
+                    type : { type : "string", min : 1 },
+                    key: { type : "string", min : 1 }
+                }
+            }
+        };
+        return this.validator.compile(schema);
+    }
+
+    setChatStatus(op){
+        const res = this._chat_status(op);
         return res === true;
     }
 

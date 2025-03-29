@@ -187,7 +187,7 @@ export class Peer extends ReadyResource {
                         }
                         await batch.put('sh/'+op.hash, '');
                     } else if (op.type === 'setChatStatus') {
-                        if(false === this.check.setStatus(op)) continue;
+                        if(false === this.check.setChatStatus(op)) continue;
                         const str_msg = jsonStringify(op.value.msg);
                         const admin = await batch.get('admin');
                         if(null !== admin && op.value.msg.key === op.key &&
@@ -584,7 +584,7 @@ export class Peer extends ReadyResource {
         console.log(' ');
         console.log('- Setup Commands:');
         console.log('- /add_admin | Works only once and only on bootstrap node! Enter a wallet address to assign admin rights: \'/add_admin --address "<address>"\'.');
-        console.log('- /update_admin | An existing admin may transfer admin ownership for this network. Enter "null" as address to waive admin rights for this network entirely: \'/add_admin --address "<address>"\'.');
+        console.log('- /update_admin | Existing admins may transfer admin ownership. Enter "null" as address to waive admin rights for this peer entirely: \'/add_admin --address "<address>"\'.');
         console.log('- /add_indexer | Only admin. Enter a peer writer key to get included as indexer for this network: \'/add_indexer --key "<key>"\'.');
         console.log('- /add_writer | Only admin. Enter a peer writer key to get included as writer for this network: \'/add_writer --key "<key>"\'.');
         console.log('- /set_auto_add_writers | Only admin. Allow any peer to join as writer automatically: \'/set_auto_add_writers --enabled 1\'');
