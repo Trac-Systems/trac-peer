@@ -77,9 +77,9 @@ export class Peer extends ReadyResource {
 
                 for (const node of nodes) {
                     if(false === await this.check.node(node)) continue;
-                    const op = node.value;
+                    const op = {...node.value};
                     if (op.type === 'tx') {
-                        if(false === await this.check.tx(op)) continue;
+                        if(false === this.check.tx(op)) continue;
                         const str_dispatch = jsonStringify(op.value.dispatch);
                         const msb_view_session = _this.msb.base.view.checkout(op.value.msbsl);
                         const post_tx = await msb_view_session.get(op.key);
@@ -87,10 +87,10 @@ export class Peer extends ReadyResource {
                         if(false === await this.check.postTx(post_tx)) continue;
                         if (null !== str_dispatch &&
                             null === await batch.get('tx/'+op.key) &&
-                            op.key === post_tx.value.tx &&
+                            post_tx.value.tx === op.key &&
                             post_tx.value.ch === createHash('sha256').update(str_dispatch).digest('hex')) {
                             await batch.put('tx/'+op.key, op.value);
-                            await _this.contract_instance.dispatch(op, node, batch);
+                            await _this.contract_instance.execute(op, node, batch);
                             console.log(`${op.key} appended. Signed length:`, _this.base.view.core.signedLength);
                         }
                     } else if(op.type === 'msg') {
@@ -128,7 +128,7 @@ export class Peer extends ReadyResource {
                             }
                             await batch.put('msg/'+len, op.value.dispatch);
                             await batch.put('msgl', len + 1);
-                            await _this.contract_instance.dispatch(op, node, batch);
+                            await _this.contract_instance.execute(op, node, batch);
                             const nick = await batch.get('nick/'+op.value.dispatch.address);
                             console.log(`#${len + 1} | ${nick !== null ? nick.value : op.value.dispatch.address}: ${op.value.dispatch.msg}`);
                         }
@@ -141,7 +141,7 @@ export class Peer extends ReadyResource {
                             null === await batch.get('sh/'+op.value.dispatch.hash)){
                             const verified = _this.wallet.verify(op.value.dispatch.hash, str_dispatch_value + op.value.dispatch.nonce, admin.value);
                             if(verified) {
-                                await _this.contract_instance.dispatch(op, node, batch);
+                                await _this.contract_instance.execute(op, node, batch);
                                 console.log(`Feature ${op.key} appended`);
                             }
                         }

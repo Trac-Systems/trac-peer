@@ -1,13 +1,128 @@
+import Validator from 'fastest-validator';
+
 class Contract {
 
     constructor(protocol, options = {}) {
         this.protocol = protocol;
         this.storage = null;
         this.options = options;
+        this.is_feature = false;
+        this.is_message = false;
+        this.features = {};
+        this.schemata = {};
+        this.message_handler = null;
+        this.root = null;
+        this.validator = new Validator();
+
+        this.enter_execute_schema = this.validator.compile({
+            value : {
+                $$type: "object",
+                dispatch : {
+                    $$type : "object",
+                    type : { type : "string", min : 1 }
+                }
+            }
+        });
+
+        this.tx_schema = this.validator.compile({
+            key : { type : "string", hex : null },
+            value : {
+                $$type: "object",
+                value : {
+                    $$type : "object",
+                    ipk : { type : "string", hex : null }
+                }
+            }
+        });
+
+        this.address_schema = this.validator.compile({
+            value : {
+                $$type: "object",
+                dispatch : {
+                    $$type : "object",
+                    address : { type : "string", hex : null }
+                }
+            }
+        });
+
+        this.textkey_schema = this.validator.compile({
+            key : { type : "string", min : 1 }
+        });
     }
 
-    async dispatch(op, node, storage) {
-        throw Error('Not implemented: Contract.dispatch(op, node, signed_storage, storage)');
+    async execute(op, node, storage){
+        if(true !== this.enter_execute_schema(op)) return;
+
+        this.address = null;
+        if(op.type !== 'feature' && op.type !== 'msg'){
+            if(false === this.tx_schema(op)) return;
+            this.address = op.value.value.ipk;
+        } else {
+            if(true !== this.address_schema(op)) return;
+            if(op.type === 'feature' && true !== this.textkey_schema(op)) return;
+            if(op.type === 'feature') this.is_feature = true;
+            if(op.type === 'msg') this.is_message = true;
+            this.address = op.value.dispatch.address;
+        }
+
+        this.tx = op.type === 'tx' ? op.key : null;
+        this.op = op.value.dispatch;
+        this.node = node;
+        this.storage = storage;
+        this.root = op;
+
+        if(this.isFeature()) {
+            if(this.features[this.op.type] !== undefined){
+                await this.features[this.op.type]();
+            }
+        } else if(this.isMessage()) {
+            if(this.message_handler !== undefined){
+                await this.message_handler();
+            }
+        } else {
+            if(this[this.op.type] !== undefined) {
+                if(this.schemata[this.op.type] !== undefined){
+                    if(true === this.validateSchema(this.op.type, this.op)) {
+                        await this[this.op.type]();
+                    }
+                } else {
+                    await this[this.op.type]();
+                }
+            }
+        }
+
+        this.address = null;
+        this.is_message = false;
+        this.is_feature = false;
+    }
+
+    validateSchema(type, op) {
+        const result = this.schemata[type](op);
+        return result === true;
+    }
+
+    addSchema(type, schema){
+        this.schemata[type] = this.validator.compile(schema);
+    }
+
+    addFeature(type, func) {
+        this.features[type] = func;
+    }
+
+    messageHandler(func){
+        this.message_handler = func;
+    }
+
+    getRoot() {
+        return this.root;
+    }
+
+    isFeature(){
+        return this.is_feature;
+    }
+
+    isMessage(){
+        return this.is_message;
     }
 
     async get(key){

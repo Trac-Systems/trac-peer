@@ -195,7 +195,7 @@ export async function setNick(input, peer){
 export async function postMessage(input, peer){
     const splitted = yargs(input).parse();
     if(typeof splitted.message === "boolean" || splitted.message === undefined) throw new Error('Empty message not allowed');
-    const value = splitted.message;
+    const value = '' + splitted.message;
     const nonce = Math.random() + '-' + Date.now();
     const signature = { dispatch : {
             type : 'msg',

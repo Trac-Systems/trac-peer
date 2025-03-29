@@ -3,29 +3,23 @@ import Validator from 'fastest-validator';
 class Check {
 
     constructor() {
-        this._node = null;
-        this._tx = null;
-        this._post_tx = null;
-        this._msg = null;
-        this._feature = null;
-        this._add_writer = null;
-        this._key = null;
-        this._nick = null;
-        this._mute = null;
-        this._delete_message = null;
-        this._mod = null;
-        this._whitelist_status = null;
-        this._enable_whitelist = null;
         this.validator = new Validator();
+        this._node = this.compileNode();
+        this._tx = this.compileTx();
+        this._post_tx = this.compilePostTx();
+        this._msg = this.compileMsg();
+        this._feature = this.compileFeature();
+        this._add_writer = this.compileAddWriter();
+        this._key = this.compileKey();
+        this._nick = this.compileNick();
+        this._mute = this.compileMute();
+        this._delete_message = this.compileDeleteMessage();
+        this._mod = this.compileMod();
+        this._whitelist_status = this.compileWhitelistStatus();
+        this._enable_whitelist = this.compileEnableWhitelist();
     }
 
-    async compileEnableWhitelist (){
-        /*
-        if(op.value === undefined || op.value.dispatch === undefined || op.value.dispatch.type === undefined ||
-                            op.value.dispatch.address === undefined || typeof op.value.dispatch.address !== "string" ||
-                            op.nonce === undefined || op.value.dispatch.enabled === undefined || typeof op.value.dispatch.enabled !== 'boolean' ||
-                            op.hash === undefined) continue;
-         */
+    compileEnableWhitelist (){
         const schema = {
             nonce: { type : "string", min : 1 },
             hash: { type : "string", hex : null },
@@ -42,21 +36,12 @@ class Check {
         return this.validator.compile(schema);
     }
 
-    async enableWhitelist(op){
-        if(this._enable_whitelist === null) {
-            this._enable_whitelist = await this.compileEnableWhitelist();
-        }
-        return this._enable_whitelist(op);
+    enableWhitelist(op){
+        const res = this._enable_whitelist(op);
+        return res === true;
     }
 
-    async compileWhitelistStatus (){
-        /*
-        if(op.value === undefined || op.value.dispatch === undefined || op.value.dispatch.user === undefined ||
-                            typeof op.value.dispatch.user !== "string" || op.value.dispatch.type === undefined ||
-                            op.value.dispatch.address === undefined || typeof op.value.dispatch.address !== "string" ||
-                            op.nonce === undefined || op.value.dispatch.status === undefined || typeof op.value.dispatch.status !== 'boolean' ||
-                            op.hash === undefined) continue;
-         */
+    compileWhitelistStatus (){
         const schema = {
             nonce: { type : "string", min : 1 },
             hash: { type : "string", hex : null },
@@ -74,21 +59,12 @@ class Check {
         return this.validator.compile(schema);
     }
 
-    async whitelistStatus(op){
-        if(this._whitelist_status === null) {
-            this._whitelist_status = await this.compileWhitelistStatus();
-        }
-        return this._whitelist_status(op);
+    whitelistStatus(op){
+        const res = this._whitelist_status(op);
+        return res === true;
     }
 
-    async compileMod (){
-        /*
-        if(op.value === undefined || op.value.dispatch === undefined || op.value.dispatch.user === undefined ||
-                            typeof op.value.dispatch.user !== "string" || op.value.dispatch.type === undefined ||
-                            op.value.dispatch.address === undefined || typeof op.value.dispatch.address !== "string" ||
-                            op.nonce === undefined || op.value.dispatch.mod === undefined || typeof op.value.dispatch.mod !== 'boolean' ||
-                            op.hash === undefined) continue;
-         */
+    compileMod (){
         const schema = {
             nonce: { type : "string", min : 1 },
             hash: { type : "string", hex : null },
@@ -106,20 +82,12 @@ class Check {
         return this.validator.compile(schema);
     }
 
-    async mod(op){
-        if(this._mod === null) {
-            this._mod = await this.compileMod();
-        }
-        return this._mod(op);
+    mod(op){
+        const res = this._mod(op);
+        return res === true;
     }
 
-    async compileDeleteMessage (){
-        /*
-        if(op.value === undefined || op.value.dispatch === undefined || op.value.dispatch.id === undefined ||
-                            typeof op.value.dispatch.id !== "number" || op.value.dispatch.type === undefined ||
-                            op.value.dispatch.address === undefined || typeof op.value.dispatch.address !== "string" ||
-                            op.nonce === undefined || op.hash === undefined || op.value.dispatch.deleted_by === undefined) continue;
-         */
+    compileDeleteMessage (){
         const schema = {
             nonce: { type : "string", min : 1 },
             hash: { type : "string", hex : null },
@@ -127,7 +95,7 @@ class Check {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
-                    id : { type : "number", integer: true, positive: true },
+                    id : { type : "number", integer: true, min : 0 },
                     type : { type : "string", min : 1 },
                     address : { type : "string", hex : null },
                     deleted_by : { type : "string", hex : null, nullable : true }
@@ -137,21 +105,12 @@ class Check {
         return this.validator.compile(schema);
     }
 
-    async deleteMessage(op){
-        if(this._delete_message === null) {
-            this._delete_message = await this.compileDeleteMessage();
-        }
-        return this._delete_message(op);
+    deleteMessage(op){
+        const res = this._delete_message(op);
+        return res === true;
     }
 
-    async compileMute (){
-        /*
-        if(op.value === undefined || op.value.dispatch === undefined || op.value.dispatch.user === undefined ||
-                            typeof op.value.dispatch.user !== "string" || op.value.dispatch.type === undefined ||
-                            op.value.dispatch.address === undefined || typeof op.value.dispatch.address !== "string" ||
-                            op.nonce === undefined || op.value.dispatch.muted === undefined || typeof op.value.dispatch.muted !== 'boolean' ||
-                            op.hash === undefined) continue;
-         */
+    compileMute (){
         const schema = {
             nonce: { type : "string", min : 1 },
             hash: { type : "string", hex : null },
@@ -169,21 +128,12 @@ class Check {
         return this.validator.compile(schema);
     }
 
-    async mute(op){
-        if(this._mute === null) {
-            this._mute = await this.compileMute();
-        }
-        return this._mute(op);
+    mute(op){
+        const res = this._mute(op);
+        return res === true;
     }
 
-    async compileNick (){
-        /*
-        if(op.value === undefined || op.value.dispatch === undefined || op.value.dispatch.nick === undefined ||
-                            typeof op.value.dispatch.nick !== "string" || op.value.dispatch.type === undefined ||
-                            op.value.dispatch.address === undefined || typeof op.value.dispatch.address !== "string" ||
-                            op.value.dispatch.initiator === undefined || typeof op.value.dispatch.initiator !== "string" ||
-                            op.nonce === undefined || op.hash === undefined) continue;
-         */
+    compileNick (){
         const schema = {
             nonce: { type : "string", min : 1 },
             hash: { type : "string", hex : null },
@@ -201,38 +151,29 @@ class Check {
         return this.validator.compile(schema);
     }
 
-    async nick(op){
-        if(this._nick === null) {
-            this._nick = await this.compileNick();
-        }
-        return this._nick(op);
+    nick(op){
+        const res = this._nick(op);
+        return res === true;
     }
 
-    async compileKey() {
+    compileKey() {
         const schema = {
             key: { type : 'string', hex: null }
         };
         return this.validator.compile(schema);
     }
 
-    async key(op){
-        if(this._key === null) {
-            this._key = await this.compileKey();
-        }
-        return this._key(op);
+    key(op){
+        const res = this._key(op);
+        return res === true;
     }
 
-    async setStatus(op){
+    setStatus(op){
         // currently same as addWriter
-        return await this.addWriter(op);
+        return this.addWriter(op);
     }
 
-    async compileAddWriter (){
-        /*
-        if(op.key === undefined || op.value === undefined || op.hash === undefined ||
-                            op.value.msg === undefined || op.value.msg.key === undefined ||
-                            op.value.msg.type === undefined || op.nonce === undefined) continue;
-         */
+    compileAddWriter (){
         const schema = {
             key: { type : "string", hex : null },
             hash : { type : "string", hex : null },
@@ -242,38 +183,31 @@ class Check {
                 msg : {
                     $$type : "object",
                     type : { type : "string", min : 1 },
-                    key: { type : "string", hex : null },
+                    key: { type : "string", hex : null }
                 }
             }
         };
         return this.validator.compile(schema);
     }
 
-    async addIndexer(op){
+    addIndexer(op){
         // currently same as addWriter
-        return await this.addWriter(op);
+        return this.addWriter(op);
     }
 
-    async addWriter(op){
-        if(this._add_writer === null) {
-            this._add_writer = await this.compileAddWriter();
-        }
-        return this._add_writer(op);
+    addWriter(op){
+        const res = this._add_writer(op);
+        return res === true;
     }
 
-    async compileFeature (){
-        /*
-        if(op.key === undefined || op.value === undefined || op.value.dispatch === undefined ||
-                            op.value.dispatch.hash === undefined || op.value.dispatch.value === undefined ||
-                            op.value.dispatch.nonce === undefined) continue;
-         */
+    compileFeature (){
         const schema = {
             key: { type : "string", min : 1 },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
-                    value : { type : "object" },
+                    value : { type : "any", nullable : true },
                     nonce: { type : "string", min : 1 },
                     hash: { type : "string", hex : null }
                 }
@@ -282,21 +216,12 @@ class Check {
         return this.validator.compile(schema);
     }
 
-    async feature(op){
-        if(this._feature === null) {
-            this._feature = await this.compileFeature();
-        }
-        return this._feature(op);
+    feature(op){
+        const res = this._feature(op);
+        return res === true;
     }
 
-    async compileMsg (){
-        /*
-        if(op.value === undefined || op.value.dispatch === undefined || op.value.dispatch.attachments === undefined ||
-                            !Array.isArray(op.value.dispatch.attachments) || op.value.dispatch.msg === undefined ||
-                            typeof op.value.dispatch.msg !== "string" || op.value.dispatch.type === undefined ||
-                            op.value.dispatch.address === undefined || typeof op.value.dispatch.address !== "string" ||
-                            op.nonce === undefined || op.hash === undefined) continue;
-         */
+    compileMsg (){
         const schema = {
             nonce: { type : "string", min : 1 },
             hash: { type : "string", hex : null },
@@ -307,22 +232,20 @@ class Check {
                     attachments : { type : "array", items : "string" },
                     msg : { type : "string", min : 1 },
                     type : { type : "string", min : 1 },
-                    address : { type : "string", hex : null }
+                    address : { type : "string", hex : null },
+                    deleted_by : { type : "string", hex : null, nullable : true }
                 }
             }
         };
         return this.validator.compile(schema);
     }
 
-    async msg(op){
-        if(this._msg === null) {
-            this._msg = await this.compileMsg();
-        }
-        return this._msg(op);
+    msg(op){
+        const res = this._msg(op);
+        return res === true;
     }
 
-    async compilePostTx() {
-        // if(op.key === undefined || op.value === undefined || op.value.dispatch === undefined) continue;
+    compilePostTx() {
         const schema = {
             value : {
                 $$type: "object",
@@ -333,19 +256,17 @@ class Check {
         return this.validator.compile(schema);
     }
 
-    async postTx(post_tx){
-        if(this._post_tx === null) {
-            this._post_tx = await this.compilePostTx();
-        }
-        return this._post_tx(post_tx);
+    postTx(post_tx){
+        const res = this._post_tx(post_tx);
+        return res === true;
     }
 
-    async compileNode() {
+    compileNode() {
         const schema = {
-            from : {
+            /*from : {
                 $$type: "object",
                 key : { type : 'string', hex : null, instanceof: Buffer }
-            },
+            },*/
             value: {
                 $$type: "object",
                 type: { type : "string", min : 1 }
@@ -354,31 +275,26 @@ class Check {
         return this.validator.compile(schema);
     }
 
-    async node(node){
-        if(this._node === null) {
-            this._node = await this.compileNode();
-        }
-        return this._node(node);
+    node(node){
+        const res = this._node(node);
+        return res === true;
     }
 
-    async compileTx() {
-        // if(op.key === undefined || op.value === undefined || op.value.dispatch === undefined) continue;
+    compileTx() {
         const schema = {
             key: { type : "string", hex : null },
             value : {
                 $$type: "object",
                 dispatch : { type : "object" },
-                msbsl : { type : "number", integer : true, positive: true }
+                msbsl : { type : "number", integer : true, min : 0 }
             }
         };
         return this.validator.compile(schema);
     }
 
-    async tx(op){
-        if(this._tx === null) {
-            this._tx = await this.compileTx();
-        }
-        return this._tx(op);
+    tx(op){
+        const res = this._tx(op);
+        return res === true;
     }
 }
 

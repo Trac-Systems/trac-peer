@@ -1,15 +1,15 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.0.58",
+  "version": "0.0.66",
   "type": "module",
   "dependencies": {
-    "autobase": "7.1.1",
+    "autobase": "7.0.45",
     "b4a": "1.6.7",
     "bare-fs": "4.0.1",
     "bip39": "^3.1.0",
     "brittle": "3.0.0",
-    "corestore": "7.0.23",
+    "corestore": "7.0.22",
     "debounceify": "1.1.0",
     "fastest-validator": "^1.19.0",
     "hyperbee": "2.23.0",
