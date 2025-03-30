@@ -1,5 +1,5 @@
 import { formatNumberString, resolveNumberString } from "./functions.js";
-import {createHash} from "node:crypto";
+import {createHash} from "crypto";
 
 class Protocol{
     constructor(options = {}) {
@@ -13,6 +13,44 @@ class Protocol{
         this.nonce = 0;
         this.prepared_transactions_content = {};
         this.features = {};
+    }
+
+    parseArgs(cmdline) {
+        let re_next_arg = /^\s*((?:(?:"(?:\\.|[^"])*")|(?:'[^']*')|\\.|\S)+)\s*(.*)$/;
+        let next_arg = ['', '', cmdline];
+        let args = [];
+        const obj = {};
+        while (next_arg = re_next_arg.exec(next_arg[2])) {
+            let quoted_arg = next_arg[1];
+            let unquoted_arg = "";
+            while (quoted_arg.length > 0) {
+                if (/^"/.test(quoted_arg)) {
+                    let quoted_part = /^"((?:\\.|[^"])*)"(.*)$/.exec(quoted_arg);
+                    unquoted_arg += quoted_part[1].replace(/\\(.)/g, "$1");
+                    quoted_arg = quoted_part[2];
+                } else if (/^'/.test(quoted_arg)) {
+                    let quoted_part = /^'([^']*)'(.*)$/.exec(quoted_arg);
+                    unquoted_arg += quoted_part[1];
+                    quoted_arg = quoted_part[2];
+                } else if (/^\\/.test(quoted_arg)) {
+                    unquoted_arg += quoted_arg[1];
+                    quoted_arg = quoted_arg.substring(2);
+                } else {
+                    unquoted_arg += quoted_arg[0];
+                    quoted_arg = quoted_arg.substring(1);
+                }
+            }
+
+            args[args.length] = unquoted_arg;
+        }
+        args = args.splice(1);
+        for(let i = 0; i < args.length; i++){
+            if(i % 2 === 0) {
+                if(args[i].startsWith('--')) args[i] = args[i].substring(2);
+                obj[args[i]] = args[i+1] !== undefined ? args[i+1] : null;
+            }
+        }
+        return obj;
     }
 
     async addFeature(key, feature){

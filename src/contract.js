@@ -69,13 +69,15 @@ class Contract {
         this.storage = storage;
         this.root = op;
 
+        let _return = null;
+
         if(this.isFeature()) {
             if(this.features[this.op.type] !== undefined){
-                await this.features[this.op.type]();
+                _return = await this.features[this.op.type]();
             }
         } else if(this.isMessage()) {
             if(this.message_handler !== undefined){
-                await this.message_handler();
+                _return = await this.message_handler();
             }
         } else {
             if(this[this.op.type] !== undefined) {
@@ -84,7 +86,7 @@ class Contract {
                         await this[this.op.type]();
                     }
                 } else {
-                    await this[this.op.type]();
+                    _return = await this[this.op.type]();
                 }
             }
         }
@@ -92,6 +94,8 @@ class Contract {
         this.address = null;
         this.is_message = false;
         this.is_feature = false;
+
+        return _return;
     }
 
     validateSchema(type, op) {
@@ -135,7 +139,7 @@ class Contract {
         if(key.startsWith('sh/') || key.startsWith('tx/') || key === 'msgl' || key.startsWith('kcin/') || key.startsWith('delm/') ||
             key.startsWith('umsg/') || key.startsWith('umsg/') || key.startsWith('msgl/') || key === 'admin' || key === 'auto_add_writers'
             || key.startsWith('nick/') || key.startsWith('mod/') || key === 'chat_status' || key.startsWith('mtd/') || key === 'delml' ||
-            key === 'wlst' || key.startsWith('wl/'))
+            key === 'wlst' || key === 'txl' || key.startsWith('txi/') || key.startsWith('wl/'))
             throw Error('put(key,value): ' + key + 'is reserved');
         return await this.storage.put(key, value);
     }

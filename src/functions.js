@@ -1,5 +1,3 @@
-import yargs from 'yargs/yargs';
-
 export function resolveNumberString(number, decimals){
     number = number + '';
     decimals = isNaN(decimals) ? 18 : parseInt(decimals);
@@ -104,7 +102,7 @@ export function jsonStringify(value){
 }
 
 export async function setWhitelistStatus(input, peer){
-    const splitted = yargs(input).parse();
+    const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.user;
     const status = parseInt(splitted.status) === 1;
     const nonce = Math.random() + '-' + Date.now();
@@ -119,7 +117,7 @@ export async function setWhitelistStatus(input, peer){
 }
 
 export async function enableWhitelist(input, peer){
-    const splitted = yargs(input).parse();
+    const splitted = peer.protocol_instance.parseArgs(input)
     const value = splitted.enabled === 1;
     const nonce = Math.random() + '-' + Date.now();
     const signature = { dispatch : {
@@ -132,7 +130,7 @@ export async function enableWhitelist(input, peer){
 }
 
 export async function deleteMessage(input, peer){
-    const splitted = yargs(input).parse();
+    const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.id);
     const nonce = Math.random() + '-' + Date.now();
     const signature = { dispatch : {
@@ -145,7 +143,7 @@ export async function deleteMessage(input, peer){
 }
 
 export async function updateAdmin(input, peer){
-    const splitted = yargs(input).parse();
+    const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.address === 'null' ? null : ''+splitted.address;
     const nonce = Math.random() + '-' + Date.now();
     const signature = { dispatch : {
@@ -158,7 +156,7 @@ export async function updateAdmin(input, peer){
 }
 
 export async function setMod(input, peer){
-    const splitted = yargs(input).parse();
+    const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.user;
     const mod = parseInt(splitted.mod) === 1;
     const nonce = Math.random() + '-' + Date.now();
@@ -173,7 +171,7 @@ export async function setMod(input, peer){
 }
 
 export async function muteStatus(input, peer){
-    const splitted = yargs(input).parse();
+    const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.user;
     const muted = parseInt(splitted.muted) === 1;
     const nonce = Math.random() + '-' + Date.now();
@@ -188,7 +186,7 @@ export async function muteStatus(input, peer){
 }
 
 export async function setNick(input, peer){
-    const splitted = yargs(input).parse();
+    const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.nick;
     let user = null;
     if(splitted.user !== undefined){
@@ -206,7 +204,7 @@ export async function setNick(input, peer){
 }
 
 export async function postMessage(input, peer){
-    const splitted = yargs(input).parse();
+    const splitted = peer.protocol_instance.parseArgs(input)
     if(typeof splitted.message === "boolean" || splitted.message === undefined) throw new Error('Empty message not allowed');
     const reply_to = splitted.reply_to !== undefined ? parseInt(splitted.reply_to) : null;
     const value = '' + splitted.message;
@@ -224,7 +222,7 @@ export async function postMessage(input, peer){
 }
 
 export async function setChatStatus(input, peer){
-    const splitted = yargs(input).parse();
+    const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.enabled) === 1 ? 'on' : 'off';
     const nonce = Math.random() + '-' + Date.now();
     if(value !== 'on' && value !== 'off') throw new Error('setChatStatus: use on and off values.');
@@ -237,7 +235,7 @@ export async function setChatStatus(input, peer){
 }
 
 export async function setAutoAddWriters(input, peer){
-    const splitted = yargs(input).parse();
+    const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.enabled) === 1 ? 'on' : 'off';
     const nonce = Math.random() + '-' + Date.now();
     if(value !== 'on' && value !== 'off') throw new Error('setAutoAddWriters: use on and off values.');
@@ -250,14 +248,14 @@ export async function setAutoAddWriters(input, peer){
 }
 
 export async function addAdmin(input, peer){
-    const splitted = yargs(input).parse();
+    const splitted = peer.protocol_instance.parseArgs(input)
     const publicKey = ''+splitted.address;
     await peer.base.append({ type: 'addAdmin', key: publicKey });
 }
 
 export async function addWriter(input, peer){
     const splitted = input.split(' ');
-    const parsed = yargs(input).parse();
+    const parsed = peer.protocol_instance.parseArgs(input)
     const nonce = Math.random() + '-' + Date.now();
     if(splitted[0] === '/add_indexer'){
         const msg = { type: 'addIndexer', key: ''+parsed.key }

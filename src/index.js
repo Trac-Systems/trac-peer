@@ -3,10 +3,12 @@ import Autobase from 'autobase';
 import Hyperswarm from 'hyperswarm';
 import ReadyResource from 'ready-resource';
 import b4a from 'b4a';
+import {Buffer} from "buffer"
 import Hyperbee from 'hyperbee';
 import readline from 'readline';
+import tty from 'tty'
 import Corestore from 'corestore';
-import {createHash} from "node:crypto";
+import {createHash} from "crypto";
 import w from 'protomux-wakeup';
 const wakeup = new w();
 import {addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
@@ -88,9 +90,17 @@ export class Peer extends ReadyResource {
                         if (null !== str_dispatch &&
                             null === await batch.get('tx/'+op.key) &&
                             post_tx.value.tx === op.key &&
-                            post_tx.value.ch === createHash('sha256').update(str_dispatch).digest('hex')) {
+                            post_tx.value.ch === createHash('sha256').update(str_dispatch).digest('hex') &&
+                            false !== await _this.contract_instance.execute(op, node, batch)) {
+                            let len = await batch.get('txl');
+                            if(null === len) {
+                                len = 0;
+                            } else {
+                                len = len.value;
+                            }
+                            await batch.put('txi/'+op.key, len);
+                            await batch.put('txl', len + 1);
                             await batch.put('tx/'+op.key, op.value);
-                            await _this.contract_instance.execute(op, node, batch);
                             console.log(`${op.key} appended. Signed length:`, _this.base.view.core.signedLength);
                         }
                     } else if(op.type === 'msg') {
@@ -116,10 +126,15 @@ export class Peer extends ReadyResource {
                         const str_value = jsonStringify(op.value);
                         const chat_status = await batch.get('chat_status');
                         const verified = _this.wallet.verify(op.hash, str_value + op.nonce, op.value.dispatch.address);
-                        if(false === muted && true === whitelisted && null !== str_value && verified &&
-                            null !== chat_status && chat_status.value === 'on' &&
+                        if(true === verified &&
+                            false === muted &&
+                            true === whitelisted &&
+                            null !== str_value &&
+                            null !== chat_status &&
                             null === await batch.get('sh/'+op.hash) &&
-                            Buffer.byteLength(str_value) <= 10_2400){
+                            Buffer.byteLength(str_value) <= 10_2400 &&
+                            chat_status.value === 'on' &&
+                            false !== await _this.contract_instance.execute(op, node, batch)){
                             let len = await batch.get('msgl');
                             if(null === len) {
                                 len = 0;
@@ -136,11 +151,10 @@ export class Peer extends ReadyResource {
                             await batch.put('umsg/'+user_len, 'msg/'+len);
                             await batch.put('msgl', len + 1);
                             await batch.put('umsgl/'+op.value.dispatch.address, user_len + 1);
-                            await _this.contract_instance.execute(op, node, batch);
+                            await batch.put('sh/'+op.hash, '');
                             const nick = await batch.get('nick/'+op.value.dispatch.address);
                             console.log(`#${len + 1} | ${nick !== null ? nick.value : op.value.dispatch.address}: ${op.value.dispatch.msg}`);
                         }
-                        await batch.put('sh/'+op.hash, '');
                     } else if (op.type === 'feature') {
                         if(false === this.check.feature(op)) continue;
                         const str_dispatch_value = jsonStringify(op.value.dispatch.value);
@@ -148,12 +162,12 @@ export class Peer extends ReadyResource {
                         if(null !== admin &&
                             null === await batch.get('sh/'+op.value.dispatch.hash)){
                             const verified = _this.wallet.verify(op.value.dispatch.hash, str_dispatch_value + op.value.dispatch.nonce, admin.value);
-                            if(verified) {
+                            if(true === verified) {
                                 await _this.contract_instance.execute(op, node, batch);
+                                await batch.put('sh/'+op.value.dispatch.hash, '');
                                 console.log(`Feature ${op.key} appended`);
                             }
                         }
-                        await batch.put('sh/'+op.value.dispatch.hash, '');
                     } else if (op.type === 'addIndexer') {
                         if(false === this.check.addIndexer(op)) continue;
                         const str_msg = jsonStringify(op.value.msg);
@@ -163,13 +177,13 @@ export class Peer extends ReadyResource {
                             op.value.msg.type === 'addIndexer' &&
                             null === await batch.get('sh/'+op.hash)) {
                             const verified = _this.wallet.verify(op.hash, str_msg + op.nonce, admin.value);
-                            if(verified){
+                            if(true === verified){
                                 const writerKey = b4a.from(op.key, 'hex');
                                 await base.addWriter(writerKey);
+                                await batch.put('sh/'+op.hash, '');
                                 console.log(`Indexer added: ${op.key}`);
                             }
                         }
-                        await batch.put('sh/'+op.hash, '');
                     } else if (op.type === 'addWriter') {
                         if(false === this.check.addWriter(op)) continue;
                         const str_msg = jsonStringify(op.value.msg);
@@ -179,13 +193,13 @@ export class Peer extends ReadyResource {
                             op.value.msg.type === 'addWriter' &&
                             null === await batch.get('sh/'+op.hash)) {
                             const verified = _this.wallet.verify(op.hash, str_msg + op.nonce, admin.value);
-                            if(verified){
+                            if(true === verified){
                                 const writerKey = b4a.from(op.key, 'hex');
                                 await base.addWriter(writerKey, { isIndexer : false });
+                                await batch.put('sh/'+op.hash, '');
                                 console.log(`Writer added: ${op.key}`);
                             }
                         }
-                        await batch.put('sh/'+op.hash, '');
                     } else if (op.type === 'setChatStatus') {
                         if(false === this.check.setChatStatus(op)) continue;
                         const str_msg = jsonStringify(op.value.msg);
@@ -195,12 +209,12 @@ export class Peer extends ReadyResource {
                             (op.key === 'on' || op.key === 'off') &&
                             null === await batch.get('sh/'+op.hash)) {
                             const verified = _this.wallet.verify(op.hash, str_msg + op.nonce, admin.value);
-                            if(verified){
+                            if(true === verified){
                                 await batch.put('chat_status', op.key);
+                                await batch.put('sh/'+op.hash, '');
                                 console.log(`Set chat_status: ${op.key}`);
                             }
                         }
-                        await batch.put('sh/'+op.hash, '');
                     } else if (op.type === 'setAutoAddWriters') {
                         if(false === this.check.setAutoAddWriters(op)) continue;
                         const str_msg = jsonStringify(op.value.msg);
@@ -210,12 +224,12 @@ export class Peer extends ReadyResource {
                             (op.key === 'on' || op.key === 'off') &&
                             null === await batch.get('sh/'+op.hash)) {
                             const verified = _this.wallet.verify(op.hash, str_msg + op.nonce, admin.value);
-                            if(verified){
+                            if(true === verified){
                                 await batch.put('auto_add_writers', op.key);
+                                await batch.put('sh/'+op.hash, '');
                                 console.log(`Set auto_add_writers: ${op.key}`);
                             }
                         }
-                        await batch.put('sh/'+op.hash, '');
                     } else if (op.type === 'autoAddWriter') {
                         if(false === this.check.key(op)) continue;
                         const auto_add_writers = await batch.get('auto_add_writers');
@@ -238,12 +252,12 @@ export class Peer extends ReadyResource {
                         if(null !== admin && null !== str_value &&
                             null === await batch.get('sh/'+op.hash)){
                             const verified = _this.wallet.verify(op.hash, str_value + op.nonce, admin.value);
-                            if(verified) {
+                            if(true === verified) {
                                 await batch.put('admin', op.value.dispatch.admin);
+                                await batch.put('sh/'+op.hash, '');
                                 console.log(`Changed admin ${admin.value} to ${op.value.dispatch.admin}`);
                             }
                         }
-                        await batch.put('sh/'+op.hash, '');
                     } else if(op.type === 'setNick') {
                         if(false === this.check.nick(op)) continue;
                         const taken = await batch.get('kcin/'+op.value.dispatch.nick);
@@ -263,8 +277,11 @@ export class Peer extends ReadyResource {
                             }
                         }
                         const verified = _this.wallet.verify(op.hash, str_value + op.nonce, op.value.dispatch.address);
-                        if(null === taken && null !== str_value && ( verified || mod_verified || admin_verified ) &&
-                            null !== chat_status && chat_status.value === 'on' &&
+                        if(null === taken &&
+                            null !== str_value &&
+                            ( true === verified || true === mod_verified || true === admin_verified ) &&
+                            null !== chat_status &&
+                            chat_status.value === 'on' &&
                             null === await batch.get('sh/'+op.hash) &&
                             Buffer.byteLength(str_value) <= 256 &&
                             visibleLength(op.value.dispatch.nick) <= 32){
@@ -275,9 +292,9 @@ export class Peer extends ReadyResource {
                             }
                             await batch.put('nick/'+op.value.dispatch.address, op.value.dispatch.nick);
                             await batch.put('kcin/'+op.value.dispatch.nick, op.value.dispatch.address);
+                            await batch.put('sh/'+op.hash, '');
                             console.log(`Changed nick to ${op.value.dispatch.nick} (${op.value.dispatch.address})`);
                         }
-                        await batch.put('sh/'+op.hash, '');
                     } else if(op.type === 'muteStatus') {
                         if(false === this.check.mute(op)) continue;
                         const admin = await batch.get('admin');
@@ -293,12 +310,12 @@ export class Peer extends ReadyResource {
                                 }
                             }
                             const verified = _this.wallet.verify(op.hash, str_value + op.nonce, admin.value);
-                            if(verified || mod_verified) {
+                            if(true === verified || true === mod_verified) {
                                 await batch.put('mtd/'+op.value.dispatch.user, op.value.dispatch.muted);
+                                await batch.put('sh/'+op.hash, '');
                                 console.log(`Changed mute status ${op.value.dispatch.user} to ${op.value.dispatch.muted}`);
                             }
                         }
-                        await batch.put('sh/'+op.hash, '');
                     } else if(op.type === 'deleteMessage') {
                         if(false === this.check.deleteMessage(op)) continue;
                         const admin = await batch.get('admin');
@@ -318,7 +335,7 @@ export class Peer extends ReadyResource {
                                     user_verified = _this.wallet.verify(op.hash, str_value + op.nonce, op.value.dispatch.address);
                                 }
                                 const verified = _this.wallet.verify(op.hash, str_value + op.nonce, admin.value);
-                                if(verified || mod_verified || user_verified) {
+                                if(true === verified || true === mod_verified || true === user_verified) {
                                     message.value.msg = null;
                                     message.value.attachments = [];
                                     message.value.deleted_by = verified ? admin.value : op.value.dispatch.address;
@@ -331,11 +348,11 @@ export class Peer extends ReadyResource {
                                     await batch.put('msg/'+op.value.dispatch.id, message);
                                     await batch.put('delm/'+len, op.value.dispatch.id);
                                     await batch.put('delml', len + 1);
+                                    await batch.put('sh/'+op.hash, '');
                                     console.log(`Deleted message ${op.value.dispatch.id} by user ${message.value.address}`);
                                 }
                             }
                         }
-                        await batch.put('sh/'+op.hash, '');
                     } else if(op.type === 'setMod') {
                         if(false === this.check.mod(op)) continue;
                         const admin = await batch.get('admin');
@@ -343,12 +360,12 @@ export class Peer extends ReadyResource {
                         if(null !== admin && null !== str_value &&
                             null === await batch.get('sh/'+op.hash)){
                             const verified = _this.wallet.verify(op.hash, str_value + op.nonce, admin.value);
-                            if(verified) {
+                            if(true === verified) {
                                 await batch.put('mod/'+op.value.dispatch.user, op.value.dispatch.mod);
+                                await batch.put('sh/'+op.hash, '');
                                 console.log(`Changed mod status ${op.value.dispatch.user} to ${op.value.dispatch.mod}`);
                             }
                         }
-                        await batch.put('sh/'+op.hash, '');
                     } else if(op.type === 'setWhitelistStatus') {
                         if(false === this.check.whitelistStatus(op)) continue;
                         const admin = await batch.get('admin');
@@ -356,12 +373,12 @@ export class Peer extends ReadyResource {
                         if(null !== admin && null !== str_value &&
                             null === await batch.get('sh/'+op.hash)){
                             const verified = _this.wallet.verify(op.hash, str_value + op.nonce, admin.value);
-                            if(verified) {
+                            if(true === verified) {
                                 await batch.put('wl/'+op.value.dispatch.user, op.value.dispatch.status);
+                                await batch.put('sh/'+op.hash, '');
                                 console.log(`Changed whitelist status ${op.value.dispatch.user} to ${op.value.dispatch.status}`);
                             }
                         }
-                        await batch.put('sh/'+op.hash, '');
                     } else if(op.type === 'enableWhitelist') {
                         if(false === this.check.enableWhitelist(op)) continue;
                         const admin = await batch.get('admin');
@@ -369,12 +386,12 @@ export class Peer extends ReadyResource {
                         if(null !== admin && null !== str_value &&
                             null === await batch.get('sh/'+op.hash)){
                             const verified = _this.wallet.verify(op.hash, str_value + op.nonce, admin.value);
-                            if(verified) {
+                            if(true === verified) {
                                 await batch.put('wlst', op.value.dispatch.enabled);
+                                await batch.put('sh/'+op.hash, '');
                                 console.log(`Changed whitelist enabled ${op.value.dispatch.enabled}`);
                             }
                         }
-                        await batch.put('sh/'+op.hash, '');
                     }
                 }
 
@@ -576,8 +593,8 @@ export class Peer extends ReadyResource {
 
     async interactiveMode() {
         const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout,
+            input: new tty.ReadStream(0),
+            output: new tty.WriteStream(1)
         });
 
         console.log('Node started. Available commands:');
@@ -615,7 +632,7 @@ export class Peer extends ReadyResource {
                     console.log('Exiting...');
                     rl.close();
                     await this.close();
-                    process.exit(0);
+                    typeof process !== "undefined" ? process.exit(0) : Pear.exit(0);
                 case '/get_keys':
                     console.log("Public Key: ", this.wallet.publicKey);
                     console.log("Secret Key: ", this.wallet.secretKey);
