@@ -3,12 +3,11 @@ import Autobase from 'autobase';
 import Hyperswarm from 'hyperswarm';
 import ReadyResource from 'ready-resource';
 import b4a from 'b4a';
-import {Buffer} from "buffer"
+import sodium from 'sodium-native'
 import Hyperbee from 'hyperbee';
 import readline from 'readline';
 import tty from 'tty'
 import Corestore from 'corestore';
-import {createHash} from "crypto";
 import w from 'protomux-wakeup';
 const wakeup = new w();
 import {addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
@@ -19,6 +18,7 @@ export {default as Protocol} from "./protocol.js";
 export {default as Contract} from "./contract.js";
 export {default as Feature} from "./feature.js";
 export {default as Wallet} from "./wallet.js";
+import crypto from 'crypto'
 
 export class Peer extends ReadyResource {
 
@@ -43,8 +43,8 @@ export class Peer extends ReadyResource {
         this.features = options.features || [];
         this.protocol_instance = null;
         this.contract_instance = null;
-        this.channel = Buffer.alloc(32).fill(options.channel) || null;
-        this.tx_channel = Buffer.alloc(32).fill(options.tx_channel) || null;
+        this.channel = b4a.alloc(32).fill(options.channel) || null;
+        this.tx_channel = b4a.alloc(32).fill(options.tx_channel) || null;
         this.bee = null;
         this.replicate = options.replicate !== false;
         this.connectedNodes = 1;
@@ -90,7 +90,7 @@ export class Peer extends ReadyResource {
                         if (null !== str_dispatch &&
                             null === await batch.get('tx/'+op.key) &&
                             post_tx.value.tx === op.key &&
-                            post_tx.value.ch === createHash('sha256').update(str_dispatch).digest('hex') &&
+                            post_tx.value.ch === await _this.createHash('sha256', str_dispatch) &&
                             false !== await _this.contract_instance.execute(op, node, batch)) {
                             let len = await batch.get('txl');
                             if(null === len) {
@@ -132,7 +132,7 @@ export class Peer extends ReadyResource {
                             null !== str_value &&
                             null !== chat_status &&
                             null === await batch.get('sh/'+op.hash) &&
-                            Buffer.byteLength(str_value) <= 10_2400 &&
+                            b4a.byteLength(str_value) <= 10_2400 &&
                             chat_status.value === 'on' &&
                             false !== await _this.contract_instance.execute(op, node, batch)){
                             let len = await batch.get('msgl');
@@ -240,7 +240,7 @@ export class Peer extends ReadyResource {
                         console.log(`Writer auto added: ${op.key}`);
                     } else if (op.type === 'addAdmin') {
                         if(false === this.check.key(op)) continue;
-                        const bootstrap = Buffer(node.from.key).toString('hex')
+                        const bootstrap = b4a.toString(node.from.key, 'hex')
                         if(null === await batch.get('admin') && bootstrap === _this.bootstrap){
                             await batch.put('admin', op.key);
                             console.log(`Admin added: ${op.key}`);
@@ -283,7 +283,7 @@ export class Peer extends ReadyResource {
                             null !== chat_status &&
                             chat_status.value === 'on' &&
                             null === await batch.get('sh/'+op.hash) &&
-                            Buffer.byteLength(str_value) <= 256 &&
+                            b4a.byteLength(str_value) <= 256 &&
                             visibleLength(op.value.dispatch.nick) <= 32){
                             const old = await batch.get('nick/'+op.value.dispatch.address);
                             if(old !== null){
@@ -507,6 +507,33 @@ export class Peer extends ReadyResource {
 
     async sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async createHash(type, message){
+        if(type === 'sha256'){
+            const out = b4a.alloc(sodium.crypto_hash_sha256_BYTES);
+            sodium.crypto_hash_sha256(out, b4a.from(message));
+            return b4a.toString(out, 'hex');
+        }
+        let createHash = null;
+        if(global.Pear !== undefined){
+            let _type = '';
+            switch(type.toLowerCase()){
+                case 'sha1': _type = 'SHA-1'; break;
+                case 'sha384': _type = 'SHA-384'; break;
+                case 'sha512': _type = 'SHA-512'; break;
+                default: throw new Error('Unsupported algorithm.');
+            }
+            const encoder = new TextEncoder();
+            const data = encoder.encode(message);
+            const hash = await crypto.subtle.digest(_type, data);
+            const hashArray = Array.from(new Uint8Array(hash));
+            return hashArray
+                .map((b) => b.toString(16).padStart(2, "0"))
+                .join("");
+        } else {
+            return crypto.createHash(type).update(message).digest('hex')
+        }
     }
 
     async _replicate() {

@@ -1,3 +1,5 @@
+import b4a from "b4a";
+
 export function resolveNumberString(number, decimals){
     number = number + '';
     decimals = isNaN(decimals) ? 18 : parseInt(decimals);
@@ -76,8 +78,8 @@ export function restoreManifest(parsedManifest) {
             if(signer.namespace && signer.namespace.data &&signer.publicKey && signer.publicKey.data){
                 return {
                     ...signer,
-                    namespace: Buffer.from(signer.namespace.data),
-                    publicKey: Buffer.from(signer.publicKey.data),
+                    namespace: b4a.from(signer.namespace.data),
+                    publicKey: b4a.from(signer.publicKey.data),
                 }
             } else {
                 return signer;

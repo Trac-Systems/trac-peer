@@ -1,5 +1,6 @@
 import Validator from 'fastest-validator';
 import WAValidator from 'multicoin-address-validator';
+import b4a from "b4a";
 
 class Check {
 
@@ -20,6 +21,15 @@ class Check {
                     if (false === result)
                         return false;
                     return true;
+                },
+                hexCheck : (value, errors) => {
+                    let buf = null
+                    let result = false
+                    try{
+                        buf = b4a.from(value, 'hex')
+                        result = value === b4a.toString(buf, 'hex')
+                    } catch (e) {}
+                    return result;
                 }
             }
         });
@@ -41,15 +51,9 @@ class Check {
         this.validator.add("is_hex", function({ schema, messages }, path, context) {
             return {
                 source: `
-                    let buf = null
-                    let result = false
-                    try{ 
-                        buf = Buffer.from(value, 'hex')
-                        result = value === buf.toString('hex')
-                     } catch (e) {}
-                    if (false === result)
-                        ${this.makeError({ type: "bufferedHex",  actual: "value", messages })}
-                    return value
+                    const result = context.customFunctions.hexCheck(value, errors);
+                    if(false === result) ${this.makeError({ type: "bufferedHex",  actual: "value", messages })}
+                    return value;
                 `
             };
         });

@@ -1,5 +1,4 @@
 import { formatNumberString, resolveNumberString } from "./functions.js";
-import {createHash} from "crypto";
 
 class Protocol{
     constructor(options = {}) {
@@ -70,14 +69,14 @@ class Protocol{
         {
             this.nonce = Math.random() + '-' + Date.now();
             const MSBwriter = writer;
-            const content_hash = createHash('sha256').update(JSON.stringify(obj)).digest('hex');
-            let tx = createHash('sha256').update(
+            const content_hash = await this.peer.createHash('sha256', JSON.stringify(obj));
+            let tx = await this.peer.createHash('sha256',
                 MSBwriter + '-' +
                 this.peer.writerLocalKey + '-' +
                 this.peer.wallet.publicKey + '-' +
                 content_hash + '-' +
-                this.nonce).digest('hex');
-            tx = createHash('sha256').update(tx).digest('hex');
+                this.nonce);
+            tx = await this.peer.createHash('sha256', tx);
             const signature = this.peer.wallet.sign(tx + this.nonce);
             this.peer.emit('tx', {
                 op: 'pre-tx',
