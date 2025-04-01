@@ -18,7 +18,6 @@ export {default as Protocol} from "./protocol.js";
 export {default as Contract} from "./contract.js";
 export {default as Feature} from "./feature.js";
 export {default as Wallet} from "./wallet.js";
-import crypto from 'crypto'
 
 export class Peer extends ReadyResource {
 
@@ -619,6 +618,8 @@ export class Peer extends ReadyResource {
     }
 
     async interactiveMode() {
+        if(global.Pear !== undefined && global.Pear.config.options.type === 'desktop') return;
+
         const rl = readline.createInterface({
             input: new tty.ReadStream(0),
             output: new tty.WriteStream(1)
