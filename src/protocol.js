@@ -1,7 +1,9 @@
 import { formatNumberString, resolveNumberString } from "./functions.js";
+import {ProtocolApi} from './api.js';
 
 class Protocol{
     constructor(options = {}) {
+        this.api = new ProtocolApi({ peer : options.peer });
         this.base = options.base || null;
         this.peer = options.peer || null;
         this.options = options;
@@ -12,6 +14,13 @@ class Protocol{
         this.nonce = 0;
         this.prepared_transactions_content = {};
         this.features = {};
+    }
+
+    safeBigInt(value) {
+        try{
+            return BigInt(value);
+        } catch(e) { }
+        return null;
     }
 
     parseArgs(cmdline) {
@@ -103,13 +112,15 @@ class Protocol{
         }
     }
 
-    async execute(input){
-        throw new Error('Not implemented: Protocol.execute(input)');
+    async tx(subject){
+        throw new Error('Not implemented: Protocol.tx(subject)');
     }
 
-    async printOptions(){
-        throw new Error('Not implemented: Protocol.printOptions()');
-    }
+    async customCommand(input){ }
+
+    async printOptions(){ }
+
+    async extendApi(){ }
 
     async getSigned(key){
         const view_session = this.peer.base.view.checkout(this.peer.base.view.core.signedLength);

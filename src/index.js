@@ -12,7 +12,7 @@ import w from 'protomux-wakeup';
 const wakeup = new w();
 import {addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
     enableWhitelist, postMessage, jsonStringify, visibleLength, setNick,
-    muteStatus, setWhitelistStatus, updateAdmin} from "./functions.js";
+    muteStatus, setWhitelistStatus, updateAdmin, tx} from "./functions.js";
 import Check from "./check.js";
 export {default as Protocol} from "./protocol.js";
 export {default as Contract} from "./contract.js";
@@ -97,7 +97,7 @@ export class Peer extends ReadyResource {
                             } else {
                                 len = len.value;
                             }
-                            await batch.put('txi/'+op.key, len);
+                            await batch.put('txi/'+len, op.key);
                             await batch.put('txl', len + 1);
                             await batch.put('tx/'+op.key, op.value);
                             console.log(`${op.key} appended. Signed length:`, _this.base.view.core.signedLength);
@@ -147,7 +147,7 @@ export class Peer extends ReadyResource {
                                 user_len = user_len.value;
                             }
                             await batch.put('msg/'+len, op.value.dispatch);
-                            await batch.put('umsg/'+user_len, 'msg/'+len);
+                            await batch.put('umsg/'+op.value.dispatch.address+'/'+user_len, 'msg/'+len);
                             await batch.put('msgl', len + 1);
                             await batch.put('umsgl/'+op.value.dispatch.address, user_len + 1);
                             await batch.put('sh/'+op.hash, '');
@@ -427,6 +427,7 @@ export class Peer extends ReadyResource {
             peer : this,
             base : this.base
         });
+        await this.protocol_instance.extendApi();
         this.contract_instance = new this.contract(this.protocol_instance);
     }
 
@@ -645,6 +646,7 @@ export class Peer extends ReadyResource {
         console.log('- /set_whitelist_status | Only admin. Add/remove users to/from the chat whitelist: \'/set_whitelist_status --user "<address>" --status 1\'.');
         console.log(' ');
         console.log('- System Commands:');
+        console.log('- /tx | Perform a contract transaction. The validator flag broadcasts the transaction to the desired validator. The command flag contains contract commands in json format: \'/tx --validator "<validator writer key>" --command "<string, content depends on the protocol>"\'');
         console.log('- /dag | check system properties such as writer key, DAG, etc.');
         console.log('- /get_keys | prints your public and private keys. Be careful and never share your private key!');
         console.log('- /exit | Exit the program');
@@ -667,7 +669,9 @@ export class Peer extends ReadyResource {
                     break;
                 default:
                     try {
-                        if (input.startsWith('/add_indexer') || input.startsWith('/add_writer')) {
+                        if (input.startsWith('/tx')) {
+                            await tx(input, this);
+                        } else if (input.startsWith('/add_indexer') || input.startsWith('/add_writer')) {
                             await addWriter(input, this);
                         } else if (input.startsWith('/add_admin')) {
                             await addAdmin(input, this);
@@ -692,7 +696,7 @@ export class Peer extends ReadyResource {
                         } else if (input.startsWith('/set_whitelist_status')) {
                             await setWhitelistStatus(input, this);
                         } else {
-                            this.protocol_instance.execute(input);
+                            await this.protocol_instance.customCommand(input);
                         }
                     } catch(e) {
                         console.log('Command failed:', e.message);

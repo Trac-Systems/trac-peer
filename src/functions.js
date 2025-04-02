@@ -275,3 +275,11 @@ export async function addWriter(input, peer){
         peer.emit('announce', { op : 'append_writer', type: 'addWriter', key: ''+parsed.key, value: signature, hash: hash, nonce : nonce });
     }
 }
+
+export async function tx(input, peer){
+    const splitted = peer.protocol_instance.parseArgs(input);
+    if(splitted.validator === undefined || splitted.command === undefined){
+        throw new Error('Missing option. Please use --validator and --command flags.');
+    }
+    await peer.protocol_instance.tx(splitted);
+}
