@@ -81,15 +81,27 @@ export class Peer extends ReadyResource {
                     const op = node.value;
                     if (op.type === 'tx') {
                         if(false === this.check.tx(op)) continue;
-                        const str_dispatch = jsonStringify(op.value.dispatch);
+                        while (_this.msb.base.view.core.signedLength < op.value.msbsl) {
+                            await new Promise( (resolve, reject) => {
+                                _this.msb.base.view.core.once('append', resolve);
+                            });
+                        }
                         const msb_view_session = _this.msb.base.view.checkout(op.value.msbsl);
                         const post_tx = await msb_view_session.get(op.key);
                         await msb_view_session.close();
                         if(false === this.check.postTx(post_tx)) continue;
-                        if (null !== str_dispatch &&
-                            null === await batch.get('tx/'+op.key) &&
-                            post_tx.value.tx === op.key &&
-                            post_tx.value.ch === await _this.createHash('sha256', str_dispatch) &&
+                        const content_hash = await _this.createHash('sha256', jsonStringify(op.value.dispatch))
+                        if (op.key === post_tx.value.tx &&
+                            null === await batch.get('tx/'+post_tx.value.tx) &&
+                            post_tx.value.ch === content_hash &&
+                            _this.wallet.verify(post_tx.value.ws, post_tx.value.tx + post_tx.value.wn, op.value.wp) &&
+                            _this.wallet.verify(post_tx.value.is, post_tx.value.tx + post_tx.value.in, op.value.ipk) &&
+                            _this.wallet.verify(op.value.hash, post_tx.value.tx + post_tx.value.ch + op.value.nonce, post_tx.value.ipk) &&
+                            post_tx.value.tx === await _this.protocol_instance.generateTx(
+                                _this.bootstrap, _this.msb.bootstrap,
+                                post_tx.value.w, post_tx.value.i, post_tx.value.ipk,
+                                post_tx.value.ch, post_tx.value.in
+                            ) &&
                             false !== await _this.contract_instance.execute(op, node, batch)) {
                             let len = await batch.get('txl');
                             if(null === len) {
@@ -97,10 +109,10 @@ export class Peer extends ReadyResource {
                             } else {
                                 len = len.value;
                             }
-                            await batch.put('txi/'+len, op.key);
+                            await batch.put('txi/'+len, post_tx.value.tx);
                             await batch.put('txl', len + 1);
-                            await batch.put('tx/'+op.key, op.value);
-                            console.log(`${op.key} appended. Signed length:`, _this.base.view.core.signedLength);
+                            await batch.put('tx/'+post_tx.value.tx, op.value);
+                            console.log(`${post_tx.value.tx} appended. Signed length:`, _this.base.view.core.signedLength, 'tx length', len + 1);
                         }
                     } else if(op.type === 'msg') {
                         if(false === this.check.msg(op)) continue;
@@ -495,6 +507,10 @@ export class Peer extends ReadyResource {
                 if(null !== msb_tx){
                     msb_tx['dispatch'] = this.protocol_instance.prepared_transactions_content[tx];
                     msb_tx['msbsl'] = msbsl;
+                    msb_tx['ipk'] = this.wallet.publicKey;
+                    msb_tx['wp'] = msb_tx.value.wp !== undefined ? msb_tx.value.wp : null;
+                    msb_tx['nonce'] = Math.random() + '-' + Date.now();
+                    msb_tx['hash'] = this.wallet.sign(tx + await this.createHash('sha256', jsonStringify(msb_tx['dispatch'])) + msb_tx['nonce']);
                     delete this.tx_pool[tx];
                     delete this.protocol_instance.prepared_transactions_content[tx];
                     await this.base.append({ type: 'tx', key: tx, value: msb_tx });

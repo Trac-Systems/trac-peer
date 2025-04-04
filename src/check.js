@@ -379,7 +379,15 @@ class Check {
             value : {
                 $$type: "object",
                 tx : { type : "is_hex" },
-                ch : { type : "is_hex" }
+                ch : { type : "is_hex" },
+                ws : { type : "is_hex" },
+                wn : { type : "string", min : 1 },
+                wp : { type : "is_hex" },
+                is : { type : "is_hex" },
+                in : { type : "string", min : 1 },
+                ipk : { type : "is_hex" },
+                w : { type : "is_hex" },
+                i : { type : "is_hex" }
             }
         };
         return this.validator.compile(schema);
@@ -411,11 +419,15 @@ class Check {
 
     compileTx() {
         const schema = {
-            key: { type : "string", hex : null },
+            key: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : { type : "object" },
-                msbsl : { type : "number", integer : true, min : 0 }
+                msbsl : { type : "number", integer : true, min : 0 },
+                ipk : { type : "is_hex" },
+                wp : { type : "is_hex" },
+                hash : { type : "is_hex" },
+                nonce: { type : "string", min : 1 }
             }
         };
         return this.validator.compile(schema);

@@ -1,4 +1,4 @@
-import { formatNumberString, resolveNumberString } from "./functions.js";
+import { formatNumberString, resolveNumberString, jsonStringify } from "./functions.js";
 import {ProtocolApi} from './api.js';
 
 class Protocol{
@@ -70,32 +70,39 @@ class Protocol{
         this.features[key] = feature;
     }
 
-    async broadcastTransaction(writer, obj){
+    async generateTx(bootstrap, msb_bootstrap, validator_writer_key, local_writer_key, local_public_key, content_hash, nonce){
+        let tx = bootstrap + '-' +
+            msb_bootstrap + '-' +
+            validator_writer_key + '-' +
+            local_writer_key + '-' +
+            local_public_key + '-' +
+            content_hash + '-' +
+            nonce;
+        return await this.peer.createHash('sha256', await this.peer.createHash('sha256', tx));
+    }
+
+    async broadcastTransaction(validator_writer_key, obj){
         if((this.peer.wallet.publicKey !== null &&
                 this.peer.wallet.secretKey !== null) &&
             this.base.localWriter !== null &&
             this.tokenized_input !== null)
         {
             this.nonce = Math.random() + '-' + Date.now();
-            const MSBwriter = writer;
             const content_hash = await this.peer.createHash('sha256', JSON.stringify(obj));
-            let tx = await this.peer.createHash('sha256',
-                MSBwriter + '-' +
-                this.peer.writerLocalKey + '-' +
-                this.peer.wallet.publicKey + '-' +
-                content_hash + '-' +
-                this.nonce);
-            tx = await this.peer.createHash('sha256', tx);
+            let tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, validator_writer_key,
+                this.peer.writerLocalKey, this.peer.wallet.publicKey, content_hash, this.nonce);
             const signature = this.peer.wallet.sign(tx + this.nonce);
             this.peer.emit('tx', {
                 op: 'pre-tx',
                 tx: tx,
                 is: signature,
-                w: MSBwriter,
+                w: validator_writer_key,
                 i: this.peer.writerLocalKey,
                 ipk: this.peer.wallet.publicKey,
                 ch : content_hash,
-                in : this.nonce
+                in : this.nonce,
+                bs : this.peer.bootstrap,
+                mbs : this.peer.msb.bootstrap
             });
             this.prepared_transactions_content[tx] = obj;
         } else {
