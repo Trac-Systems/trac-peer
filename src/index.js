@@ -73,9 +73,7 @@ export class Peer extends ReadyResource {
             },
             apply: async (nodes, view, base) => {
                 if(this.contract_instance === null) await this.initContract();
-
                 const batch = view.batch();
-
                 for (const node of nodes) {
                     if(false === this.check.node(node)) continue;
                     const op = node.value;
@@ -405,7 +403,6 @@ export class Peer extends ReadyResource {
                         }
                     }
                 }
-
                 await batch.flush();
                 await batch.close();
             }

@@ -82,10 +82,9 @@ class Protocol{
     }
 
     async broadcastTransaction(validator_writer_key, obj){
-        if((this.peer.wallet.publicKey !== null &&
-                this.peer.wallet.secretKey !== null) &&
-            this.base.localWriter !== null &&
-            this.tokenized_input !== null)
+        if(this.peer.wallet.publicKey !== null &&
+            this.peer.wallet.secretKey !== null &&
+            this.base.localWriter !== null)
         {
             this.nonce = Math.random() + '-' + Date.now();
             const content_hash = await this.peer.createHash('sha256', JSON.stringify(obj));

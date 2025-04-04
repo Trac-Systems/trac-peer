@@ -91,7 +91,7 @@ export function restoreManifest(parsedManifest) {
 }
 
 export function visibleLength(str) {
-    return [...new Intl.Segmenter().segment(str)].length
+    return b4a.byteLength(str);
 }
 
 export function jsonStringify(value){
