@@ -22,7 +22,7 @@ class Contract {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
-                    type : { type : "string", min : 1 }
+                    type : { type : "string", min : 1, max : 64 }
                 }
             }
         });
@@ -50,7 +50,7 @@ class Contract {
         });
 
         this.textkey_schema = this.protocol.peer.check.validator.compile({
-            key : { type : "string", min : 1 }
+            key : { type : "string", min : 1, max : 256 }
         });
     }
 
@@ -153,6 +153,10 @@ class Contract {
 
     isMessage(){
         return this.is_message;
+    }
+
+    async del(key){
+        await this.storage.del(key);
     }
 
     async get(key){

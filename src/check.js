@@ -18,9 +18,7 @@ class Check {
                     try{
                         result = WAValidator.validate(value, 'Bitcoin', { networkType : 'both' });
                     } catch (e) {}
-                    if (false === result)
-                        return false;
-                    return true;
+                    return result;
                 },
                 hexCheck : (value, errors) => {
                     let buf = null
@@ -88,14 +86,14 @@ class Check {
 
     compileEnableWhitelist (){
         const schema = {
-            nonce: { type : "string", min : 1 },
+            nonce: { type : "string", min : 1, max : 64 },
             hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
                     enabled : { type : "boolean" },
-                    type : { type : "string", min : 1 },
+                    type : { type : "string", min : 1, max : 64 },
                     address : { type : "is_hex" }
                 }
             }
@@ -110,14 +108,14 @@ class Check {
 
     compileWhitelistStatus (){
         const schema = {
-            nonce: { type : "string", min : 1 },
+            nonce: { type : "string", min : 1, max : 64 },
             hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
                     status : { type : "boolean" },
-                    type : { type : "string", min : 1 },
+                    type : { type : "string", min : 1, max : 64 },
                     address : { type : "is_hex" },
                     user : { type : "is_hex" }
                 }
@@ -133,14 +131,14 @@ class Check {
 
     compileMod (){
         const schema = {
-            nonce: { type : "string", min : 1 },
+            nonce: { type : "string", min : 1, max : 64 },
             hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
                     mod : { type : "boolean" },
-                    type : { type : "string", min : 1 },
+                    type : { type : "string", min : 1, max : 64 },
                     address : { type : "is_hex" },
                     user : { type : "is_hex" }
                 }
@@ -156,14 +154,14 @@ class Check {
 
     compileDeleteMessage (){
         const schema = {
-            nonce: { type : "string", min : 1 },
+            nonce: { type : "string", min : 1, max : 64 },
             hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
-                    id : { type : "number", integer: true, min : 0 },
-                    type : { type : "string", min : 1 },
+                    id : { type : "number", integer: true, min : 0, max : 18446744073709551615 },
+                    type : { type : "string", min : 1, max : 64 },
                     address : { type : "is_hex" },
                     deleted_by : { type : "is_hex", nullable : true }
                 }
@@ -179,14 +177,14 @@ class Check {
 
     compileMute (){
         const schema = {
-            nonce: { type : "string", min : 1 },
+            nonce: { type : "string", min : 1, max : 64 },
             hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
                     muted : { type : "boolean" },
-                    type : { type : "string", min : 1 },
+                    type : { type : "string", min : 1, max : 64 },
                     address : { type : "is_hex" },
                     user : { type : "is_hex" }
                 }
@@ -202,14 +200,14 @@ class Check {
 
     compileNick (){
         const schema = {
-            nonce: { type : "string", min : 1 },
+            nonce: { type : "string", min : 1, max : 64 },
             hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
-                    nick : { type : "string", min : 1 },
-                    type : { type : "string", min : 1 },
+                    nick : { type : "string", min : 1, max : 64 },
+                    type : { type : "string", min : 1, max : 64 },
                     address : { type : "is_hex" },
                     initiator : { type : "is_hex" }
                 }
@@ -237,14 +235,14 @@ class Check {
 
     compileUpdateAdmin() {
         const schema = {
-            nonce: { type : "string", min : 1 },
+            nonce: { type : "string", min : 1, max : 64 },
             hash: { type : "is_hex" },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
                     admin : { type : "is_hex", nullable : true },
-                    type : { type : "string", min : 1 },
+                    type : { type : "string", min : 1, max : 64 },
                     address : { type : "is_hex" }
                 }
             }
@@ -259,15 +257,15 @@ class Check {
 
     compileSetAutoAddWriters (){
         const schema = {
-            key: { type : "string", min : 1 },
+            key: { type : "string", min : 1, max : 256 },
             hash : { type : "is_hex" },
-            nonce : { type : "string", min : 1 },
+            nonce : { type : "string", min : 1, max : 64 },
             value : {
                 $$type: "object",
                 msg : {
                     $$type : "object",
-                    type : { type : "string", min : 1 },
-                    key: { type : "string", min : 1 }
+                    type : { type : "string", min : 1, max : 64 },
+                    key: { type : "string", min : 1, max : 256 }
                 }
             }
         };
@@ -281,15 +279,15 @@ class Check {
 
     compileSetChatStatus (){
         const schema = {
-            key: { type : "string", min : 1 },
+            key: { type : "string", min : 1, max : 256 },
             hash : { type : "is_hex" },
-            nonce : { type : "string", min : 1 },
+            nonce : { type : "string", min : 1, max : 64 },
             value : {
                 $$type: "object",
                 msg : {
                     $$type : "object",
-                    type : { type : "string", min : 1 },
-                    key: { type : "string", min : 1 }
+                    type : { type : "string", min : 1, max : 64 },
+                    key: { type : "string", min : 1, max : 256 }
                 }
             }
         };
@@ -305,12 +303,12 @@ class Check {
         const schema = {
             key: { type : "is_hex" },
             hash : { type : "is_hex" },
-            nonce : { type : "string", min : 1 },
+            nonce : { type : "string", min : 1, max : 64 },
             value : {
                 $$type: "object",
                 msg : {
                     $$type : "object",
-                    type : { type : "string", min : 1 },
+                    type : { type : "string", min : 1, max : 64 },
                     key: { type : "is_hex" }
                 }
             }
@@ -330,13 +328,13 @@ class Check {
 
     compileFeature (){
         const schema = {
-            key: { type : "string", min : 1 },
+            key: { type : "string", min : 1, max : 256 },
             value : {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
                     value : { type : "any", nullable : true },
-                    nonce: { type : "string", min : 1 },
+                    nonce: { type : "string", min : 1, max : 64 },
                     hash: { type : "is_hex" }
                 }
             }
@@ -351,7 +349,7 @@ class Check {
 
     compileMsg (){
         const schema = {
-            nonce: { type : "string", min : 1 },
+            nonce: { type : "string", min : 1, max : 64 },
             hash: { type : "is_hex" },
             value : {
                 $$type: "object",
@@ -359,10 +357,10 @@ class Check {
                     $$type : "object",
                     attachments : { type : "array", items : "string" },
                     msg : { type : "string", min : 1 },
-                    type : { type : "string", min : 1 },
+                    type : { type : "string", min : 1, max : 64 },
                     address : { type : "is_hex" },
                     deleted_by : { type : "is_hex", nullable : true },
-                    reply_to : { type : "number", integer : true, min : 0, nullable : true },
+                    reply_to : { type : "number", integer : true, min : 0, max : 18446744073709551615, nullable : true },
                 }
             }
         };
@@ -381,10 +379,10 @@ class Check {
                 tx : { type : "is_hex" },
                 ch : { type : "is_hex" },
                 ws : { type : "is_hex" },
-                wn : { type : "string", min : 1 },
+                wn : { type : "string", min : 1, max : 64 },
                 wp : { type : "is_hex" },
                 is : { type : "is_hex" },
-                in : { type : "string", min : 1 },
+                in : { type : "string", min : 1, max : 64 },
                 ipk : { type : "is_hex" },
                 w : { type : "is_hex" },
                 i : { type : "is_hex" }
@@ -406,7 +404,7 @@ class Check {
             },*/
             value: {
                 $$type: "object",
-                type: { type : "string", min : 1 }
+                type: { type : "string", min : 1, max : 64 }
             }
         };
         return this.validator.compile(schema);
@@ -423,11 +421,11 @@ class Check {
             value : {
                 $$type: "object",
                 dispatch : { type : "object" },
-                msbsl : { type : "number", integer : true, min : 0 },
+                msbsl : { type : "number", integer : true, min : 0, max : 18446744073709551615 },
                 ipk : { type : "is_hex" },
                 wp : { type : "is_hex" },
                 hash : { type : "is_hex" },
-                nonce: { type : "string", min : 1 }
+                nonce: { type : "string", min : 1, max : 64 }
             }
         };
         return this.validator.compile(schema);
