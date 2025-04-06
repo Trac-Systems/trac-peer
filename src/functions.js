@@ -103,6 +103,24 @@ export function jsonStringify(value){
     return null;
 }
 
+export function jsonParse(str){
+    try {
+        return JSON.parse(str);
+    } catch(e){
+        console.log(e);
+    }
+    return undefined;
+}
+
+export function safeClone(obj){
+    if(typeof obj !== 'object') return null;
+    const str = jsonStringify(obj);
+    if(str === null) return null;
+    const obj2 = jsonParse(str);
+    if(obj2 === undefined) return null;
+    return obj2;
+}
+
 export async function setWhitelistStatus(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.user;

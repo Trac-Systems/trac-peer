@@ -1,4 +1,4 @@
-import { formatNumberString, resolveNumberString, jsonStringify } from "./functions.js";
+import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone } from "./functions.js";
 import {ProtocolApi} from './api.js';
 
 class Protocol{
@@ -11,6 +11,9 @@ class Protocol{
         this.tokenized_input = null;
         this.fromBigIntString = formatNumberString;
         this.toBigIntString = resolveNumberString;
+        this.safeJsonStringify = jsonStringify;
+        this.safeJsonParse = jsonParse;
+        this.safeClone = safeClone;
         this.nonce = 0;
         this.prepared_transactions_content = {};
         this.features = {};

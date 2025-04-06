@@ -10,6 +10,12 @@ class Contract {
         this.schemata = {};
         this.message_handler = null;
         this.root = null;
+        this.address = null;
+        this.validator_address = null;
+        this.tx = null;
+        this.op = null;
+        this.value = null;
+        this.node = null;
 
         this.enter_execute_schema = this.protocol.peer.check.validator.compile({
             value : {
@@ -27,7 +33,8 @@ class Contract {
                 $$type: "object",
                 value : {
                     $$type : "object",
-                    ipk : { type : "string", hex : null }
+                    ipk : { type : "is_hex" },
+                    wp : { type : "is_hex" }
                 }
             }
         });
@@ -37,7 +44,7 @@ class Contract {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
-                    address : { type : "string", hex : null }
+                    address : { type : "is_hex" }
                 }
             }
         });
@@ -48,15 +55,27 @@ class Contract {
     }
 
     async execute(op, node, storage){
-        if(true !== this.enter_execute_schema(op)) return;
 
         this.address = null;
+        this.validator_address = null;
+        this.is_message = false;
+        this.is_feature = false;
+        this.tx = null;
+        this.op = null;
+        this.value = null;
+        this.node = null;
+        this.storage = null;
+        this.root = null;
+
+        if(true !== this.enter_execute_schema(op)) return false;
+
         if(op.type !== 'feature' && op.type !== 'msg'){
-            if(false === this.tx_schema(op)) return;
+            if(false === this.tx_schema(op)) return false;
             this.address = op.value.value.ipk;
+            this.validator_address = op.value.value.wp;
         } else {
-            if(true !== this.address_schema(op)) return;
-            if(op.type === 'feature' && true !== this.textkey_schema(op)) return;
+            if(true !== this.address_schema(op)) return false;
+            if(op.type === 'feature' && true !== this.textkey_schema(op)) return false;
             if(op.type === 'feature') this.is_feature = true;
             if(op.type === 'msg') this.is_message = true;
             this.address = op.value.dispatch.address;
@@ -83,7 +102,9 @@ class Contract {
             if(this[this.op.type] !== undefined) {
                 if(this.schemata[this.op.type] !== undefined){
                     if(true === this.validateSchema(this.op.type, this.op)) {
-                        await this[this.op.type]();
+                        _return = await this[this.op.type]();
+                    } else {
+                        _return = false;
                     }
                 } else {
                     _return = await this[this.op.type]();
@@ -92,8 +113,15 @@ class Contract {
         }
 
         this.address = null;
+        this.validator_address = null;
         this.is_message = false;
         this.is_feature = false;
+        this.tx = null;
+        this.op = null;
+        this.value = null;
+        this.node = null;
+        this.storage = null;
+        this.root = null;
 
         return _return;
     }
