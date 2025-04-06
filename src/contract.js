@@ -22,7 +22,7 @@ class Contract {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
-                    type : { type : "string", min : 1, max : 64 }
+                    type : { type : "string", min : 1, max : 256 }
                 }
             }
         });
