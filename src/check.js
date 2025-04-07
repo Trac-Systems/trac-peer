@@ -160,7 +160,7 @@ class Check {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
-                    id : { type : "number", integer: true, min : 0, max : 18446744073709551615 },
+                    id : { type : "number", integer: true, min : 0, max : 2147483647 },
                     type : { type : "string", min : 1, max : 256 },
                     address : { type : "is_hex" },
                     deleted_by : { type : "is_hex", nullable : true }
@@ -360,7 +360,7 @@ class Check {
                     type : { type : "string", min : 1, max : 256 },
                     address : { type : "is_hex" },
                     deleted_by : { type : "is_hex", nullable : true },
-                    reply_to : { type : "number", integer : true, min : 0, max : 18446744073709551615, nullable : true },
+                    reply_to : { type : "number", integer : true, min : 0, max : 2147483647, nullable : true },
                 }
             }
         };
