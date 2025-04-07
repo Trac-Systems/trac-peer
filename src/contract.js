@@ -155,7 +155,16 @@ class Contract {
         return this.is_message;
     }
 
+    isReservedKey(key){
+        return key.startsWith('sh/') || key.startsWith('tx/') || key === 'msgl' || key.startsWith('kcin/') || key.startsWith('delm/') ||
+            key.startsWith('umsg/') || key.startsWith('umsg/') || key.startsWith('msgl/') || key === 'admin' || key === 'auto_add_writers'
+            || key.startsWith('nick/') || key.startsWith('mod/') || key === 'chat_status' || key.startsWith('mtd/') || key === 'delml' ||
+            key === 'wlst' || key === 'txl' || key.startsWith('txi/') || key.startsWith('wl/');
+    }
+
     async del(key){
+        if(typeof this.storage === "undefined" || this.storage === null) throw new Error('del(key): storage undefined');
+        if(this.isReservedKey(key)) throw Error('del(key): ' + key + 'is reserved');
         await this.storage.del(key);
     }
 
@@ -168,11 +177,7 @@ class Contract {
 
     async put(key, value){
         if(typeof this.storage === "undefined" || this.storage === null) throw new Error('put(key,value): storage undefined');
-        if(key.startsWith('sh/') || key.startsWith('tx/') || key === 'msgl' || key.startsWith('kcin/') || key.startsWith('delm/') ||
-            key.startsWith('umsg/') || key.startsWith('umsg/') || key.startsWith('msgl/') || key === 'admin' || key === 'auto_add_writers'
-            || key.startsWith('nick/') || key.startsWith('mod/') || key === 'chat_status' || key.startsWith('mtd/') || key === 'delml' ||
-            key === 'wlst' || key === 'txl' || key.startsWith('txi/') || key.startsWith('wl/'))
-            throw Error('put(key,value): ' + key + 'is reserved');
+        if(this.isReservedKey(key)) throw Error('put(key,value): ' + key + 'is reserved');
         return await this.storage.put(key, value);
     }
 
