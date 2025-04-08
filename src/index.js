@@ -100,7 +100,7 @@ export class Peer extends ReadyResource {
                                 post_tx.value.w, post_tx.value.i, post_tx.value.ipk,
                                 post_tx.value.ch, post_tx.value.in
                             ) &&
-                            false !== await _this.contract_instance.execute(op, node, batch)) {
+                            false !== await _this.contract_instance.execute(op, batch)) {
                             let len = await batch.get('txl');
                             if(null === len) {
                                 len = 0;
@@ -143,7 +143,7 @@ export class Peer extends ReadyResource {
                             null === await batch.get('sh/'+op.hash) &&
                             b4a.byteLength(str_value) <= 10_2400 &&
                             chat_status.value === 'on' &&
-                            false !== await _this.contract_instance.execute(op, node, batch)){
+                            false !== await _this.contract_instance.execute(op, batch)){
                             let len = await batch.get('msgl');
                             if(null === len) {
                                 len = 0;
@@ -172,7 +172,7 @@ export class Peer extends ReadyResource {
                             null === await batch.get('sh/'+op.value.dispatch.hash)){
                             const verified = _this.wallet.verify(op.value.dispatch.hash, str_dispatch_value + op.value.dispatch.nonce, admin.value);
                             if(true === verified) {
-                                await _this.contract_instance.execute(op, node, batch);
+                                await _this.contract_instance.execute(op, batch);
                                 await batch.put('sh/'+op.value.dispatch.hash, '');
                                 console.log(`Feature ${op.key} appended`);
                             }
@@ -659,7 +659,7 @@ export class Peer extends ReadyResource {
         console.log('- /set_whitelist_status | Only admin. Add/remove users to/from the chat whitelist: \'/set_whitelist_status --user "<address>" --status 1\'.');
         console.log(' ');
         console.log('- System Commands:');
-        console.log('- /tx | Perform a contract transaction. The validator flag broadcasts the transaction to the desired validator. The command flag contains contract commands in json format: \'/tx --validator "<validator writer key>" --command "<string, content depends on the protocol>"\'');
+        console.log('- /tx | Perform a contract transaction. The validator flag broadcasts the transaction to the desired validator. The command flag contains contract commands in json format: \'/tx --validator "<validator writer key>" --command "<string, content depends on the protocol>"\'. To simulate a tx, you must leave out the \'--validator\' flag and use \'--sim 1\' instead.');
         console.log('- /dag | check system properties such as writer key, DAG, etc.');
         console.log('- /get_keys | prints your public and private keys. Be careful and never share your private key!');
         console.log('- /exit | Exit the program');

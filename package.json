@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "type": "module",
   "dependencies": {
     "trac-wallet": "^0.0.35",

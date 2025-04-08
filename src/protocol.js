@@ -17,6 +17,7 @@ class Protocol{
         this.nonce = 0;
         this.prepared_transactions_content = {};
         this.features = {};
+        this.sim = false;
     }
 
     safeBigInt(value) {
@@ -84,10 +85,36 @@ class Protocol{
         return await this.peer.createHash('sha256', await this.peer.createHash('sha256', tx));
     }
 
+    async simulateTransaction(obj){
+        const storage = new SimStorage(this.peer);
+        const null_hex = '0000000000000000000000000000000000000000000000000000000000000000';
+        let nonce = Math.random() + '-' + Date.now();
+        const content_hash = await this.peer.createHash('sha256', JSON.stringify(obj));
+        let tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, null_hex,
+            this.peer.writerLocalKey, this.peer.wallet.publicKey, content_hash, nonce);
+        const op = {
+            type : 'tx',
+            key : tx,
+            value : {
+                dispatch : obj,
+                value : {
+                    ipk : this.peer.wallet.publicKey,
+                    wp : null_hex
+                }
+            }
+        }
+        return await this.peer.contract_instance.execute(op, storage);
+    }
+
     async broadcastTransaction(validator_writer_key, obj){
+        if(true === this.sim) {
+            return await this.simulateTransaction(obj);
+        }
         if(this.peer.wallet.publicKey !== null &&
             this.peer.wallet.secretKey !== null &&
-            this.base.localWriter !== null)
+            this.base.localWriter !== null &&
+            obj.type !== undefined &&
+            obj.value !== undefined)
         {
             this.nonce = Math.random() + '-' + Date.now();
             const content_hash = await this.peer.createHash('sha256', JSON.stringify(obj));
@@ -110,6 +137,7 @@ class Protocol{
         } else {
             throw Error('broadcastTransaction(writer, obj): Cannot prepare transaction. Please make sure inputs and local writer are set.');
         }
+        return true;
     }
 
     async tokenizeInput(input){
@@ -121,9 +149,7 @@ class Protocol{
         }
     }
 
-    async tx(subject){
-        throw new Error('Not implemented: Protocol.tx(subject)');
-    }
+    async tx(subject){ }
 
     async customCommand(input){ }
 
@@ -142,6 +168,32 @@ class Protocol{
         const result = await this.peer.base.view.get(key);
         if(null === result) return null;
         return result.value;
+    }
+}
+
+class SimStorage{
+    constructor(peer) {
+        this.peer = peer;
+        this.values = {};
+    }
+
+    async del(key){
+        if(this.peer.contract_instance.isReservedKey(key)) throw Error('del(key): ' + key + 'is reserved');
+        delete this.values[key];
+        return this.peer.contract_instance.emptyPromise();
+    }
+
+    async get(key){
+        if(this.values[key] !== undefined) {
+            return { value : this.values[key] };
+        }
+        return await this.peer.base.view.get(key);
+    }
+
+    async put(key, value){
+        if(this.peer.contract_instance.isReservedKey(key)) throw Error('put(key,value): ' + key + 'is reserved');
+        this.values[key] = value;
+        return this.peer.contract_instance.emptyPromise();
     }
 }
 

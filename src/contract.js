@@ -9,13 +9,11 @@ class Contract {
         this.features = {};
         this.schemata = {};
         this.message_handler = null;
-        this.root = null;
         this.address = null;
         this.validator_address = null;
         this.tx = null;
         this.op = null;
         this.value = null;
-        this.node = null;
 
         this.enter_execute_schema = this.protocol.peer.check.validator.compile({
             value : {
@@ -28,7 +26,7 @@ class Contract {
         });
 
         this.tx_schema = this.protocol.peer.check.validator.compile({
-            key : { type : "string", hex : null },
+            key : { type : "is_hex" },
             value : {
                 $$type: "object",
                 value : {
@@ -54,7 +52,7 @@ class Contract {
         });
     }
 
-    async execute(op, node, storage){
+    async execute(op, storage){
 
         this.address = null;
         this.validator_address = null;
@@ -63,9 +61,7 @@ class Contract {
         this.tx = null;
         this.op = null;
         this.value = null;
-        this.node = null;
         this.storage = null;
-        this.root = null;
 
         if(true !== this.enter_execute_schema(op)) return false;
 
@@ -84,15 +80,14 @@ class Contract {
         this.tx = op.type === 'tx' ? op.key : null;
         this.op = op.value.dispatch;
         this.value = this.op.value !== undefined ? this.op.value : null;
-        this.node = node;
         this.storage = storage;
-        this.root = op;
 
         let _return = null;
 
         if(this.isFeature()) {
             if(this.features[this.op.type] !== undefined){
-                _return = await this.features[this.op.type]();
+                // feature returns aren't handled by peer, so not necessary to track
+                await this.features[this.op.type]();
             }
         } else if(this.isMessage()) {
             if(this.message_handler !== undefined){
@@ -119,9 +114,7 @@ class Contract {
         this.tx = null;
         this.op = null;
         this.value = null;
-        this.node = null;
         this.storage = null;
-        this.root = null;
 
         return _return;
     }

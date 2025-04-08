@@ -296,8 +296,18 @@ export async function addWriter(input, peer){
 
 export async function tx(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input);
-    if(splitted.validator === undefined || splitted.command === undefined){
+    if(splitted.sim === undefined && (splitted.validator === undefined || splitted.command === undefined)){
         throw new Error('Missing option. Please use --validator and --command flags.');
+    } else if(splitted.sim !== undefined && splitted.command === undefined){
+        throw new Error('Missing option. Please use the --command flag when simulating a tx.');
     }
-    await peer.protocol_instance.tx(splitted);
+    let res = false;
+    try{
+        if(splitted.sim !== undefined && parseInt(splitted.sim) === 1){
+            peer.protocol_instance.sim = true;
+        }
+        res = await peer.protocol_instance.tx(splitted);
+    } catch(e){ console.log(e) }
+    peer.protocol_instance.sim = false;
+    return res;
 }
