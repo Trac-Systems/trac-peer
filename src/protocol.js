@@ -149,6 +149,13 @@ class Protocol{
         }
     }
 
+    getError(value){
+        if (value === false || (value !== undefined && value.stack !== undefined && value.message != undefined)) {
+            return value === false ? new Error('Generic Error') : value;
+        }
+        return null;
+    }
+
     async tx(subject){ }
 
     async customCommand(input){ }

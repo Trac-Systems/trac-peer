@@ -308,6 +308,10 @@ export async function tx(input, peer){
         }
         res = await peer.protocol_instance.tx(splitted);
     } catch(e){ console.log(e) }
+    const err = peer.protocol_instance.getError(res);
+    if(null !== err){
+        console.log(err.message);
+    }
     peer.protocol_instance.sim = false;
     return res;
 }

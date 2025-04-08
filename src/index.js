@@ -100,7 +100,7 @@ export class Peer extends ReadyResource {
                                 post_tx.value.w, post_tx.value.i, post_tx.value.ipk,
                                 post_tx.value.ch, post_tx.value.in
                             ) &&
-                            false !== await _this.contract_instance.execute(op, batch)) {
+                            null === _this.protocol_instance.getError(await _this.contract_instance.execute(op, batch))) {
                             let len = await batch.get('txl');
                             if(null === len) {
                                 len = 0;
@@ -143,7 +143,7 @@ export class Peer extends ReadyResource {
                             null === await batch.get('sh/'+op.hash) &&
                             b4a.byteLength(str_value) <= 10_2400 &&
                             chat_status.value === 'on' &&
-                            false !== await _this.contract_instance.execute(op, batch)){
+                            null === _this.protocol_instance.getError(await _this.contract_instance.execute(op, batch))){
                             let len = await batch.get('msgl');
                             if(null === len) {
                                 len = 0;
