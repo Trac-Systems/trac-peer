@@ -10,9 +10,11 @@ import tty from 'tty'
 import Corestore from 'corestore';
 import w from 'protomux-wakeup';
 const wakeup = new w();
-import {addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
+import {
+    addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
     enableWhitelist, postMessage, jsonStringify, visibleLength, setNick,
-    muteStatus, setWhitelistStatus, updateAdmin, tx} from "./functions.js";
+    muteStatus, setWhitelistStatus, updateAdmin, tx, safeClone
+} from "./functions.js";
 import Check from "./check.js";
 export {default as Protocol} from "./protocol.js";
 export {default as Contract} from "./contract.js";
@@ -78,6 +80,7 @@ export class Peer extends ReadyResource {
                     if(false === this.check.node(node)) continue;
                     const op = node.value;
                     if (op.type === 'tx') {
+                        if(b4a.byteLength(jsonStringify(op)) > _this.protocol_instance.txMaxBytes()) continue;
                         if(false === this.check.tx(op)) continue;
                         while (_this.msb.base.view.core.signedLength < op.value.msbsl) {
                             await new Promise( (resolve, reject) => {
@@ -99,20 +102,29 @@ export class Peer extends ReadyResource {
                                 _this.bootstrap, _this.msb.bootstrap,
                                 post_tx.value.w, post_tx.value.i, post_tx.value.ipk,
                                 post_tx.value.ch, post_tx.value.in
-                            ) &&
-                            null === _this.protocol_instance.getError(await _this.contract_instance.execute(op, batch))) {
+                            )) {
+                            const err = _this.protocol_instance.getError(
+                                await _this.contract_instance.execute(op, batch)
+                            );
+                            let _err = null;
+                            if(null !== err) {
+                                _err = ''+err.message;
+                            }
                             let len = await batch.get('txl');
                             if(null === len) {
                                 len = 0;
                             } else {
                                 len = len.value;
                             }
-                            await batch.put('txi/'+len, post_tx.value.tx);
+                            const cloned = safeClone(op.value.dispatch);
+                            cloned['err'] = _err;
+                            await batch.put('txi/'+len, cloned);
                             await batch.put('txl', len + 1);
-                            await batch.put('tx/'+post_tx.value.tx, op.value);
+                            await batch.put('tx/'+post_tx.value.tx, len);
                             console.log(`${post_tx.value.tx} appended. Signed length:`, _this.base.view.core.signedLength, 'tx length', len + 1);
                         }
                     } else if(op.type === 'msg') {
+                        if(b4a.byteLength(jsonStringify(op)) > _this.protocol_instance.msgMaxBytes()) continue;
                         if(false === this.check.msg(op)) continue;
                         const admin = await batch.get('admin');
                         let muted = false;
@@ -141,9 +153,10 @@ export class Peer extends ReadyResource {
                             null !== str_value &&
                             null !== chat_status &&
                             null === await batch.get('sh/'+op.hash) &&
-                            b4a.byteLength(str_value) <= 10_2400 &&
                             chat_status.value === 'on' &&
-                            null === _this.protocol_instance.getError(await _this.contract_instance.execute(op, batch))){
+                            null === _this.protocol_instance.getError(
+                                await _this.contract_instance.execute(op, batch)
+                            )){
                             let len = await batch.get('msgl');
                             if(null === len) {
                                 len = 0;
@@ -165,6 +178,7 @@ export class Peer extends ReadyResource {
                             console.log(`#${len + 1} | ${nick !== null ? nick.value : op.value.dispatch.address}: ${op.value.dispatch.msg}`);
                         }
                     } else if (op.type === 'feature') {
+                        if(b4a.byteLength(jsonStringify(op)) > _this.protocol_instance.featMaxBytes()) continue;
                         if(false === this.check.feature(op)) continue;
                         const str_dispatch_value = jsonStringify(op.value.dispatch.value);
                         const admin = await batch.get('admin');
@@ -449,7 +463,7 @@ export class Peer extends ReadyResource {
 
     async txChannel() {
         const _this = this;
-        this.tx_swarm = new Hyperswarm({ maxPeers: 1024, maxParallel: 512, maxServerConnections: 256 });
+        this.tx_swarm = new Hyperswarm();
 
         this.tx_swarm.on('connection', async (connection, peerInfo) => {
             const peerName = b4a.toString(connection.remotePublicKey, 'hex');

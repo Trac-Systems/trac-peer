@@ -20,6 +20,18 @@ class Protocol{
         this.sim = false;
     }
 
+    featMaxBytes(){
+        return 4_096;
+    }
+
+    txMaxBytes(){
+        return 4_096;
+    }
+
+    msgMaxBytes(){
+        return 8_192;
+    }
+
     safeBigInt(value) {
         try{
             return BigInt(value);
@@ -150,7 +162,7 @@ class Protocol{
     }
 
     getError(value){
-        if (value === false || (value !== undefined && value.stack !== undefined && value.message != undefined)) {
+        if (value === false || (value !== undefined && value.stack !== undefined && value.message !== undefined)) {
             return value === false ? new Error('Generic Error') : value;
         }
         return null;

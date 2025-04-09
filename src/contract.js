@@ -29,6 +29,11 @@ class Contract {
             key : { type : "is_hex" },
             value : {
                 $$type: "object",
+                dispatch : {
+                    $$type : "object",
+                    type : { type : "string", min : 1, max : 256 },
+                    value : { type : "any", nullable : true }
+                },
                 value : {
                     $$type : "object",
                     ipk : { type : "is_hex" },

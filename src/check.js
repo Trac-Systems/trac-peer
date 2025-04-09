@@ -360,7 +360,7 @@ class Check {
                     type : { type : "string", min : 1, max : 256 },
                     address : { type : "is_hex" },
                     deleted_by : { type : "is_hex", nullable : true },
-                    reply_to : { type : "number", integer : true, min : 0, max : 2147483647, nullable : true },
+                    reply_to : { type : "number", integer : true, min : 0, max : 2147483647, nullable : true }
                 }
             }
         };
@@ -420,8 +420,12 @@ class Check {
             key: { type : "is_hex" },
             value : {
                 $$type: "object",
-                dispatch : { type : "object" },
-                msbsl : { type : "number", integer : true, min : 0, max : 18446744073709551615 },
+                dispatch : {
+                    $$type : "object",
+                    type : { type : "string", min : 1, max : 256 },
+                    value : { type : "any", nullable : true }
+                },
+                msbsl : { type : "number", integer : true, min : 0, max : 2147483647 },
                 ipk : { type : "is_hex" },
                 wp : { type : "is_hex" },
                 hash : { type : "is_hex" },
