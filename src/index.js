@@ -13,9 +13,10 @@ const wakeup = new w();
 import {
     addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
     enableWhitelist, postMessage, jsonStringify, visibleLength, setNick,
-    muteStatus, setWhitelistStatus, updateAdmin, tx, safeClone
+    muteStatus, setWhitelistStatus, updateAdmin, tx, safeClone, jsonParse
 } from "./functions.js";
 import Check from "./check.js";
+import DHT from 'hyperdht';
 export {default as Protocol} from "./protocol.js";
 export {default as Contract} from "./contract.js";
 export {default as Feature} from "./feature.js";
@@ -53,6 +54,7 @@ export class Peer extends ReadyResource {
         this.connectedPeers = new Set();
         this.options = options;
         this.check = new Check();
+        this.dhtNode = new DHT();
 
         this.tx_observer();
         this.nodeListener();
@@ -100,7 +102,7 @@ export class Peer extends ReadyResource {
                             _this.wallet.verify(op.value.hash, post_tx.value.tx + post_tx.value.ch + op.value.nonce, post_tx.value.ipk) &&
                             post_tx.value.tx === await _this.protocol_instance.generateTx(
                                 _this.bootstrap, _this.msb.bootstrap,
-                                post_tx.value.w, post_tx.value.i, post_tx.value.ipk,
+                                post_tx.value.wp, post_tx.value.i, post_tx.value.ipk,
                                 post_tx.value.ch, post_tx.value.in
                             )) {
                             const err = _this.protocol_instance.getError(
@@ -424,6 +426,46 @@ export class Peer extends ReadyResource {
         this.base.on('warning', (e) => console.log(e))
     }
 
+    async sendTx(msg){
+        let _msg = safeClone(msg);
+        if(_msg['ts'] !== undefined) delete _msg['ts'];
+        const stream = this.dhtNode.connect(b4a.from(_msg.wp, 'hex'))
+        stream.on('connect', async function () {
+            await stream.send(b4a.from(jsonStringify(_msg)));
+        });
+        stream.on('open', function () { });
+        stream.on('close', () => { });
+        stream.on('error', (error) => { });
+        //await stream.destroy();
+    }
+
+    async getValidatorWriterKey(address){
+        let writer_key = null;
+        const stream = this.dhtNode.connect(b4a.from(address, 'hex'))
+        stream.on('connect', async function () {
+            await stream.send(b4a.from('get_writer_key'));
+        });
+        stream.on('message', (msg) => {
+            try{
+                const response = jsonParse(b4a.toString(msg, 'utf-8'));
+                if(response.op === 'writer_key' && response.key !== undefined){
+                    writer_key = response.key;
+                }
+            }catch(e){}
+        });
+        stream.on('open', function () { });
+        stream.on('close', () => { });
+        stream.on('error', (error) => { });
+        let i = 0;
+        while(null === writer_key){
+            if(i >= 200) break;
+            await this.sleep(5);
+            i += 1;
+        }
+        //await stream.destroy();
+        return writer_key;
+    }
+
     async _open() {
         await this.base.ready();
         await this.wallet.initKeyPair(this.KEY_PAIR_PATH);
@@ -432,7 +474,13 @@ export class Peer extends ReadyResource {
             await this.initContract();
         }
         if (this.replicate) await this._replicate();
-        await this.txChannel();
+        this.on('tx', async (msg) => {
+            if(Object.keys(this.tx_pool).length <= this.tx_pool_max_size && !this.tx_pool[msg.tx]){
+                await this.sendTx(msg);
+                msg['ts'] = Math.floor(Date.now() / 1000);
+                this.tx_pool[msg.tx] = msg;
+            }
+        });
         this.updater();
         const auto_add_writers = await this.base.view.get('auto_add_writers');
         if(!this.base.writable && null !== auto_add_writers && auto_add_writers.value === 'on'){
@@ -459,37 +507,6 @@ export class Peer extends ReadyResource {
             await this.swarm.destroy();
         }
         await this.base.close();
-    }
-
-    async txChannel() {
-        const _this = this;
-        this.tx_swarm = new Hyperswarm();
-
-        this.tx_swarm.on('connection', async (connection, peerInfo) => {
-            const peerName = b4a.toString(connection.remotePublicKey, 'hex');
-            this.connectedPeers.add(peerName);
-            this.connectedNodes++;
-
-            connection.on('close', () => {
-                this.connectedNodes--;
-                this.connectedPeers.delete(peerName);
-            });
-
-            connection.on('error', (error) => { });
-
-            _this.on('tx', async (msg) => {
-                if(Object.keys(_this.tx_pool).length <= _this.tx_pool_max_size && !_this.tx_pool[msg.tx]){
-                    await connection.write(JSON.stringify(msg))
-                    msg['ts'] = Math.floor(Date.now() / 1000);
-                    _this.tx_pool[msg.tx] = msg;
-                }
-            });
-        });
-
-        const channelBuffer = this.tx_channel;
-        this.tx_swarm.join(channelBuffer, { server: true, client: true });
-        await this.tx_swarm.flush();
-        console.log('Joined MSB TX channel');
     }
 
     async updater(){

@@ -118,7 +118,7 @@ class Protocol{
         return await this.peer.contract_instance.execute(op, storage);
     }
 
-    async broadcastTransaction(validator_writer_key, obj){
+    async broadcastTransaction(writer_pub_key, obj){
         if(true === this.sim) {
             return await this.simulateTransaction(obj);
         }
@@ -130,14 +130,14 @@ class Protocol{
         {
             this.nonce = Math.random() + '-' + Date.now();
             const content_hash = await this.peer.createHash('sha256', JSON.stringify(obj));
-            let tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, validator_writer_key,
+            let tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, writer_pub_key,
                 this.peer.writerLocalKey, this.peer.wallet.publicKey, content_hash, this.nonce);
             const signature = this.peer.wallet.sign(tx + this.nonce);
             this.peer.emit('tx', {
                 op: 'pre-tx',
                 tx: tx,
                 is: signature,
-                w: validator_writer_key,
+                wp : writer_pub_key,
                 i: this.peer.writerLocalKey,
                 ipk: this.peer.wallet.publicKey,
                 ch : content_hash,
