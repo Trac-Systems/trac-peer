@@ -283,14 +283,18 @@ export async function addWriter(input, peer){
             msg: msg
         };
         const hash = peer.wallet.sign(JSON.stringify(msg) + nonce);
-        peer.emit('announce', { op : 'append_writer', type: 'addIndexer', key: parsed.key, value: signature, hash: hash, nonce: nonce });
+        if(peer.base.writable){
+            await peer.base.append({ op : 'append_writer', type: 'addIndexer', key: parsed.key, value: signature, hash: hash, nonce: nonce });
+        }
     } else if(splitted[0] === '/add_writer') {
         const msg = { type: 'addWriter', key: ''+parsed.key }
         const signature = {
             msg: msg
         };
         const hash = peer.wallet.sign(JSON.stringify(msg) + nonce);
-        peer.emit('announce', { op : 'append_writer', type: 'addWriter', key: ''+parsed.key, value: signature, hash: hash, nonce : nonce });
+        if(peer.base.writable){
+            await peer.base.append({ op : 'append_writer', type: 'addWriter', key: ''+parsed.key, value: signature, hash: hash, nonce : nonce });
+        }
     }
 }
 

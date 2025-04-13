@@ -54,7 +54,9 @@ export class Peer extends ReadyResource {
         this.connectedPeers = new Set();
         this.options = options;
         this.check = new Check();
-        this.dhtNode = new DHT();
+        this.dhtBootstrap = ['116.202.214.143:10001','116.202.214.149:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
+        this.dhtNode = new DHT({ bootstrap: this.dhtBootstrap });
+        this.seen_auto_add = {};
 
         this.tx_observer();
         this.nodeListener();
@@ -432,18 +434,18 @@ export class Peer extends ReadyResource {
         const stream = this.dhtNode.connect(b4a.from(_msg.wp, 'hex'))
         stream.on('connect', async function () {
             await stream.send(b4a.from(jsonStringify(_msg)));
+            await stream.destroy();
         });
         stream.on('open', function () { });
         stream.on('close', () => { });
         stream.on('error', (error) => { });
-        //await stream.destroy();
     }
 
     async getValidatorWriterKey(address){
         let writer_key = null;
         const stream = this.dhtNode.connect(b4a.from(address, 'hex'))
         stream.on('connect', async function () {
-            await stream.send(b4a.from('get_writer_key'));
+            await stream.send(b4a.from(jsonStringify('get_writer_key')));
         });
         stream.on('message', (msg) => {
             try{
@@ -462,7 +464,7 @@ export class Peer extends ReadyResource {
             await this.sleep(5);
             i += 1;
         }
-        //await stream.destroy();
+        await stream.destroy();
         return writer_key;
     }
 
@@ -482,12 +484,14 @@ export class Peer extends ReadyResource {
             }
         });
         this.updater();
+        this.seenAutoAdd();
         const auto_add_writers = await this.base.view.get('auto_add_writers');
         if(!this.base.writable && null !== auto_add_writers && auto_add_writers.value === 'on'){
             this.emit('announce', {
                 op : 'auto-add-writer',
                 type : 'autoAddWriter',
-                key : this.writerLocalKey
+                key : this.writerLocalKey,
+                id : Math.random() + Date.now()
             });
         }
     }
@@ -582,8 +586,13 @@ export class Peer extends ReadyResource {
 
     async _replicate() {
         if (!this.swarm) {
-            const keyPair = await this.store.createKeyPair('hyperswarm');
-            this.swarm = new Hyperswarm({ keyPair });
+
+            const keyPair = {
+                publicKey: b4a.from(this.wallet.publicKey, 'hex'),
+                secretKey: b4a.from(this.wallet.secretKey, 'hex')
+            };
+
+            this.swarm = new Hyperswarm({ keyPair, bootstrap: this.dhtBootstrap });
 
             console.log(`Writer key: ${this.writerLocalKey}`)
 
@@ -604,12 +613,21 @@ export class Peer extends ReadyResource {
                 connection.on('data', async (msg) => {
                     try{
                         msg = JSON.parse(msg);
-                        if(msg.op && msg.op === 'append_writer' && this.base.localWriter.isActive &&
-                            this.writerLocalKey !== msg.key) {
-                            await this.base.append(msg);
-                        } else if(msg.op && msg.op === 'auto-add-writer' && this.base.localWriter.isActive &&
-                            this.writerLocalKey !== msg.key) {
-                            await this.base.append(msg);
+                        if(msg.op && msg.op === 'auto-add-writer' && this.base.localWriter.isActive &&
+                            this.writerLocalKey !== msg.key &&
+                            false === this.base.activeWriters.has(b4a.from(msg.key, 'hex')) &&
+                            this.seen_auto_add[msg.id] === undefined) {
+                            if(this.base.writable){
+                                await this.base.append(msg);
+                            } else {
+                                this.seen_auto_add[msg.id] = Date.now();
+                                this.emit('announce', {
+                                    op : 'auto-add-writer',
+                                    type : 'autoAddWriter',
+                                    key : msg.key,
+                                    id : msg.id
+                                });
+                            }
                         }
                     } catch(e){ }
                 });
@@ -627,6 +645,19 @@ export class Peer extends ReadyResource {
             this.swarm.join(channelBuffer, { server: true, client: true });
             await this.swarm.flush();
             console.log('Joined channel');
+        }
+    }
+
+    async seenAutoAdd(){
+        while(true){
+            const ts = Date.now();
+            for(let seen in this.seen_auto_add){
+                if(ts - this.seen_auto_add[seen] > 30_000){
+                    console.log('Wiping last seen', seen);
+                    delete this.seen_auto_add[seen];
+                }
+            }
+            await this.sleep(1000);
         }
     }
 
