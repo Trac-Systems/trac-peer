@@ -54,7 +54,7 @@ export class Peer extends ReadyResource {
         this.connectedPeers = new Set();
         this.options = options;
         this.check = new Check();
-        this.dhtBootstrap = ['116.202.214.143:10001','116.202.214.149:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
+        this.dhtBootstrap = [/*'116.202.214.143:10001','116.202.214.149:10001', */'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
         this.dhtNode = new DHT({ bootstrap: this.dhtBootstrap });
         this.seen_auto_add = {};
         this.validator = null;
@@ -538,12 +538,12 @@ export class Peer extends ReadyResource {
                     if (null !== validator) {
                         validator = await _this.msb.base.view.get(validator.value);
                         if(_this.validator_stream !== null) return;
-                        if(null !== validator && false !== validator.value.isWriter) {
+                        if(null !== validator && false !== validator.value.isWriter && false === validator.value.isIndexer) {
                             const result = await _this.getValidatorWriterKey(validator.value.pub);
                             if(_this.validator_stream !== null) return;
                             if (null !== result) {
                                 _this.validator = validator.value.pub;
-                                const node = new DHT({bootstrap:_this.dhtBootstrap});
+                                await _this.sleep(100);
                                 if(_this.validator_stream !== null) return;
                                 _this.validator_stream = _this.dhtNode.connect(b4a.from(validator.value.pub, 'hex'));
                                 _this.validator_stream.on('open', function () {
@@ -564,10 +564,11 @@ export class Peer extends ReadyResource {
                 const promises = [];
                 for(let i = 0; i < 10; i++){
                     promises.push(findSome());
+                    await this.sleep(100);
                 }
                 await Promise.all(promises);
             }
-            await this.sleep(this.validator_stream === null ? 5 : 1_000);
+            await this.sleep(1_000);
         }
     }
 
