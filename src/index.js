@@ -57,8 +57,11 @@ export class Peer extends ReadyResource {
         this.dhtBootstrap = ['116.202.214.143:10001','116.202.214.149:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
         this.dhtNode = new DHT({ bootstrap: this.dhtBootstrap });
         this.seen_auto_add = {};
+        this.validator = null;
+        this.validator_stream = null;
 
         this.tx_observer();
+        this.validator_observer();
         this.nodeListener();
         this._boot();
         this.ready().catch(noop);
@@ -429,21 +432,16 @@ export class Peer extends ReadyResource {
     }
 
     async sendTx(msg){
+        if(this.validator_stream === null) return;
         let _msg = safeClone(msg);
         if(_msg['ts'] !== undefined) delete _msg['ts'];
-        const stream = this.dhtNode.connect(b4a.from(_msg.wp, 'hex'))
-        stream.on('connect', async function () {
-            await stream.send(b4a.from(jsonStringify(_msg)));
-            await stream.destroy();
-        });
-        stream.on('open', function () { });
-        stream.on('close', () => { });
-        stream.on('error', (error) => { });
+        await this.validator_stream.send(b4a.from(jsonStringify(_msg)));
     }
 
     async getValidatorWriterKey(address){
         let writer_key = null;
-        const stream = this.dhtNode.connect(b4a.from(address, 'hex'))
+        const node = new DHT({bootstrap:this.dhtBootstrap});
+        const stream = node.connect(b4a.from(address, 'hex'))
         stream.on('connect', async function () {
             await stream.send(b4a.from(jsonStringify('get_writer_key')));
         });
@@ -460,7 +458,7 @@ export class Peer extends ReadyResource {
         stream.on('error', (error) => { });
         let i = 0;
         while(null === writer_key){
-            if(i >= 200) break;
+            if(i >= 300) break;
             await this.sleep(5);
             i += 1;
         }
@@ -522,6 +520,57 @@ export class Peer extends ReadyResource {
         }
     }
 
+    async validator_observer(){
+        while(true){
+            if(this.validator_stream === null) {
+                const _this = this;
+                let length = await this.msb.base.view.get('wrl');
+                if (null === length) {
+                    length = 0;
+                } else {
+                    length = length.value;
+                }
+                async function findSome(){
+                    if(_this.validator_stream !== null) return;
+                    const rnd_index = Math.floor(Math.random() * length);
+                    let validator = await _this.msb.base.view.get('wri/' + rnd_index);
+                    if(_this.validator_stream !== null) return;
+                    if (null !== validator) {
+                        validator = await _this.msb.base.view.get(validator.value);
+                        if(_this.validator_stream !== null) return;
+                        if(null !== validator && false !== validator.value.isWriter) {
+                            const result = await _this.getValidatorWriterKey(validator.value.pub);
+                            if(_this.validator_stream !== null) return;
+                            if (null !== result) {
+                                _this.validator = validator.value.pub;
+                                const node = new DHT({bootstrap:_this.dhtBootstrap});
+                                if(_this.validator_stream !== null) return;
+                                _this.validator_stream = _this.dhtNode.connect(b4a.from(validator.value.pub, 'hex'));
+                                _this.validator_stream.on('open', function () {
+                                    console.log('Validator stream established', validator.value.pub);
+                                });
+                                _this.validator_stream.on('close', () => {
+                                    _this.validator_stream = null;
+                                    _this.validator = null;
+                                    console.log('Stream closed', validator.value.pub)
+                                });
+                                _this.validator_stream.on('error', (error) => {
+                                    console.log(error)
+                                });
+                            }
+                        }
+                    }
+                }
+                const promises = [];
+                for(let i = 0; i < 10; i++){
+                    promises.push(findSome());
+                }
+                await Promise.all(promises);
+            }
+            await this.sleep(this.validator_stream === null ? 5 : 1_000);
+        }
+    }
+
     async tx_observer(){
         while(true){
             const ts = Math.floor(Date.now() / 1000);
@@ -540,7 +589,7 @@ export class Peer extends ReadyResource {
                     msb_tx['dispatch'] = this.protocol_instance.prepared_transactions_content[tx];
                     msb_tx['msbsl'] = msbsl;
                     msb_tx['ipk'] = this.wallet.publicKey;
-                    msb_tx['wp'] = msb_tx.value.wp !== undefined ? msb_tx.value.wp : null;
+                    msb_tx['wp'] = this.validator;
                     msb_tx['nonce'] = Math.random() + '-' + Date.now();
                     msb_tx['hash'] = this.wallet.sign(tx + await this.createHash('sha256', jsonStringify(msb_tx['dispatch'])) + msb_tx['nonce']);
                     delete this.tx_pool[tx];
@@ -641,10 +690,16 @@ export class Peer extends ReadyResource {
                 }
             });
 
-            const channelBuffer = this.channel;
-            this.swarm.join(channelBuffer, { server: true, client: true });
+            const discovery = this.swarm.join(this.channel, { server: true, client: true });
             await this.swarm.flush();
             console.log('Joined channel');
+            async function refresh(){
+                await discovery.refresh();
+                setTimeout(function(){
+                    refresh();
+                }, 30_000);
+            }
+            await refresh();
         }
     }
 

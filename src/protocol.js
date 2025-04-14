@@ -122,7 +122,8 @@ class Protocol{
         if(true === this.sim) {
             return await this.simulateTransaction(obj);
         }
-        if(this.peer.wallet.publicKey !== null &&
+        if(this.peer.validator_stream !== null &&
+            this.peer.wallet.publicKey !== null &&
             this.peer.wallet.secretKey !== null &&
             this.base.localWriter !== null &&
             obj.type !== undefined &&
