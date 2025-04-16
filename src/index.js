@@ -462,7 +462,7 @@ export class Peer extends ReadyResource {
             await this.sleep(5);
             i += 1;
         }
-        await stream.destroy();
+        await stream.end();
         return writer_key;
     }
 
@@ -550,6 +550,7 @@ export class Peer extends ReadyResource {
                                     console.log('Validator stream established', validator.value.pub);
                                 });
                                 _this.validator_stream.on('close', () => {
+                                    try{ _this.validator_stream.destroy() } catch(e) {}
                                     _this.validator_stream = null;
                                     _this.validator = null;
                                     console.log('Stream closed', validator.value.pub)
@@ -564,7 +565,7 @@ export class Peer extends ReadyResource {
                 const promises = [];
                 for(let i = 0; i < 10; i++){
                     promises.push(findSome());
-                    await this.sleep(100);
+                    await this.sleep(250);
                 }
                 await Promise.all(promises);
             }
