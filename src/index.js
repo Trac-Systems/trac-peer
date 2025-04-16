@@ -55,7 +55,7 @@ export class Peer extends ReadyResource {
         this.options = options;
         this.check = new Check();
         this.dhtBootstrap = [/*'116.202.214.143:10001','116.202.214.149:10001', */'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
-        this.dhtNode = new DHT({ bootstrap: this.dhtBootstrap });
+        this.dhtNode = null;
         this.seen_auto_add = {};
         this.validator = null;
         this.validator_stream = null;
@@ -440,8 +440,7 @@ export class Peer extends ReadyResource {
 
     async getValidatorWriterKey(address){
         let writer_key = null;
-        const node = new DHT({bootstrap:this.dhtBootstrap});
-        const stream = node.connect(b4a.from(address, 'hex'))
+        const stream = this.dhtNode.connect(b4a.from(address, 'hex'))
         stream.on('connect', async function () {
             await stream.send(b4a.from(jsonStringify('get_writer_key')));
         });
@@ -522,7 +521,7 @@ export class Peer extends ReadyResource {
 
     async validator_observer(){
         while(true){
-            if(this.validator_stream === null) {
+            if(this.dhtNode !== null && this.validator_stream === null) {
                 const _this = this;
                 let length = await this.msb.base.view.get('wrl');
                 if (null === length) {
@@ -644,6 +643,7 @@ export class Peer extends ReadyResource {
             };
 
             this.swarm = new Hyperswarm({ keyPair, bootstrap: this.dhtBootstrap });
+            this.dhtNode = this.swarm.dht;
 
             console.log(`Writer key: ${this.writerLocalKey}`)
 
@@ -692,16 +692,8 @@ export class Peer extends ReadyResource {
                 }
             });
 
-            const discovery = this.swarm.join(this.channel, { server: true, client: true });
+            this.swarm.join(this.channel, { server: true, client: true });
             await this.swarm.flush();
-            console.log('Joined channel');
-            async function refresh(){
-                await discovery.refresh();
-                setTimeout(function(){
-                    refresh();
-                }, 30_000);
-            }
-            await refresh();
         }
     }
 
