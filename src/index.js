@@ -380,12 +380,13 @@ export class Peer extends ReadyResource {
                                     await batch.put('delm/'+len, op.value.dispatch.id);
                                     await batch.put('delml', len + 1);
                                     await batch.put('sh/'+op.hash, '');
-                                    console.log(`Deleted message ${op.value.dispatch.id} by user ${message.value.address}`);
+                                    console.log(`Deleted message ${op.value.dispatch.id} of user ${message.value.address} by ${op.value.dispatch.address}`);
                                 }
                             }
                         }
                     } else if(op.type === 'setMod') {
                         if(false === this.check.mod(op)) continue;
+                        console.log('after');
                         const admin = await batch.get('admin');
                         const str_value = jsonStringify(op.value);
                         if(null !== admin && null !== str_value &&

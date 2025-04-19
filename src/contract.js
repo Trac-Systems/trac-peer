@@ -1,3 +1,5 @@
+import assert from 'assert';
+
 class Contract {
 
     constructor(protocol, options = {}) {
@@ -15,6 +17,7 @@ class Contract {
         this.tx = null;
         this.op = null;
         this.value = null;
+        this.assert = assert;
 
         this.enter_execute_schema = this.protocol.peer.check.validator.compile({
             value : {

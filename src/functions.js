@@ -150,13 +150,14 @@ export async function enableWhitelist(input, peer){
 }
 
 export async function deleteMessage(input, peer){
+    let address = null;
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.id);
     const nonce = Math.random() + '-' + Date.now();
     const signature = { dispatch : {
             type : 'deleteMessage',
             id: value,
-            address : peer.wallet.publicKey
+            address : peer.wallet.publicKey,
         }};
     const hash = peer.wallet.sign(JSON.stringify(signature) + nonce);
     await peer.base.append({type: 'deleteMessage', value: signature, hash : hash, nonce: nonce });
