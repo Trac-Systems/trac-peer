@@ -46,7 +46,6 @@ export class Peer extends ReadyResource {
         this.protocol_instance = null;
         this.contract_instance = null;
         this.channel = b4a.alloc(32).fill(options.channel) || null;
-        this.tx_channel = b4a.alloc(32).fill(options.tx_channel) || null;
         this.bee = null;
         this.replicate = options.replicate !== false;
         this.connectedNodes = 1;
@@ -113,8 +112,10 @@ export class Peer extends ReadyResource {
                             const err = _this.protocol_instance.getError(
                                 await _this.contract_instance.execute(op, batch)
                             );
+                            console.log(err);
                             let _err = null;
                             if(null !== err) {
+                                if(err.constructor.name === 'UnknownContractOperationType') continue;
                                 _err = ''+err.message;
                             }
                             let len = await batch.get('txl');
@@ -439,6 +440,7 @@ export class Peer extends ReadyResource {
     }
 
     async getValidatorWriterKey(address){
+        if(null === this.dhtNode) return null;
         let writer_key = null;
         const stream = this.dhtNode.connect(b4a.from(address, 'hex'))
         stream.on('connect', async function () {
@@ -459,7 +461,7 @@ export class Peer extends ReadyResource {
         while(null === writer_key){
             if(i >= 300) break;
             await this.sleep(5);
-            i += 1;
+            i += 5;
         }
         await stream.end();
         return writer_key;
@@ -522,6 +524,7 @@ export class Peer extends ReadyResource {
     async validator_observer(){
         while(true){
             if(this.dhtNode !== null && this.validator_stream === null) {
+                console.log('Looking for available validators, please wait...');
                 const _this = this;
                 let length = await this.msb.base.view.get('wrl');
                 if (null === length) {
@@ -546,6 +549,7 @@ export class Peer extends ReadyResource {
                                 if(_this.validator_stream !== null) return;
                                 _this.validator_stream = _this.dhtNode.connect(b4a.from(validator.value.pub, 'hex'));
                                 _this.validator_stream.on('open', function () {
+                                    _this.validator = validator.value.pub;
                                     console.log('Validator stream established', validator.value.pub);
                                 });
                                 _this.validator_stream.on('close', () => {
@@ -555,6 +559,9 @@ export class Peer extends ReadyResource {
                                     console.log('Stream closed', validator.value.pub)
                                 });
                                 _this.validator_stream.on('error', (error) => {
+                                    try{ _this.validator_stream.destroy() } catch(e) {}
+                                    _this.validator_stream = null;
+                                    _this.validator = null;
                                     console.log(error)
                                 });
                             }
@@ -770,7 +777,7 @@ export class Peer extends ReadyResource {
         console.log('- /set_whitelist_status | Only admin. Add/remove users to/from the chat whitelist: \'/set_whitelist_status --user "<address>" --status 1\'.');
         console.log(' ');
         console.log('- System Commands:');
-        console.log('- /tx | Perform a contract transaction. The validator flag broadcasts the transaction to the desired validator. The command flag contains contract commands in json format: \'/tx --validator "<validator writer key>" --command "<string, content depends on the protocol>"\'. To simulate a tx, you must leave out the \'--validator\' flag and use \'--sim 1\' instead.');
+        console.log('- /tx | Perform a contract transaction. The command flag contains contract commands in json format: \'/tx --command "<string, content depends on the protocol>"\'. To try broadcasting to a specific validator, use the validator flag and pass the validator public key: --validator "<validator public key>". To simulate a tx, you must leave out the \'--validator\' flag and use \'--sim 1\' instead.');
         console.log('- /dag | check system properties such as writer key, DAG, etc.');
         console.log('- /get_keys | prints your public and private keys. Be careful and never share your private key!');
         console.log('- /exit | Exit the program');

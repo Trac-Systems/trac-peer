@@ -8,6 +8,7 @@ class Contract {
         this.is_message = false;
         this.features = {};
         this.schemata = {};
+        this.funcs = {};
         this.message_handler = null;
         this.address = null;
         this.validator_address = null;
@@ -96,20 +97,36 @@ class Contract {
             }
         } else if(this.isMessage()) {
             if(this.message_handler !== undefined){
-                _return = await this.message_handler();
+                try {
+                    _return = await this.message_handler();
+                } catch(e) {
+                    if(e.constructor.name !== 'AssertionError'){
+                        throw new RethrownError('Error in contract.', e);
+                    }
+                    _return = e;
+                }
             }
-        } else {
-            if(this[this.op.type] !== undefined) {
+        } else if(this[this.op.type] !== undefined) {
+            try {
                 if(this.schemata[this.op.type] !== undefined){
                     if(true === this.validateSchema(this.op.type, this.op)) {
                         _return = await this[this.op.type]();
                     } else {
-                        _return = false;
+                        _return = new UnknownContractOperationType('Invalid schema.');
                     }
-                } else {
+                } else if(this.funcs[this.op.type] !== undefined) {
                     _return = await this[this.op.type]();
+                } else {
+                    _return = new UnknownContractOperationType('Function not registered.');
                 }
+            } catch(e) {
+                if(e.constructor.name !== 'AssertionError'){
+                    throw new RethrownError('Error in contract.', e);
+                }
+                _return = e;
             }
+        } else {
+            _return = new UnknownContractOperationType('Unknown contract operation type.');
         }
 
         this.address = null;
@@ -129,11 +146,18 @@ class Contract {
         return result === true;
     }
 
+    addFunction(type){
+        if(this.features[type] !== undefined || this.schemata[type] !== undefined) throw new Error('addFunction(type): The type has been registered already.');
+        this.funcs[type] = true;
+    }
+
     addSchema(type, schema){
+        if(this.funcs[type] !== undefined || this.features[type] !== undefined) throw new Error('addSchema(type, schema): The type has been registered already.');
         this.schemata[type] = this.protocol.peer.check.validator.compile(schema);
     }
 
     addFeature(type, func) {
+        if(this.funcs[type] !== undefined || this.schemata[type] !== undefined) throw new Error('addFeature(type, func): The type has been registered already.');
         this.features[type] = func;
     }
 
@@ -183,6 +207,25 @@ class Contract {
         return new Promise((resolve) => {
             resolve();
         });
+    }
+}
+
+class UnknownContractOperationType extends Error {
+    constructor(message) {
+        super(message);
+    }
+}
+
+class RethrownError extends Error {
+    constructor(message, error){
+        super(message)
+        this.name = this.constructor.name
+        if (!error) throw new Error('RethrownError requires a message and error')
+        this.original_error = error
+        this.stack_before_rethrow = this.stack
+        const message_lines =  (this.message.match(/\n/g)||[]).length + 1
+        this.stack = this.stack.split('\n').slice(0, message_lines+1).join('\n') + '\n' +
+            error.stack
     }
 }
 

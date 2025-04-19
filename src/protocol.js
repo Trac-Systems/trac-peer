@@ -118,7 +118,7 @@ class Protocol{
         return await this.peer.contract_instance.execute(op, storage);
     }
 
-    async broadcastTransaction(writer_pub_key, obj){
+    async broadcastTransaction(validator_pub_key, obj){
         if(true === this.sim) {
             return await this.simulateTransaction(obj);
         }
@@ -131,14 +131,14 @@ class Protocol{
         {
             this.nonce = Math.random() + '-' + Date.now();
             const content_hash = await this.peer.createHash('sha256', JSON.stringify(obj));
-            let tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, writer_pub_key,
+            let tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, validator_pub_key,
                 this.peer.writerLocalKey, this.peer.wallet.publicKey, content_hash, this.nonce);
             const signature = this.peer.wallet.sign(tx + this.nonce);
             this.peer.emit('tx', {
                 op: 'pre-tx',
                 tx: tx,
                 is: signature,
-                wp : writer_pub_key,
+                wp : validator_pub_key,
                 i: this.peer.writerLocalKey,
                 ipk: this.peer.wallet.publicKey,
                 ch : content_hash,
@@ -164,7 +164,7 @@ class Protocol{
 
     getError(value){
         if (value === false || (value !== undefined && value.stack !== undefined && value.message !== undefined)) {
-            return value === false ? new Error('Generic Error') : value;
+            return value === false ? new Error('Error') : value;
         }
         return null;
     }

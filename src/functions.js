@@ -300,10 +300,15 @@ export async function addWriter(input, peer){
 
 export async function tx(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input);
-    if(splitted.sim === undefined && (splitted.validator === undefined || splitted.command === undefined)){
-        throw new Error('Missing option. Please use --validator and --command flags.');
-    } else if(splitted.sim !== undefined && splitted.command === undefined){
-        throw new Error('Missing option. Please use the --command flag when simulating a tx.');
+    if(splitted.command === undefined){
+        throw new Error('Missing option. Please use the --command flag.');
+    } else if(splitted.sim === undefined && splitted.validator === undefined){
+        if(peer.validator === null){
+            throw new Error('No validator available: Please wait for your peer to find an available one before transacting or pass the public key of a known one that is online.');
+        }
+        splitted['validator'] = peer.validator;
+    } else if(splitted.sim !== undefined && splitted.validator !== undefined){
+        throw new Error('Validator flag not allowed when simulating a transaction.');
     }
     let res = false;
     try{
