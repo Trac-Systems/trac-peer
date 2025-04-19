@@ -79,6 +79,7 @@ class Check {
         this._nick = this.compileNick();
         this._mute = this.compileMute();
         this._delete_message = this.compileDeleteMessage();
+        this._pin_message = this.compilePinMessage();
         this._mod = this.compileMod();
         this._whitelist_status = this.compileWhitelistStatus();
         this._enable_whitelist = this.compileEnableWhitelist();
@@ -171,6 +172,29 @@ class Check {
 
     deleteMessage(op){
         const res = this._delete_message(op);
+        return res === true;
+    }
+
+    compilePinMessage (){
+        const schema = {
+            nonce: { type : "string", min : 1, max : 256 },
+            hash: { type : "is_hex" },
+            value : {
+                $$type: "object",
+                dispatch : {
+                    $$type : "object",
+                    id : { type : "number", integer: true, min : 0, max : 2147483647 },
+                    pinned : { type : "boolean" },
+                    type : { type : "string", min : 1, max : 256 },
+                    address : { type : "is_hex" }
+                }
+            }
+        };
+        return this.validator.compile(schema);
+    }
+
+    pinMessage(op){
+        const res = this._pin_message(op);
         return res === true;
     }
 
@@ -359,7 +383,9 @@ class Check {
                     type : { type : "string", min : 1, max : 256 },
                     address : { type : "is_hex" },
                     deleted_by : { type : "is_hex", nullable : true },
-                    reply_to : { type : "number", integer : true, min : 0, max : 2147483647, nullable : true }
+                    reply_to : { type : "number", integer : true, min : 0, max : 2147483647, nullable : true },
+                    pinned : { type : "boolean" },
+                    pin_id : { type : "number", integer : true, min : 0, max : 2147483647, nullable : true },
                 }
             }
         };

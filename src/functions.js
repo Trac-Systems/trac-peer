@@ -149,6 +149,22 @@ export async function enableWhitelist(input, peer){
     await peer.base.append({type: 'enableWhitelist', value: signature, hash : hash, nonce: nonce });
 }
 
+export async function pinMessage(input, peer){
+    let address = null;
+    const splitted = peer.protocol_instance.parseArgs(input)
+    const value = parseInt(splitted.id);
+    const pinned = parseInt(splitted.pin) === 1;
+    const nonce = Math.random() + '-' + Date.now();
+    const signature = { dispatch : {
+            type : 'pinMessage',
+            id: value,
+            pinned : pinned,
+            address : peer.wallet.publicKey
+        }};
+    const hash = peer.wallet.sign(JSON.stringify(signature) + nonce);
+    await peer.base.append({type: 'pinMessage', value: signature, hash : hash, nonce: nonce });
+}
+
 export async function deleteMessage(input, peer){
     let address = null;
     const splitted = peer.protocol_instance.parseArgs(input)
@@ -157,7 +173,7 @@ export async function deleteMessage(input, peer){
     const signature = { dispatch : {
             type : 'deleteMessage',
             id: value,
-            address : peer.wallet.publicKey,
+            address : peer.wallet.publicKey
         }};
     const hash = peer.wallet.sign(JSON.stringify(signature) + nonce);
     await peer.base.append({type: 'deleteMessage', value: signature, hash : hash, nonce: nonce });
@@ -236,7 +252,9 @@ export async function postMessage(input, peer){
             address : peer.wallet.publicKey,
             attachments : [],
             deleted_by : null,
-            reply_to : reply_to
+            reply_to : reply_to,
+            pinned : false,
+            pin_id : null
         }};
     const hash = peer.wallet.sign(JSON.stringify(signature) + nonce);
     await peer.base.append({type: 'msg', value: signature, hash : hash, nonce: nonce });

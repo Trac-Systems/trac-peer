@@ -79,6 +79,26 @@ export class ProtocolApi{
         return res;
     }
 
+    async getPinnedMessageLength(signed = true){
+        let res = null;
+        if(true === signed) res = await this.peer.protocol_instance.getSigned('pnl');
+        if(false === signed) res = await this.peer.protocol_instance.get('pnl');
+        res = res !== null ? res : 0;
+        console.log(JSON.stringify(res));
+        return res;
+    }
+
+    async getPinnedMessage(index, signed = true){
+        let res = null;
+        if(true === signed) res = await this.peer.protocol_instance.getSigned('pni/'+parseInt(index));
+        if(false === signed) res = await this.peer.protocol_instance.get('pni/'+parseInt(index));
+        if(null === res) {
+            console.log(JSON.stringify(null));
+            return null
+        }
+        return await this.getMessage(res.msg, signed);
+    }
+
     async getDeletedMessageLength(signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('delml');

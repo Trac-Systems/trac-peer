@@ -13,7 +13,8 @@ const wakeup = new w();
 import {
     addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
     enableWhitelist, postMessage, jsonStringify, visibleLength, setNick,
-    muteStatus, setWhitelistStatus, updateAdmin, tx, safeClone, jsonParse
+    muteStatus, setWhitelistStatus, updateAdmin, tx, safeClone, jsonParse,
+    pinMessage
 } from "./functions.js";
 import Check from "./check.js";
 import DHT from 'hyperdht';
@@ -53,7 +54,7 @@ export class Peer extends ReadyResource {
         this.connectedPeers = new Set();
         this.options = options;
         this.check = new Check();
-        this.dhtBootstrap = [/*'116.202.214.143:10001','116.202.214.149:10001', */'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
+        this.dhtBootstrap = ['116.202.214.143:10001','116.202.214.149:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
         this.dhtNode = null;
         this.seen_auto_add = {};
         this.validator = null;
@@ -112,7 +113,6 @@ export class Peer extends ReadyResource {
                             const err = _this.protocol_instance.getError(
                                 await _this.contract_instance.execute(op, batch)
                             );
-                            console.log(err);
                             let _err = null;
                             if(null !== err) {
                                 if(err.constructor.name === 'UnknownContractOperationType') continue;
@@ -330,11 +330,11 @@ export class Peer extends ReadyResource {
                         if(false === this.check.mute(op)) continue;
                         const admin = await batch.get('admin');
                         const str_value = jsonStringify(op.value);
-                        if(null !== admin && null !== str_value &&
+                        if(null !== str_value &&
                             null === await batch.get('sh/'+op.hash)){
                             const mod = await batch.get('mod/'+op.value.dispatch.address);
                             let mod_verified = false;
-                            if(null !== mod && true === mod.value && admin !== op.value.dispatch.user) {
+                            if(null !== mod && true === mod.value && admin.value !== op.value.dispatch.user) {
                                 const target_mod = await batch.get('mod/'+op.value.dispatch.user);
                                 if(null === target_mod || false === target_mod.value) {
                                     mod_verified = _this.wallet.verify(op.hash, str_value + op.nonce, op.value.dispatch.address);
@@ -349,13 +349,13 @@ export class Peer extends ReadyResource {
                         }
                     } else if(op.type === 'deleteMessage') {
                         if(false === this.check.deleteMessage(op)) continue;
-                        const admin = await batch.get('admin');
                         const str_value = jsonStringify(op.value);
-                        if(null !== admin && null !== str_value &&
+                        if(null !== str_value &&
                             null === await batch.get('sh/'+op.hash)){
                             const mod = await batch.get('mod/'+op.value.dispatch.address);
                             const message = await batch.get('msg/'+op.value.dispatch.id);
                             if(null !== message && null !== message.value && message.value.deleted_by !== undefined && null === message.value.deleted_by) {
+                                const admin = await batch.get('admin');
                                 let mod_verified = false;
                                 if(null !== mod && true === mod.value && message.value.address !== admin.value) {
                                     mod_verified = _this.wallet.verify(op.hash, str_value + op.nonce, op.value.dispatch.address);
@@ -376,11 +376,46 @@ export class Peer extends ReadyResource {
                                     } else {
                                         len = len.value;
                                     }
-                                    await batch.put('msg/'+op.value.dispatch.id, message);
+                                    await batch.put('msg/'+op.value.dispatch.id, message.value);
                                     await batch.put('delm/'+len, op.value.dispatch.id);
                                     await batch.put('delml', len + 1);
                                     await batch.put('sh/'+op.hash, '');
                                     console.log(`Deleted message ${op.value.dispatch.id} of user ${message.value.address} by ${op.value.dispatch.address}`);
+                                }
+                            }
+                        }
+                    } else if(op.type === 'pinMessage') {
+                        if(false === this.check.pinMessage(op)) continue;
+                        const str_value = jsonStringify(op.value);
+                        if(null !== str_value &&
+                            null === await batch.get('sh/'+op.hash)){
+                            const mod = await batch.get('mod/'+op.value.dispatch.address);
+                            const message = await batch.get('msg/'+op.value.dispatch.id);
+                            if(null !== message && null !== message.value) {
+                                const admin = await batch.get('admin');
+                                let mod_verified = false;
+                                if(null !== mod && true === mod.value) {
+                                    mod_verified = _this.wallet.verify(op.hash, str_value + op.nonce, op.value.dispatch.address);
+                                }
+                                const verified = _this.wallet.verify(op.hash, str_value + op.nonce, admin.value);
+                                if(true === verified || true === mod_verified) {
+                                    if(null === message.value.pin_id){
+                                        let pin_len = await batch.get('pnl');
+                                        if(null === pin_len) {
+                                            pin_len = 0;
+                                        } else {
+                                            pin_len = pin_len.value;
+                                        }
+                                        message.value.pin_id = pin_len;
+                                        await batch.put('pni/'+pin_len, { msg : op.value.dispatch.id, pinned : op.value.dispatch.pinned });
+                                        await batch.put('pnl', pin_len + 1);
+                                    } else {
+                                        await batch.put('pni/'+message.value.pin_id, { msg : op.value.dispatch.id, pinned : op.value.dispatch.pinned });
+                                    }
+                                    message.value.pinned = op.value.dispatch.pinned;
+                                    await batch.put('msg/'+op.value.dispatch.id, message.value);
+                                    await batch.put('sh/'+op.hash, '');
+                                    console.log(`Pinned message ${op.value.dispatch.id} by ${op.value.dispatch.address}`);
                                 }
                             }
                         }
@@ -774,6 +809,7 @@ export class Peer extends ReadyResource {
         console.log('- /mute_status | Only admin and mods. Mute or unmute a user by their address: \'/mute_status --user "<address>" --muted 1\'.');
         console.log('- /set_mod | Only admin. Set a user as mod: \'/set_mod --user "<address>" --mod 1\'.');
         console.log('- /delete_message | Delete a message: \'/delete_message --id 1\'. Chat must be enabled.');
+        console.log('- /pin_message | Set the pin status of a message: \'/pin_message --id 1 --pin 1\'. Chat must be enabled.');
         console.log('- /enable_whitelist | Only admin. Enable/disable chat whitelists: \'/enable_whitelist --enabled 1\'.');
         console.log('- /set_whitelist_status | Only admin. Add/remove users to/from the chat whitelist: \'/set_whitelist_status --user "<address>" --status 1\'.');
         console.log(' ');
@@ -819,6 +855,8 @@ export class Peer extends ReadyResource {
                             await setNick(input, this);
                         } else if (input.startsWith('/mute_status')) {
                             await muteStatus(input, this);
+                        } else if (input.startsWith('/pin_message')) {
+                            await pinMessage(input, this);
                         } else if (input.startsWith('/set_mod')) {
                             await setMod(input, this);
                         } else if (input.startsWith('/delete_message')) {

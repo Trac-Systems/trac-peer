@@ -184,7 +184,7 @@ class Contract {
         return key.startsWith('sh/') || key.startsWith('tx/') || key === 'msgl' || key.startsWith('kcin/') || key.startsWith('delm/') ||
             key.startsWith('umsg/') || key.startsWith('umsg/') || key.startsWith('msgl/') || key === 'admin' || key === 'auto_add_writers'
             || key.startsWith('nick/') || key.startsWith('mod/') || key === 'chat_status' || key.startsWith('mtd/') || key === 'delml' ||
-            key === 'wlst' || key === 'txl' || key.startsWith('txi/') || key.startsWith('wl/');
+            key === 'wlst' || key === 'txl' || key.startsWith('txi/') || key.startsWith('wl/') || key === 'pnl' || key.startsWith('pni/');
     }
 
     async del(key){
