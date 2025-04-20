@@ -217,7 +217,7 @@ export class Peer extends ReadyResource {
                             if(true === verified) {
                                 await _this.contract_instance.execute(op, batch);
                                 await batch.put('sh/'+op.value.dispatch.hash, '');
-                                console.log(`Feature ${op.key} appended`);
+                                //console.log(`Feature ${op.key} appended`);
                             }
                         }
                     } else if (op.type === 'addIndexer') {
