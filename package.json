@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.1.35",
+  "version": "0.1.40",
   "type": "module",
   "dependencies": {
     "assert": "npm:bare-node-assert",
@@ -68,7 +68,7 @@
     "stream": "npm:bare-node-stream",
     "timers": "npm:bare-node-timers",
     "tls": "npm:bare-node-tls",
-    "trac-wallet": "^0.0.37",
+    "trac-wallet": "^0.0.40",
     "tty": "npm:bare-node-tty",
     "url": "npm:bare-node-url",
     "util": "npm:bare-node-util",

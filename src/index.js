@@ -59,6 +59,16 @@ export class Peer extends ReadyResource {
         this.seen_auto_add = {};
         this.validator = null;
         this.validator_stream = null;
+        this.readline_instance = null;
+        this.enable_interactive_mode = options.enable_interactive_mode !== false;
+        if(this.enable_interactive_mode !== false){
+            try{
+                this.readline_instance = readline.createInterface({
+                    input: new tty.ReadStream(0),
+                    output: new tty.WriteStream(1)
+                });
+            }catch(e){ }
+        }
 
         this.tx_observer();
         this.validator_observer();
@@ -126,9 +136,20 @@ export class Peer extends ReadyResource {
                             }
                             const cloned = safeClone(op.value.dispatch);
                             cloned['err'] = _err;
+                            cloned['tx'] = post_tx.value.tx;
+                            cloned['ipk'] = post_tx.value.ipk;
+                            cloned['wp'] = post_tx.value.wp;
                             await batch.put('txi/'+len, cloned);
                             await batch.put('txl', len + 1);
                             await batch.put('tx/'+post_tx.value.tx, len);
+                            let ulen = await batch.get('utxl/'+post_tx.value.ipk);
+                            if(null === ulen) {
+                                ulen = 0;
+                            } else {
+                                ulen = ulen.value;
+                            }
+                            await batch.put('utxi/'+post_tx.value.ipk+'/'+ulen, len);
+                            await batch.put('utxl/'+post_tx.value.ipk, ulen + 1);
                             console.log(`${post_tx.value.tx} appended. Signed length:`, _this.base.view.core.signedLength, 'tx length', len + 1);
                         }
                     } else if(op.type === 'msg') {
@@ -505,7 +526,7 @@ export class Peer extends ReadyResource {
 
     async _open() {
         await this.base.ready();
-        await this.wallet.initKeyPair(this.KEY_PAIR_PATH);
+        await this.wallet.initKeyPair(this.KEY_PAIR_PATH, this.readline_instance);
         this.writerLocalKey = b4a.toString(this.base.local.key, 'hex');
         if(!this.init_contract_starting){
             await this.initContract();
@@ -786,12 +807,9 @@ export class Peer extends ReadyResource {
     }
 
     async interactiveMode() {
-        if(global.Pear !== undefined && global.Pear.config.options.type === 'desktop') return;
+        if(this.readline_instance === null || (global.Pear !== undefined && global.Pear.config.options.type === 'desktop')) return;
 
-        const rl = readline.createInterface({
-            input: new tty.ReadStream(0),
-            output: new tty.WriteStream(1)
-        });
+        const rl = this.readline_instance;
 
         console.log('Node started. Available commands:');
         console.log(' ');

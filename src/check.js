@@ -372,11 +372,15 @@ class Check {
 
     compileMsg (){
         const schema = {
+            $$strict: true,
+            type : { type : "string", min : 1, max : 256 },
             nonce: { type : "string", min : 1, max : 256 },
             hash: { type : "is_hex" },
             value : {
+                $$strict: true,
                 $$type: "object",
                 dispatch : {
+                    $$strict: true,
                     $$type : "object",
                     attachments : { type : "array", items : "string" },
                     msg : { type : "string", min : 1 },
@@ -446,6 +450,7 @@ class Check {
             value : {
                 $$type: "object",
                 dispatch : {
+                    $$strict : true,
                     $$type : "object",
                     type : { type : "string", min : 1, max : 256 },
                     value : { type : "any", nullable : true }

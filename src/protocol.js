@@ -198,7 +198,7 @@ class SimStorage{
     }
 
     async del(key){
-        if(this.peer.contract_instance.isReservedKey(key)) throw Error('del(key): ' + key + 'is reserved');
+        if(this.peer.contract_instance.isReservedKey(key)) throw new Error('del(key): ' + key + 'is reserved');
         delete this.values[key];
         return this.peer.contract_instance.emptyPromise();
     }
@@ -211,7 +211,7 @@ class SimStorage{
     }
 
     async put(key, value){
-        if(this.peer.contract_instance.isReservedKey(key)) throw Error('put(key,value): ' + key + 'is reserved');
+        if(this.peer.contract_instance.isReservedKey(key)) throw new Error('put(key,value): ' + key + 'is reserved');
         this.values[key] = value;
         return this.peer.contract_instance.emptyPromise();
     }

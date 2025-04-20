@@ -67,7 +67,6 @@ export class ProtocolApi{
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('kcin/'+nick);
         if(false === signed) res = await this.peer.protocol_instance.get('kcin/'+nick);
-        console.log(JSON.stringify(res));
         return res;
     }
 
@@ -75,7 +74,6 @@ export class ProtocolApi{
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('nick/'+address);
         if(false === signed) res = await this.peer.protocol_instance.get('nick/'+address);
-        console.log(JSON.stringify(res));
         return res;
     }
 
@@ -84,7 +82,6 @@ export class ProtocolApi{
         if(true === signed) res = await this.peer.protocol_instance.getSigned('pnl');
         if(false === signed) res = await this.peer.protocol_instance.get('pnl');
         res = res !== null ? res : 0;
-        console.log(JSON.stringify(res));
         return res;
     }
 
@@ -93,7 +90,6 @@ export class ProtocolApi{
         if(true === signed) res = await this.peer.protocol_instance.getSigned('pni/'+parseInt(index));
         if(false === signed) res = await this.peer.protocol_instance.get('pni/'+parseInt(index));
         if(null === res) {
-            console.log(JSON.stringify(null));
             return null
         }
         return await this.getMessage(res.msg, signed);
@@ -104,7 +100,6 @@ export class ProtocolApi{
         if(true === signed) res = await this.peer.protocol_instance.getSigned('delml');
         if(false === signed) res = await this.peer.protocol_instance.get('delml');
         res = res !== null ? res : 0;
-        console.log(JSON.stringify(res));
         return res;
     }
 
@@ -113,7 +108,6 @@ export class ProtocolApi{
         if(true === signed) res = await this.peer.protocol_instance.getSigned('delm/'+parseInt(index));
         if(false === signed) res = await this.peer.protocol_instance.get('delm/'+parseInt(index));
         if(null === res) {
-            console.log(JSON.stringify(null));
             return null
         }
         return await this.getMessage(res, signed);
@@ -124,7 +118,6 @@ export class ProtocolApi{
         if(true === signed) res = await this.peer.protocol_instance.getSigned('msgl');
         if(false === signed) res = await this.peer.protocol_instance.get('msgl');
         res = res !== null ? res : 0;
-        console.log(JSON.stringify(res));
         return res;
     }
 
@@ -132,7 +125,6 @@ export class ProtocolApi{
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('msg/'+parseInt(index));
         if(false === signed) res = await this.peer.protocol_instance.get('msg/'+parseInt(index));
-        console.log(JSON.stringify(res));
         return res;
     }
 
@@ -141,7 +133,6 @@ export class ProtocolApi{
         if(true === signed) res = await this.peer.protocol_instance.getSigned('umsgl/'+address);
         if(false === signed) res = await this.peer.protocol_instance.get('umsgl/'+address);
         res = res !== null ? res : 0;
-        console.log(JSON.stringify(res));
         return res;
     }
 
@@ -150,7 +141,6 @@ export class ProtocolApi{
         if(true === signed) res = await this.peer.protocol_instance.getSigned('umsg/'+address+'/'+parseInt(index));
         if(false === signed) res = await this.peer.protocol_instance.get('umsg/'+address+'/'+parseInt(index));
         if(null === res) {
-            console.log(JSON.stringify(null));
             return null
         }
         return await this.getMessage(res, signed);
@@ -161,7 +151,6 @@ export class ProtocolApi{
         if(true === signed) res = await this.peer.protocol_instance.getSigned('txl');
         if(false === signed) res = await this.peer.protocol_instance.get('txl');
         res = res !== null ? res : 0;
-        console.log(JSON.stringify(res));
         return res;
     }
 
@@ -169,17 +158,34 @@ export class ProtocolApi{
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('txi/'+parseInt(index));
         if(false === signed) res = await this.peer.protocol_instance.get('txi/'+parseInt(index));
-        console.log(JSON.stringify(res));
         return res;
     }
 
-    async getTxData(index, signed = true){
-        const tx = await this.getTx(index, signed);
-        if(null === tx) return null;
+    async getTxData(tx, signed = true){
+        let index = null;
+        if(true === signed) index = await this.peer.protocol_instance.getSigned('tx/'+tx);
+        if(false === signed) index = await this.peer.protocol_instance.get('tx/'+tx);
+        if(null !== index) {
+            return await this.getTx(index, signed);
+        }
+        return null;
+    }
+
+    async getUserTxLength(address, signed = true){
         let res = null;
-        if(true === signed) res = await this.peer.protocol_instance.getSigned('tx/'+tx);
-        if(false === signed) res = await this.peer.protocol_instance.get('tx/'+tx);
-        console.log(JSON.stringify(res));
+        if(true === signed) res = await this.peer.protocol_instance.getSigned('utxl/'+address);
+        if(false === signed) res = await this.peer.protocol_instance.get('utxl/'+address);
+        res = res !== null ? res : 0;
+        return res;
+    }
+
+    async getUserTx(address, index, signed = true){
+        let res = null;
+        if(true === signed) res = await this.peer.protocol_instance.getSigned('utxi/'+address+'/'+parseInt(index));
+        if(false === signed) res = await this.peer.protocol_instance.get('utxi/'+address+'/'+parseInt(index));
+        if(null !== res){
+            return await this.getTx(res, signed);
+        }
         return res;
     }
 }
