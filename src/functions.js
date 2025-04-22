@@ -125,7 +125,7 @@ export async function setWhitelistStatus(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.user;
     const status = parseInt(splitted.status) === 1;
-    const nonce = Math.random() + '-' + Date.now();
+    const nonce = peer.protocol_instance.generateNonce();
     const signature = { dispatch : {
             type : 'setWhitelistStatus',
             user: value,
@@ -139,7 +139,7 @@ export async function setWhitelistStatus(input, peer){
 export async function enableWhitelist(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = splitted.enabled === 1;
-    const nonce = Math.random() + '-' + Date.now();
+    const nonce = peer.protocol_instance.generateNonce();
     const signature = { dispatch : {
             type : 'enableWhitelist',
             enabled: value,
@@ -154,7 +154,7 @@ export async function pinMessage(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.id);
     const pinned = parseInt(splitted.pin) === 1;
-    const nonce = Math.random() + '-' + Date.now();
+    const nonce = peer.protocol_instance.generateNonce();
     const signature = { dispatch : {
             type : 'pinMessage',
             id: value,
@@ -169,7 +169,7 @@ export async function deleteMessage(input, peer){
     let address = null;
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.id);
-    const nonce = Math.random() + '-' + Date.now();
+    const nonce = peer.protocol_instance.generateNonce();
     const signature = { dispatch : {
             type : 'deleteMessage',
             id: value,
@@ -182,7 +182,7 @@ export async function deleteMessage(input, peer){
 export async function updateAdmin(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.address === 'null' ? null : ''+splitted.address;
-    const nonce = Math.random() + '-' + Date.now();
+    const nonce = peer.protocol_instance.generateNonce();
     const signature = { dispatch : {
             type : 'updateAdmin',
             admin: value,
@@ -196,7 +196,7 @@ export async function setMod(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.user;
     const mod = parseInt(splitted.mod) === 1;
-    const nonce = Math.random() + '-' + Date.now();
+    const nonce = peer.protocol_instance.generateNonce();
     const signature = { dispatch : {
             type : 'setMod',
             user: value,
@@ -211,7 +211,7 @@ export async function muteStatus(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.user;
     const muted = parseInt(splitted.muted) === 1;
-    const nonce = Math.random() + '-' + Date.now();
+    const nonce = peer.protocol_instance.generateNonce();
     const signature = { dispatch : {
             type : 'muteStatus',
             user: value,
@@ -229,7 +229,7 @@ export async function setNick(input, peer){
     if(splitted.user !== undefined){
         user = ''+splitted.user;
     }
-    const nonce = Math.random() + '-' + Date.now();
+    const nonce = peer.protocol_instance.generateNonce();
     const signature = { dispatch : {
             type : 'setNick',
             nick: value,
@@ -245,7 +245,7 @@ export async function postMessage(input, peer){
     if(typeof splitted.message === "boolean" || splitted.message === undefined) throw new Error('Empty message not allowed');
     const reply_to = splitted.reply_to !== undefined ? parseInt(splitted.reply_to) : null;
     const value = '' + splitted.message;
-    const nonce = Math.random() + '-' + Date.now();
+    const nonce = peer.protocol_instance.generateNonce();
     const signature = { dispatch : {
             type : 'msg',
             msg: value,
@@ -263,7 +263,7 @@ export async function postMessage(input, peer){
 export async function setChatStatus(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.enabled) === 1 ? 'on' : 'off';
-    const nonce = Math.random() + '-' + Date.now();
+    const nonce = peer.protocol_instance.generateNonce();
     if(value !== 'on' && value !== 'off') throw new Error('setChatStatus: use on and off values.');
     const msg = { type: 'setChatStatus', key: value }
     const signature = {
@@ -276,7 +276,7 @@ export async function setChatStatus(input, peer){
 export async function setAutoAddWriters(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.enabled) === 1 ? 'on' : 'off';
-    const nonce = Math.random() + '-' + Date.now();
+    const nonce = peer.protocol_instance.generateNonce();
     if(value !== 'on' && value !== 'off') throw new Error('setAutoAddWriters: use on and off values.');
     const msg = { type: 'setAutoAddWriters', key: value }
     const signature = {
@@ -295,7 +295,7 @@ export async function addAdmin(input, peer){
 export async function addWriter(input, peer){
     const splitted = input.split(' ');
     const parsed = peer.protocol_instance.parseArgs(input)
-    const nonce = Math.random() + '-' + Date.now();
+    const nonce = peer.protocol_instance.generateNonce();
     if(splitted[0] === '/add_indexer'){
         const msg = { type: 'addIndexer', key: ''+parsed.key }
         const signature = {

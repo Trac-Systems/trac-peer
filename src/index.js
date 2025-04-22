@@ -655,7 +655,7 @@ export class Peer extends ReadyResource {
                     msb_tx['msbsl'] = msbsl;
                     msb_tx['ipk'] = this.wallet.publicKey;
                     msb_tx['wp'] = this.validator;
-                    msb_tx['nonce'] = Math.random() + '-' + Date.now();
+                    msb_tx['nonce'] = this.protocol_instance.generateNonce();
                     msb_tx['hash'] = this.wallet.sign(tx + await this.createHash('sha256', jsonStringify(msb_tx['dispatch'])) + msb_tx['nonce']);
                     delete this.tx_pool[tx];
                     delete this.protocol_instance.prepared_transactions_content[tx];

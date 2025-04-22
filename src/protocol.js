@@ -1,5 +1,6 @@
 import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone } from "./functions.js";
 import {ProtocolApi} from './api.js';
+import Wallet from 'trac-wallet';
 
 class Protocol{
     constructor(options = {}) {
@@ -30,6 +31,10 @@ class Protocol{
 
     msgMaxBytes(){
         return 8_192;
+    }
+
+    generateNonce(){
+        return Wallet.generateNonce().toString('hex');
     }
 
     safeBigInt(value) {
@@ -100,7 +105,7 @@ class Protocol{
     async simulateTransaction(obj){
         const storage = new SimStorage(this.peer);
         const null_hex = '0000000000000000000000000000000000000000000000000000000000000000';
-        let nonce = Math.random() + '-' + Date.now();
+        let nonce = this.generateNonce();
         const content_hash = await this.peer.createHash('sha256', JSON.stringify(obj));
         let tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, null_hex,
             this.peer.writerLocalKey, this.peer.wallet.publicKey, content_hash, nonce);
@@ -129,7 +134,7 @@ class Protocol{
             obj.type !== undefined &&
             obj.value !== undefined)
         {
-            this.nonce = Math.random() + '-' + Date.now();
+            this.nonce = this.generateNonce();
             const content_hash = await this.peer.createHash('sha256', JSON.stringify(obj));
             let tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, validator_pub_key,
                 this.peer.writerLocalKey, this.peer.wallet.publicKey, content_hash, this.nonce);

@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.1.40",
+  "version": "0.1.41",
   "type": "module",
   "dependencies": {
     "assert": "npm:bare-node-assert",
@@ -26,7 +26,7 @@
     "bare-stream": "^2.6.5",
     "bare-subprocess": "^5.0.3",
     "bare-timers": "^3.0.1",
-    "bare-tls": "^2.0.2",
+    "bare-tls": "^2.0.4",
     "bare-tty": "^5.0.2",
     "bare-url": "^2.1.4",
     "bare-utils": "^1.2.0",
@@ -68,7 +68,7 @@
     "stream": "npm:bare-node-stream",
     "timers": "npm:bare-node-timers",
     "tls": "npm:bare-node-tls",
-    "trac-wallet": "^0.0.40",
+    "trac-wallet": "^0.0.42",
     "tty": "npm:bare-node-tty",
     "url": "npm:bare-node-url",
     "util": "npm:bare-node-util",
