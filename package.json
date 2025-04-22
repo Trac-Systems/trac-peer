@@ -1,11 +1,11 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.1.41",
+  "version": "0.1.42",
   "type": "module",
   "dependencies": {
     "assert": "npm:bare-node-assert",
-    "autobase": "7.4.0",
+    "autobase": "7.6.2",
     "b4a": "1.6.7",
     "bare-assert": "^1.0.2",
     "bare-buffer": "^3.1.2",
@@ -47,7 +47,7 @@
     "http": "npm:bare-node-http",
     "https": "npm:bare-node-https",
     "hyperbee": "2.24.2",
-    "hypercore": "11.5.0",
+    "hypercore": "11.6.2",
     "hypercore-crypto": "3.4.0",
     "hyperdht": "^6.20.1",
     "hyperswarm": "4.11.5",
