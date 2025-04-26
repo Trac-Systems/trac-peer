@@ -72,6 +72,7 @@ class Check {
         this._msg = this.compileMsg();
         this._feature = this.compileFeature();
         this._add_writer = this.compileAddWriter();
+        this._remove_writer = this.compileRemoveWriter();
         this._auto_add_writers = this.compileSetAutoAddWriters();
         this._key = this.compileKey();
         this._chat_status = this.compileSetChatStatus();
@@ -322,6 +323,23 @@ class Check {
         return res === true;
     }
 
+    compileRemoveWriter (){
+        const schema = {
+            key: { type : "is_hex" },
+            hash : { type : "is_hex" },
+            nonce : { type : "string", min : 1, max : 256 },
+            value : {
+                $$type: "object",
+                msg : {
+                    $$type : "object",
+                    type : { type : "string", min : 1, max : 256 },
+                    key: { type : "is_hex" }
+                }
+            }
+        };
+        return this.validator.compile(schema);
+    }
+
     compileAddWriter (){
         const schema = {
             key: { type : "is_hex" },
@@ -346,6 +364,11 @@ class Check {
 
     addWriter(op){
         const res = this._add_writer(op);
+        return res === true;
+    }
+
+    removeWriter(op){
+        const res = this._remove_writer(op);
         return res === true;
     }
 

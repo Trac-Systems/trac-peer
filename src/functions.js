@@ -317,6 +317,23 @@ export async function addWriter(input, peer){
     }
 }
 
+
+export async function removeWriter(input, peer){
+    const splitted = input.split(' ');
+    const parsed = peer.protocol_instance.parseArgs(input)
+    const nonce = peer.protocol_instance.generateNonce();
+    if(splitted[0] === '/remove_writer') {
+        const msg = { type: 'removeWriter', key: ''+parsed.key }
+        const signature = {
+            msg: msg
+        };
+        const hash = peer.wallet.sign(JSON.stringify(msg) + nonce);
+        if(peer.base.writable){
+            await peer.base.append({ op : 'remove_writer', type: 'removeWriter', key: ''+parsed.key, value: signature, hash: hash, nonce : nonce });
+        }
+    }
+}
+
 export async function tx(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input);
     if(splitted.command === undefined){

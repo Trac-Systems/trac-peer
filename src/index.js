@@ -9,6 +9,7 @@ import readline from 'readline';
 import tty from 'tty'
 import Corestore from 'corestore';
 import w from 'protomux-wakeup';
+import BlindPairing from 'blind-pairing'
 const wakeup = new w();
 import {
     addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
@@ -54,10 +55,11 @@ export class Peer extends ReadyResource {
         this.options = options;
         this.check = new Check();
         this.dhtBootstrap = ['116.202.214.143:10001','116.202.214.149:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
-        this.seen_auto_add = {};
+        this.invite = null;
         this.validator = null;
         this.validator_stream = null;
         this.readline_instance = null;
+        this.myInvite = null;
         this.enable_interactive_mode = options.enable_interactive_mode !== false;
         if(this.enable_interactive_mode !== false){
             try{
@@ -247,6 +249,22 @@ export class Peer extends ReadyResource {
                                 await base.addWriter(writerKey, { isIndexer : false });
                                 await batch.put('sh/'+op.hash, '');
                                 console.log(`Writer added: ${op.key}`);
+                            }
+                        }
+                    } else if (op.type === 'removeWriter') {
+                        if(false === this.check.removeWriter(op)) continue;
+                        const str_msg = jsonStringify(op.value.msg);
+                        const admin = await batch.get('admin');
+                        if(null !== admin &&
+                            op.value.msg.key === op.key &&
+                            op.value.msg.type === 'removeWriter' &&
+                            null === await batch.get('sh/'+op.hash)) {
+                            const verified = _this.wallet.verify(op.hash, str_msg + op.nonce, admin.value);
+                            if(true === verified){
+                                const writerKey = b4a.from(op.key, 'hex');
+                                await base.removeWriter(writerKey);
+                                await batch.put('sh/'+op.hash, '');
+                                console.log(`Writer removed: ${op.key}`);
                             }
                         }
                     } else if (op.type === 'setChatStatus') {
@@ -568,16 +586,6 @@ export class Peer extends ReadyResource {
             }
         });
         this.updater();
-        this.seenAutoAdd();
-        const auto_add_writers = await this.base.view.get('auto_add_writers');
-        if(!this.base.writable && null !== auto_add_writers && auto_add_writers.value === 'on'){
-            this.emit('announce', {
-                op : 'auto-add-writer',
-                type : 'autoAddWriter',
-                key : this.writerLocalKey,
-                id : Math.random() + Date.now()
-            });
-        }
     }
 
     async initContract(){
@@ -637,25 +645,28 @@ export class Peer extends ReadyResource {
                                     _this.validator_stream = existing_stream;
                                     _this.validator = validator.value.pub;
                                     _this.validator_stream.on('close', () => {
-                                        _this.validator_stream = null;
-                                        _this.validator = null;
-                                        console.log('Validator stream closed', validator.value.pub);
+                                        if(_this.validator_stream !== null && b4a.toString(_this.validator_stream.publicKey, 'hex') === validator.value.pub) {
+                                            _this.validator_stream = null;
+                                            _this.validator = null;
+                                            console.log('Validator stream closed', validator.value.pub);
+                                        }
                                     });
                                     console.log('Validator stream established', validator.value.pub);
                                 } else {
                                     _this.validator_stream = _this.msb.getSwarm().dht.connect(b4a.from(validator.value.pub, 'hex'));
-                                    _this.validator_stream.on('open', function () {
-                                        _this.validator = validator.value.pub;
-                                        console.log('Validator stream established', validator.value.pub);
-                                    });
+                                    _this.validator = validator.value.pub;
                                     _this.validator_stream.on('close', () => {
-                                        _this.validator_stream = null;
-                                        _this.validator = null;
-                                        console.log('Validator stream closed', validator.value.pub);
+                                        if(_this.validator_stream !== null && b4a.toString(_this.validator_stream.publicKey, 'hex') === validator.value.pub) {
+                                            _this.validator_stream = null;
+                                            _this.validator = null;
+                                            console.log('Validator stream closed', validator.value.pub);
+                                        }
                                     });
                                     _this.validator_stream.on('error', (error) => {
-                                        _this.validator_stream = null;
-                                        _this.validator = null;
+                                        if(_this.validator_stream !== null && b4a.toString(_this.validator_stream.publicKey, 'hex') === validator.value.pub) {
+                                            _this.validator_stream = null;
+                                            _this.validator = null;
+                                        }
                                     });
                                 }
                             }
@@ -736,75 +747,95 @@ export class Peer extends ReadyResource {
     async _replicate() {
         if (!this.swarm) {
 
+            const _this = this;
+
             const keyPair = {
                 publicKey: b4a.from(this.wallet.publicKey, 'hex'),
                 secretKey: b4a.from(this.wallet.secretKey, 'hex')
             };
 
             this.swarm = new Hyperswarm({ keyPair, bootstrap: this.dhtBootstrap });
-
+            this.invite = new BlindPairing(this.swarm, {
+                poll: 5000
+            });
             console.log(`Writer key: ${this.writerLocalKey}`)
 
             this.swarm.on('connection', async (connection, peerInfo) => {
-                const peerName = b4a.toString(connection.remotePublicKey, 'hex');
-                this.connectedPeers.add(peerName);
+                const remotePublicKey = b4a.toString(connection.remotePublicKey, 'hex');
+
+                this.connectedPeers.add(remotePublicKey);
                 wakeup.addStream(connection);
                 this.store.replicate(connection);
                 this.connectedNodes++;
 
                 connection.on('close', () => {
                     this.connectedNodes--;
-                    this.connectedPeers.delete(peerName);
+                    this.connectedPeers.delete(remotePublicKey);
                 });
 
                 connection.on('error', (error) => { });
 
-                connection.on('data', async (msg) => {
-                    try{
-                        msg = JSON.parse(msg);
-                        if(msg.op && msg.op === 'auto-add-writer' && this.base.localWriter.isActive &&
-                            this.writerLocalKey !== msg.key &&
-                            false === this.base.activeWriters.has(b4a.from(msg.key, 'hex')) &&
-                            this.seen_auto_add[msg.id] === undefined) {
-                            if(this.base.writable){
-                                await this.base.append(msg);
-                            } else {
-                                this.seen_auto_add[msg.id] = Date.now();
-                                this.emit('announce', {
-                                    op : 'auto-add-writer',
-                                    type : 'autoAddWriter',
-                                    key : msg.key,
-                                    id : msg.id
-                                });
-                            }
-                        }
-                    } catch(e){ }
-                });
-
-                this.on('announce', async function(msg){
-                    await connection.write(JSON.stringify(msg))
-                });
-
                 if (!this.isStreaming) {
                     this.emit('readyNode');
                 }
+
+                if(this.base.writable){
+                    const auto_add_writers = await this.base.view.get('auto_add_writers');
+                    if(auto_add_writers.value === 'on'){
+                        try{
+                            const { invite, publicKey, discoveryKey } = BlindPairing.createInvite(b4a.from(this.writerLocalKey, 'hex'));
+                            connection.send(
+                                b4a.from(jsonStringify({
+                                    invite : b4a.toString(invite, 'hex'),
+                                    publicKey : b4a.toString(publicKey, 'hex'),
+                                    discoveryKey : b4a.toString(discoveryKey, 'hex')
+                                })));
+                        }catch(e){}
+                    }
+                }
+
+                connection.on('message', async (msg) => {
+                    try{
+                        const parsed = jsonParse(b4a.toString(msg));
+                        if(false === this.base.writable && this.myInvite === null && parsed.invite !== undefined){
+                            this.myInvite = parsed.invite
+                            connection.send(b4a.from(jsonStringify({
+                                inviteMyKey : this.writerLocalKey,
+                                publicKey : parsed.publicKey,
+                                discoveryKey : parsed.discoveryKey
+                            })));
+                            try{
+                                const adding = _this.invite.addCandidate({
+                                    invite: b4a.from(parsed.invite, 'hex'),
+                                    userData : b4a.from(_this.writerLocalKey, 'hex'),
+                                    async onadd (result) { }
+                                })
+                                await adding.pairing;
+                                this.myInvite = null
+                                console.log('paired')
+                            }catch(e){}
+                        } else if(true === this.base.writable && parsed.inviteMyKey !== undefined){
+                            const member = _this.invite.addMember({
+                                discoveryKey : b4a.from(parsed.discoveryKey, 'hex'),
+                                async onadd (candidate) {
+                                    try{
+                                        candidate.open(b4a.from(parsed.publicKey, 'hex'))
+                                        candidate.confirm({ key: b4a.from(parsed.inviteMyKey, 'hex') })
+                                        await _this.base.append({
+                                            type : 'autoAddWriter',
+                                            key : parsed.inviteMyKey
+                                        });
+                                    }catch(e){}
+                                }
+                            })
+                            await member.flushed();
+                        }
+                    }catch(e){}
+                });
             });
 
             this.swarm.join(this.channel, { server: true, client: true });
             await this.swarm.flush();
-        }
-    }
-
-    async seenAutoAdd(){
-        while(true){
-            const ts = Date.now();
-            for(let seen in this.seen_auto_add){
-                if(ts - this.seen_auto_add[seen] > 30_000){
-                    console.log('Wiping last seen', seen);
-                    delete this.seen_auto_add[seen];
-                }
-            }
-            await this.sleep(1000);
         }
     }
 
