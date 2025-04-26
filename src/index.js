@@ -17,7 +17,6 @@ import {
     pinMessage
 } from "./functions.js";
 import Check from "./check.js";
-import DHT from 'hyperdht';
 export {default as Protocol} from "./protocol.js";
 export {default as Contract} from "./contract.js";
 export {default as Feature} from "./feature.js";
@@ -55,7 +54,6 @@ export class Peer extends ReadyResource {
         this.options = options;
         this.check = new Check();
         this.dhtBootstrap = ['116.202.214.143:10001','116.202.214.149:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
-        this.dhtNode = null;
         this.seen_auto_add = {};
         this.validator = null;
         this.validator_stream = null;
@@ -114,7 +112,6 @@ export class Peer extends ReadyResource {
                             post_tx.value.ch === content_hash &&
                             _this.wallet.verify(post_tx.value.ws, post_tx.value.tx + post_tx.value.wn, op.value.wp) &&
                             _this.wallet.verify(post_tx.value.is, post_tx.value.tx + post_tx.value.in, op.value.ipk) &&
-                            _this.wallet.verify(op.value.hash, post_tx.value.tx + post_tx.value.ch + op.value.nonce, post_tx.value.ipk) &&
                             post_tx.value.tx === await _this.protocol_instance.generateTx(
                                 _this.bootstrap, _this.msb.bootstrap,
                                 post_tx.value.wp, post_tx.value.i, post_tx.value.ipk,
@@ -493,35 +490,66 @@ export class Peer extends ReadyResource {
         if(this.validator_stream === null) return;
         let _msg = safeClone(msg);
         if(_msg['ts'] !== undefined) delete _msg['ts'];
-        await this.validator_stream.send(b4a.from(jsonStringify(_msg)));
+        try{ await this.validator_stream.send(b4a.from(jsonStringify(_msg))); } catch(e){ }
     }
 
-    async getValidatorWriterKey(address){
-        if(null === this.dhtNode) return null;
+    async isValidatorAvailable(address){
+        if(null === this.msb.getSwarm()) return null;
         let writer_key = null;
-        const stream = this.dhtNode.connect(b4a.from(address, 'hex'))
-        stream.on('connect', async function () {
-            await stream.send(b4a.from(jsonStringify('get_writer_key')));
-        });
-        stream.on('message', (msg) => {
-            try{
-                const response = jsonParse(b4a.toString(msg, 'utf-8'));
-                if(response.op === 'writer_key' && response.key !== undefined){
-                    writer_key = response.key;
-                }
-            }catch(e){}
-        });
-        stream.on('open', function () { });
-        stream.on('close', () => { });
-        stream.on('error', (error) => { });
-        let i = 0;
-        while(null === writer_key){
-            if(i >= 300) break;
-            await this.sleep(5);
-            i += 5;
+
+        this.msb.getSwarm().joinPeer(b4a.from(address, 'hex'))
+
+        let existing_stream = undefined;
+
+        if(this.msb.getSwarm().peers.has(address)){
+            const peerInfo = this.msb.getSwarm().peers.get(address)
+            existing_stream = this.msb.getSwarm()._allConnections.get(peerInfo.publicKey)
         }
-        await stream.end();
-        return writer_key;
+
+        if(existing_stream !== undefined){
+            existing_stream.on('message', (msg) => {
+                try{
+                    const response = jsonParse(b4a.toString(msg, 'utf-8'));
+                    if(response.op === 'writer_key' && response.key !== undefined){
+                        writer_key = response.key;
+                    }
+                }catch(e){}
+            });
+            existing_stream.on('open', function () { });
+            existing_stream.on('close', () => { });
+            existing_stream.on('error', (error) => { });
+            await existing_stream.send(b4a.from(jsonStringify('get_writer_key')));
+            let i = 0;
+            while(null === writer_key){
+                if(i >= 1_000) break;
+                await this.sleep(10);
+                i += 10;
+            }
+            return writer_key;
+        } else {
+            const stream = this.msb.getSwarm().dht.connect(b4a.from(address, 'hex'))
+            stream.on('connect', async function () {
+                await stream.send(b4a.from(jsonStringify('get_writer_key')));
+            });
+            stream.on('message', (msg) => {
+                try{
+                    const response = jsonParse(b4a.toString(msg, 'utf-8'));
+                    if(response.op === 'writer_key' && response.key !== undefined){
+                        writer_key = response.key;
+                    }
+                }catch(e){}
+            });
+            stream.on('open', function () { });
+            stream.on('close', () => { });
+            stream.on('error', (error) => { });
+            let i = 0;
+            while(null === writer_key){
+                if(i >= 5_000) break;
+                await this.sleep(10);
+                i += 10;
+            }
+            return writer_key;
+        }
     }
 
     async _open() {
@@ -554,10 +582,7 @@ export class Peer extends ReadyResource {
 
     async initContract(){
         this.init_contract_starting = true;
-        this.protocol_instance = new this.protocol({
-            peer : this,
-            base : this.base
-        });
+        this.protocol_instance = new this.protocol(this, this.base, this.options);
         await this.protocol_instance.extendApi();
         this.contract_instance = new this.contract(this.protocol_instance);
     }
@@ -580,7 +605,7 @@ export class Peer extends ReadyResource {
 
     async validator_observer(){
         while(true){
-            if(this.dhtNode !== null && this.validator_stream === null) {
+            if(this.msb.getSwarm() !== null && this.validator_stream === null) {
                 console.log('Looking for available validators, please wait...');
                 const _this = this;
                 let length = await this.msb.base.view.get('wrl');
@@ -598,29 +623,41 @@ export class Peer extends ReadyResource {
                         validator = await _this.msb.base.view.get(validator.value);
                         if(_this.validator_stream !== null) return;
                         if(null !== validator && false !== validator.value.isWriter && false === validator.value.isIndexer) {
-                            const result = await _this.getValidatorWriterKey(validator.value.pub);
+                            const result = await _this.isValidatorAvailable(validator.value.pub);
                             if(_this.validator_stream !== null) return;
                             if (null !== result) {
-                                _this.validator = validator.value.pub;
                                 await _this.sleep(100);
                                 if(_this.validator_stream !== null) return;
-                                _this.validator_stream = _this.dhtNode.connect(b4a.from(validator.value.pub, 'hex'));
-                                _this.validator_stream.on('open', function () {
+                                let existing_stream = undefined;
+                                if(_this.msb.getSwarm().peers.has(validator.value.pub)){
+                                    const peerInfo = _this.msb.getSwarm().peers.get(validator.value.pub)
+                                    existing_stream = _this.msb.getSwarm()._allConnections.get(peerInfo.publicKey)
+                                }
+                                if(existing_stream !== undefined){
+                                    _this.validator_stream = existing_stream;
                                     _this.validator = validator.value.pub;
+                                    _this.validator_stream.on('close', () => {
+                                        _this.validator_stream = null;
+                                        _this.validator = null;
+                                        console.log('Validator stream closed', validator.value.pub);
+                                    });
                                     console.log('Validator stream established', validator.value.pub);
-                                });
-                                _this.validator_stream.on('close', () => {
-                                    try{ _this.validator_stream.destroy() } catch(e) {}
-                                    _this.validator_stream = null;
-                                    _this.validator = null;
-                                    console.log('Stream closed', validator.value.pub)
-                                });
-                                _this.validator_stream.on('error', (error) => {
-                                    try{ _this.validator_stream.destroy() } catch(e) {}
-                                    _this.validator_stream = null;
-                                    _this.validator = null;
-                                    console.log(error)
-                                });
+                                } else {
+                                    _this.validator_stream = _this.msb.getSwarm().dht.connect(b4a.from(validator.value.pub, 'hex'));
+                                    _this.validator_stream.on('open', function () {
+                                        _this.validator = validator.value.pub;
+                                        console.log('Validator stream established', validator.value.pub);
+                                    });
+                                    _this.validator_stream.on('close', () => {
+                                        _this.validator_stream = null;
+                                        _this.validator = null;
+                                        console.log('Validator stream closed', validator.value.pub);
+                                    });
+                                    _this.validator_stream.on('error', (error) => {
+                                        _this.validator_stream = null;
+                                        _this.validator = null;
+                                    });
+                                }
                             }
                         }
                     }
@@ -651,12 +688,10 @@ export class Peer extends ReadyResource {
                 const msb_tx = await view_session.get(tx);
                 await view_session.close();
                 if(null !== msb_tx){
-                    msb_tx['dispatch'] = this.protocol_instance.prepared_transactions_content[tx];
+                    msb_tx['dispatch'] = this.protocol_instance.prepared_transactions_content[tx].dispatch;
                     msb_tx['msbsl'] = msbsl;
-                    msb_tx['ipk'] = this.wallet.publicKey;
+                    msb_tx['ipk'] = this.protocol_instance.prepared_transactions_content[tx].ipk;
                     msb_tx['wp'] = this.validator;
-                    msb_tx['nonce'] = this.protocol_instance.generateNonce();
-                    msb_tx['hash'] = this.wallet.sign(tx + await this.createHash('sha256', jsonStringify(msb_tx['dispatch'])) + msb_tx['nonce']);
                     delete this.tx_pool[tx];
                     delete this.protocol_instance.prepared_transactions_content[tx];
                     await this.base.append({ type: 'tx', key: tx, value: msb_tx });
@@ -707,7 +742,6 @@ export class Peer extends ReadyResource {
             };
 
             this.swarm = new Hyperswarm({ keyPair, bootstrap: this.dhtBootstrap });
-            this.dhtNode = this.swarm.dht;
 
             console.log(`Writer key: ${this.writerLocalKey}`)
 

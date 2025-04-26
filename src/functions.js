@@ -332,6 +332,7 @@ export async function tx(input, peer){
     let res = false;
     try{
         if(splitted.sim !== undefined && parseInt(splitted.sim) === 1){
+            while(true === peer.protocol_instance.sim) await peer.sleep(3);
             peer.protocol_instance.sim = true;
         }
         res = await peer.protocol_instance.tx(splitted);

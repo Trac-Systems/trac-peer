@@ -1,6 +1,146 @@
+import b4a from "b4a";
+import {jsonStringify} from "./functions.js";
+
 export class ProtocolApi{
-    constructor(options = {}) {
-        this.peer = options.peer || null;
+    constructor(peer, options = {}) {
+        this.peer = peer;
+        this.api_tx_exposed = options.api_tx_exposed === true;
+        this.api_msg_exposed = options.api_msg_exposed === true;
+        this.options = options;
+    }
+
+    getPeerValidatorAddress(){
+        return this.peer.validator;
+    }
+
+    getPeerBootstrap(){
+        return this.peer.bootstrap;
+    }
+
+    getPeerMsbBootstrap(){
+        return this.peer.msb.bootstrap;
+    }
+
+    getPeerWriterKey(){
+        return this.peer.writerLocalKey;
+    }
+
+    generateNonce(){
+        return this.peer.protocol_instance.generateNonce();
+    }
+
+    async prepareMessage(msg, address, reply_to = null, attachments = []){
+        if(typeof msg !== 'string') throw new Error('Msg must be a string');
+        if(b4a.byteLength(jsonStringify(address)) > 64) throw new Error('Address too large.');
+        if(b4a.byteLength(jsonStringify(reply_to)) > 256) throw new Error('Reply to too large.');
+        if(reply_to !== null && isNaN(parseInt(reply_to))) throw new Error('Reply to not a number.');
+        if(false === Array.isArray(attachments)) throw new Error('attachments must be an array.');
+        if(attachments.length > 20) throw new Error('Too many attachments');
+        for(let i = 0; i < attachments.length; i++){
+            if(typeof attachments[i] !== 'string') throw new Error('Attachment at index ' + i + ' is not a string.');
+        }
+        const prepared = {
+            dispatch : {
+                type : 'msg',
+                msg: msg,
+                address : address,
+                attachments : attachments,
+                deleted_by : null,
+                reply_to : reply_to !== null ? parseInt(reply_to) : null,
+                pinned : false,
+                pin_id : null
+            }};
+        if(b4a.byteLength(jsonStringify(prepared)) > this.peer.protocol_instance.msgMaxBytes()) throw new Error('Message too large.');
+        return prepared;
+    }
+
+    async post(prepared_message, signature, nonce){
+        if(false === this.api_msg_exposed) throw new Error('Posting messages not exposed in API.');
+        if(b4a.byteLength(jsonStringify(prepared_message)) > this.peer.protocol_instance.msgMaxBytes()) throw new Error('Prepared message too large.');
+        if(typeof prepared_message !== 'object') throw new Error('Prepared message must be an object generated with api.prepareMessage().');
+        if(prepared_message.dispatch === undefined || prepared_message.dispatch.type === undefined ||
+            prepared_message.dispatch.msg === undefined || prepared_message.dispatch.address === undefined ||
+            prepared_message.dispatch.attachments === undefined || prepared_message.dispatch.deleted_by === undefined ||
+            prepared_message.dispatch.reply_to === undefined || prepared_message.dispatch.pinned === undefined ||
+            prepared_message.dispatch.pin_id === undefined) throw new Error('Invalid prepared message.');
+        if(prepared_message.dispatch.type !== 'msg') throw new Error('Invalid type.');
+        if(typeof prepared_message.dispatch.msg !== 'string') throw new Error('Msg must be a string');
+        if(b4a.toString(b4a.from(prepared_message.dispatch.address, 'hex'), 'hex') !== prepared_message.dispatch.address) throw new Error('Invalid address.');
+        if(false === Array.isArray(prepared_message.dispatch.attachments)) throw new Error('attachments must be an array.');
+        if(prepared_message.dispatch.attachments.length > 20) throw new Error('Too many attachments');
+        for(let i = 0; i < prepared_message.dispatch.attachments.length; i++){
+            if(typeof prepared_message.dispatch.attachments[i] !== 'string') throw new Error('Attachment at index ' + i + ' is not a string.');
+        }
+        if(prepared_message.dispatch.deleted_by !== null) throw new Error('deleted_by must be null');
+        if(prepared_message.dispatch.reply_to !== null && isNaN(parseInt(prepared_message.dispatch.reply_to))) throw new Error('Reply to not a number.');
+        if(prepared_message.dispatch.pinned !== false) throw new Error('pinned must be false');
+        if(prepared_message.dispatch.pin_id !== null) throw new Error('pin_id must be null');
+        const verified = this.peer.wallet.verify(signature, JSON.stringify(prepared_message) + nonce, prepared_message.dispatch.address);
+        if(false === verified) throw new Error('Invalid signature. Please sign your prepared message.');
+        await this.peer.base.append({type: 'msg', value: prepared_message, hash : signature, nonce: nonce });
+    }
+
+    async generateTx(address, command_hash, nonce) {
+        return await this.peer.protocol_instance.generateTx(this.getPeerBootstrap(),
+            this.getPeerMsbBootstrap(), this.getPeerValidatorAddress(), this.getPeerWriterKey(),
+            address, command_hash, nonce);
+    }
+
+    prepareTxCommand(command){
+        return this.peer.protocol_instance.mapTxCommand(command);
+    }
+
+    /**
+     * To pass a TX, an ed25519 signature has to be provided over the given tx + nonce.
+     *
+     * Signing steps:
+     * let nonce = api.generateNonce()
+     * let tx_hash = api.generateTx(address, a_sha256_function(JSON.stringify(api.prepareTxCommand(command))), nonce)
+     * let signature = your_ed25519_sign_lib.sign(tx + nonce, address)
+     * api.tx(tx_hash, api.prepareTxCommand(command), address, signature, nonce)
+     *
+     * @param tx
+     * @param prepared_command
+     * @param address
+     * @param signature
+     * @param nonce
+     * @param sim
+     * @returns {Promise<boolean>}
+     */
+    async tx(tx, prepared_command, address, signature, nonce, sim = false ){
+        if(false === this.api_tx_exposed) throw new Error('Transactions not exposed in API.');
+        if(typeof prepared_command !== 'object') throw new Error('prepared_command must be an object.');
+        if(typeof prepared_command.type !== 'string')  throw new Error('prepared_command.type must exist and be a string.');
+        if(prepared_command.value === undefined)  throw new Error('prepared_command.value is missing.');
+        if(b4a.byteLength(jsonStringify(prepared_command)) > this.peer.protocol_instance.txMaxBytes()) throw new Error('prepared_command too large.');
+        if(b4a.byteLength(jsonStringify(address)) > 64) throw new Error('Address too large.');
+        if(b4a.byteLength(jsonStringify(signature)) > 128) throw new Error('Signature too large.');
+        if(b4a.byteLength(jsonStringify(nonce)) > 256) throw new Error('Nonce too large.');
+        if(b4a.toString(b4a.from(signature, 'hex'), 'hex') !== signature) throw new Error('Invalid signature.');
+        if(b4a.toString(b4a.from(address, 'hex'), 'hex') !== address) throw new Error('Invalid address.');
+        const verified = this.peer.wallet.verify(signature, tx + nonce, address);
+        if(false === verified) throw new Error('Invalid signature.');
+        const content_hash = await this.peer.createHash('sha256', this.peer.protocol_instance.safeJsonStringify(prepared_command));
+        let _tx = await this.generateTx(address, content_hash, nonce);
+        if(tx !== _tx) throw new Error('Invalid TX.');
+        while(null !== this.peer.protocol_instance.surrogate_tx) await this.peer.sleep(3);
+        this.peer.protocol_instance.surrogate_tx = { tx : ''+tx, nonce : ''+nonce, signature : ''+signature, address : ''+address };
+        let res = false;
+        try{
+            if(true === sim){
+                while(true === this.peer.protocol_instance.sim) await this.peer.sleep(3);
+                this.peer.protocol_instance.sim = true;
+            }
+            const subject = { command : prepared_command.value, validator : ''+this.getPeerValidatorAddress() };
+            res = await this.peer.protocol_instance.tx(subject);
+        } catch(e){ console.log(e) }
+        const err = this.peer.protocol_instance.getError(res);
+        if(null !== err){
+            console.log(err.message);
+        }
+        this.peer.protocol_instance.sim = false;
+        this.peer.protocol_instance.surrogate_tx = null;
+        return res;
     }
 
     async getAdmin(signed = true){

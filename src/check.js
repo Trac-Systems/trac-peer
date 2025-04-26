@@ -161,7 +161,7 @@ class Check {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
-                    id : { type : "number", integer: true, min : 0, max : 2147483647 },
+                    id : { type : "number", integer: true, min : 0, max : Number.MAX_SAFE_INTEGER },
                     type : { type : "string", min : 1, max : 256 },
                     address : { type : "is_hex" }
                 }
@@ -183,7 +183,7 @@ class Check {
                 $$type: "object",
                 dispatch : {
                     $$type : "object",
-                    id : { type : "number", integer: true, min : 0, max : 2147483647 },
+                    id : { type : "number", integer: true, min : 0, max : Number.MAX_SAFE_INTEGER },
                     pinned : { type : "boolean" },
                     type : { type : "string", min : 1, max : 256 },
                     address : { type : "is_hex" }
@@ -387,9 +387,9 @@ class Check {
                     type : { type : "string", min : 1, max : 256 },
                     address : { type : "is_hex" },
                     deleted_by : { type : "is_hex", nullable : true },
-                    reply_to : { type : "number", integer : true, min : 0, max : 2147483647, nullable : true },
+                    reply_to : { type : "number", integer : true, min : 0, max : Number.MAX_SAFE_INTEGER, nullable : true },
                     pinned : { type : "boolean" },
-                    pin_id : { type : "number", integer : true, min : 0, max : 2147483647, nullable : true },
+                    pin_id : { type : "number", integer : true, min : 0, max : Number.MAX_SAFE_INTEGER, nullable : true },
                 }
             }
         };
@@ -455,11 +455,9 @@ class Check {
                     type : { type : "string", min : 1, max : 256 },
                     value : { type : "any", nullable : true }
                 },
-                msbsl : { type : "number", integer : true, min : 0, max : 2147483647 },
+                msbsl : { type : "number", integer : true, min : 0, max : Number.MAX_SAFE_INTEGER },
                 ipk : { type : "is_hex" },
-                wp : { type : "is_hex" },
-                hash : { type : "is_hex" },
-                nonce: { type : "string", min : 1, max : 256 }
+                wp : { type : "is_hex" }
             }
         };
         return this.validator.compile(schema);

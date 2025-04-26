@@ -3,10 +3,10 @@ import {ProtocolApi} from './api.js';
 import Wallet from 'trac-wallet';
 
 class Protocol{
-    constructor(options = {}) {
-        this.api = new ProtocolApi({ peer : options.peer });
-        this.base = options.base || null;
-        this.peer = options.peer || null;
+    constructor(peer, base, options = {}) {
+        this.api = new ProtocolApi(peer, options);
+        this.base = base;
+        this.peer = peer;
         this.options = options;
         this.input = null;
         this.tokenized_input = null;
@@ -15,10 +15,10 @@ class Protocol{
         this.safeJsonStringify = jsonStringify;
         this.safeJsonParse = jsonParse;
         this.safeClone = safeClone;
-        this.nonce = 0;
         this.prepared_transactions_content = {};
         this.features = {};
         this.sim = false;
+        this.surrogate_tx = null;
     }
 
     featMaxBytes(){
@@ -91,10 +91,10 @@ class Protocol{
         this.features[key] = feature;
     }
 
-    async generateTx(bootstrap, msb_bootstrap, validator_writer_key, local_writer_key, local_public_key, content_hash, nonce){
+    async generateTx(bootstrap, msb_bootstrap, validator_public_key, local_writer_key, local_public_key, content_hash, nonce){
         let tx = bootstrap + '-' +
             msb_bootstrap + '-' +
-            validator_writer_key + '-' +
+            validator_public_key + '-' +
             local_writer_key + '-' +
             local_public_key + '-' +
             content_hash + '-' +
@@ -106,16 +106,16 @@ class Protocol{
         const storage = new SimStorage(this.peer);
         const null_hex = '0000000000000000000000000000000000000000000000000000000000000000';
         let nonce = this.generateNonce();
-        const content_hash = await this.peer.createHash('sha256', JSON.stringify(obj));
+        const content_hash = await this.peer.createHash('sha256', this.safeJsonStringify(obj));
         let tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, null_hex,
-            this.peer.writerLocalKey, this.peer.wallet.publicKey, content_hash, nonce);
+            this.peer.writerLocalKey, this.surrogate_tx !== null ? this.surrogate_tx.address : this.peer.wallet.publicKey, content_hash, nonce);
         const op = {
             type : 'tx',
             key : tx,
             value : {
                 dispatch : obj,
                 value : {
-                    ipk : this.peer.wallet.publicKey,
+                    ipk : this.surrogate_tx !== null ? this.surrogate_tx.address : this.peer.wallet.publicKey,
                     wp : null_hex
                 }
             }
@@ -134,24 +134,36 @@ class Protocol{
             obj.type !== undefined &&
             obj.value !== undefined)
         {
-            this.nonce = this.generateNonce();
-            const content_hash = await this.peer.createHash('sha256', JSON.stringify(obj));
-            let tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, validator_pub_key,
-                this.peer.writerLocalKey, this.peer.wallet.publicKey, content_hash, this.nonce);
-            const signature = this.peer.wallet.sign(tx + this.nonce);
+
+            let tx, signature, nonce, publicKey;
+            const content_hash = await this.peer.createHash('sha256', this.safeJsonStringify(obj));
+
+            if(this.surrogate_tx !== null) {
+                nonce = this.surrogate_tx.nonce;
+                tx = this.surrogate_tx.tx;
+                signature = this.surrogate_tx.signature;
+                publicKey = this.surrogate_tx.address;
+            } else {
+                nonce = this.generateNonce();
+                tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, validator_pub_key,
+                    this.peer.writerLocalKey, this.peer.wallet.publicKey, content_hash, nonce);
+                signature = this.peer.wallet.sign(tx + nonce);
+                publicKey = this.peer.wallet.publicKey;
+            }
+
             this.peer.emit('tx', {
                 op: 'pre-tx',
                 tx: tx,
                 is: signature,
                 wp : validator_pub_key,
                 i: this.peer.writerLocalKey,
-                ipk: this.peer.wallet.publicKey,
+                ipk: publicKey,
                 ch : content_hash,
-                in : this.nonce,
+                in : nonce,
                 bs : this.peer.bootstrap,
                 mbs : this.peer.msb.bootstrap
             });
-            this.prepared_transactions_content[tx] = obj;
+            this.prepared_transactions_content[tx] = { dispatch : obj, ipk : publicKey };
         } else {
             throw Error('broadcastTransaction(writer, obj): Cannot prepare transaction. Please make sure inputs and local writer are set.');
         }
@@ -174,7 +186,20 @@ class Protocol{
         return null;
     }
 
-    async tx(subject){ }
+    mapTxCommand(command){
+        return null;
+    }
+
+    async tx(subject){
+        const obj = this.mapTxCommand(subject.command);
+        if(null !== obj) {
+            return await this.broadcastTransaction(subject.validator,{
+                type : obj.type,
+                value : obj.value
+            });
+        }
+        return new Error('HyperMallProtocol::tx(): command not found.');
+    }
 
     async customCommand(input){ }
 
