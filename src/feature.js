@@ -20,18 +20,22 @@ class Feature {
     }
 
     async append(key, value){
-        const nonce = this.peer.protocol_instance.generateNonce();
-        const hash = this.peer.wallet.sign(JSON.stringify(value) + nonce);
-        await this.peer.base.append({ type: 'feature', key: this.key + '_' + key, value : {
-                dispatch : {
-                    type : this.key + '_feature',
-                    key : key,
-                    hash : hash,
-                    value : value,
-                    nonce : nonce,
-                    address : this.peer.wallet.publicKey
-                }
-            }});
+        if(this.peer.base.writable){
+            const nonce = this.peer.protocol_instance.generateNonce();
+            const hash = this.peer.wallet.sign(JSON.stringify(value) + nonce);
+            await this.peer.base.append({ type: 'feature', key: this.key + '_' + key, value : {
+                    dispatch : {
+                        type : this.key + '_feature',
+                        key : key,
+                        hash : hash,
+                        value : value,
+                        nonce : nonce,
+                        address : this.peer.wallet.publicKey
+                    }
+                }});
+        } else {
+            console.log('Peer running features not writable.');
+        }
     }
 
     async start(options = {}) {

@@ -134,7 +134,6 @@ class Protocol{
             obj.type !== undefined &&
             obj.value !== undefined)
         {
-
             let tx, signature, nonce, publicKey;
             const content_hash = await this.peer.createHash('sha256', this.safeJsonStringify(obj));
 
@@ -151,7 +150,7 @@ class Protocol{
                 publicKey = this.peer.wallet.publicKey;
             }
 
-            this.peer.emit('tx', {
+            const _tx = {
                 op: 'pre-tx',
                 tx: tx,
                 is: signature,
@@ -162,12 +161,15 @@ class Protocol{
                 in : nonce,
                 bs : this.peer.bootstrap,
                 mbs : this.peer.msb.bootstrap
-            });
-            this.prepared_transactions_content[tx] = { dispatch : obj, ipk : publicKey };
+            };
+
+            this.peer.emit('tx', _tx);
+            this.prepared_transactions_content[tx] = { dispatch : obj, ipk : publicKey, validator : validator_pub_key };
+            return _tx;
         } else {
             throw Error('broadcastTransaction(writer, obj): Cannot prepare transaction. Please make sure inputs and local writer are set.');
         }
-        return true;
+        return null;
     }
 
     async tokenizeInput(input){
@@ -191,14 +193,15 @@ class Protocol{
     }
 
     async tx(subject){
+        if(this.peer.validator_stream === null) throw new Error('HyperMallProtocol::tx(): No validator available.');
         const obj = this.mapTxCommand(subject.command);
         if(null !== obj) {
-            return await this.broadcastTransaction(subject.validator,{
+            return await this.broadcastTransaction(this.peer.validator,{
                 type : obj.type,
                 value : obj.value
             });
         }
-        return new Error('HyperMallProtocol::tx(): command not found.');
+        throw new Error('HyperMallProtocol::tx(): command not found.');
     }
 
     async customCommand(input){ }

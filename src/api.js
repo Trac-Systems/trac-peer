@@ -126,17 +126,19 @@ export class ProtocolApi{
         while(null !== this.peer.protocol_instance.surrogate_tx) await this.peer.sleep(3);
         this.peer.protocol_instance.surrogate_tx = { tx : ''+tx, nonce : ''+nonce, signature : ''+signature, address : ''+address };
         let res = false;
+        while(true === this.peer.protocol_instance.sim) await this.peer.sleep(3);
         try{
             if(true === sim){
-                while(true === this.peer.protocol_instance.sim) await this.peer.sleep(3);
                 this.peer.protocol_instance.sim = true;
             }
             const subject = { command : prepared_command.value, validator : ''+this.getPeerValidatorAddress() };
             res = await this.peer.protocol_instance.tx(subject);
         } catch(e){ console.log(e) }
-        const err = this.peer.protocol_instance.getError(res);
-        if(null !== err){
-            console.log(err.message);
+        if(res !== false) {
+            const err = this.peer.protocol_instance.getError(res);
+            if (null !== err) {
+                console.log(err.message);
+            }
         }
         this.peer.protocol_instance.sim = false;
         this.peer.protocol_instance.surrogate_tx = null;

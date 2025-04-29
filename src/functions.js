@@ -334,29 +334,69 @@ export async function removeWriter(input, peer){
     }
 }
 
+export async function joinValidator(input, peer){
+    const splitted = peer.protocol_instance.parseArgs(input)
+    const address = ''+splitted.address;
+    const validator = await peer.msb.base.view.get(address);
+    if(validator === null || false === validator.value.isWriter || true === validator.value.isIndexer){
+        throw new Error('Invalid validator address.');
+    }
+    const result = await peer.isValidatorAvailable(address);
+    if(result === null) {
+        console.log('Validator not available');
+    } else {
+        let existing_stream = undefined;
+        if(peer.msb.getSwarm().peers.has(address)){
+            const peerInfo = peer.msb.getSwarm().peers.get(address)
+            existing_stream = peer.msb.getSwarm()._allConnections.get(peerInfo.publicKey)
+        }
+        if(existing_stream !== undefined){
+            peer.validator_stream = existing_stream;
+            peer.validator = address;
+            peer.validator_stream.on('close', () => {
+                peer.validator_stream = null;
+                peer.validator = null;
+                console.log('Validator stream closed', address);
+            });
+            console.log('Validator stream established', address);
+        } else {
+            peer.validator_stream = peer.msb.getSwarm().dht.connect(b4a.from(address, 'hex'));
+            peer.validator = address;
+            peer.validator_stream.on('open', () => {
+                console.log('Validator stream established', address);
+            });
+            peer.validator_stream.on('close', () => {
+                peer.validator_stream = null;
+                peer.validator = null;
+            });
+            peer.validator_stream.on('error', (error) => {
+                peer.validator_stream = null;
+                peer.validator = null;
+            });
+        }
+    }
+}
+
 export async function tx(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input);
-    if(splitted.command === undefined){
-        throw new Error('Missing option. Please use the --command flag.');
-    } else if(splitted.sim === undefined && splitted.validator === undefined){
-        if(peer.validator === null){
-            throw new Error('No validator available: Please wait for your peer to find an available one before transacting or pass the public key of a known one that is online.');
-        }
-        splitted['validator'] = peer.validator;
-    } else if(splitted.sim !== undefined && splitted.validator !== undefined){
-        throw new Error('Validator flag not allowed when simulating a transaction.');
-    }
     let res = false;
+    if(splitted.command === undefined){
+        res = new Error('Missing option. Please use the --command flag.');
+    } else if(splitted.sim === undefined && peer.validator === null){
+        res = new Error('No validator available: Please wait for your peer to find an available one or use joinValidator to connect to a specific one.');
+    }
+    while(true === peer.protocol_instance.sim) await peer.sleep(3);
     try{
         if(splitted.sim !== undefined && parseInt(splitted.sim) === 1){
-            while(true === peer.protocol_instance.sim) await peer.sleep(3);
             peer.protocol_instance.sim = true;
         }
         res = await peer.protocol_instance.tx(splitted);
     } catch(e){ console.log(e) }
-    const err = peer.protocol_instance.getError(res);
-    if(null !== err){
-        console.log(err.message);
+    if(res !== false){
+        const err = peer.protocol_instance.getError(res);
+        if(null !== err){
+            console.log(err.message);
+        }
     }
     peer.protocol_instance.sim = false;
     return res;

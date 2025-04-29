@@ -15,7 +15,7 @@ import {
     addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
     enableWhitelist, postMessage, jsonStringify, visibleLength, setNick,
     muteStatus, setWhitelistStatus, updateAdmin, tx, safeClone, jsonParse,
-    pinMessage
+    pinMessage, joinValidator, removeWriter
 } from "./functions.js";
 import Check from "./check.js";
 export {default as Protocol} from "./protocol.js";
@@ -54,12 +54,11 @@ export class Peer extends ReadyResource {
         this.connectedPeers = new Set();
         this.options = options;
         this.check = new Check();
-        this.dhtBootstrap = ['116.202.214.143:10001','116.202.214.149:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
+        this.dhtBootstrap = ['116.202.214.149:10001', '157.180.12.214:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
         this.invite = null;
         this.validator = null;
         this.validator_stream = null;
         this.readline_instance = null;
-        this.myInvite = null;
         this.enable_interactive_mode = options.enable_interactive_mode !== false;
         if(this.enable_interactive_mode !== false){
             try{
@@ -230,7 +229,7 @@ export class Peer extends ReadyResource {
                             const verified = _this.wallet.verify(op.hash, str_msg + op.nonce, admin.value);
                             if(true === verified){
                                 const writerKey = b4a.from(op.key, 'hex');
-                                await base.addWriter(writerKey);
+                                await base.addWriter(writerKey, { isIndexer : true });
                                 await batch.put('sh/'+op.hash, '');
                                 console.log(`Indexer added: ${op.key}`);
                             }
@@ -248,7 +247,7 @@ export class Peer extends ReadyResource {
                                 const writerKey = b4a.from(op.key, 'hex');
                                 await base.addWriter(writerKey, { isIndexer : false });
                                 await batch.put('sh/'+op.hash, '');
-                                console.log(`Writer added: ${op.key}`);
+                                console.log(`Writer added: ${writerKey}`);
                             }
                         }
                     } else if (op.type === 'removeWriter') {
@@ -300,7 +299,8 @@ export class Peer extends ReadyResource {
                     } else if (op.type === 'autoAddWriter') {
                         if(false === this.check.key(op)) continue;
                         const auto_add_writers = await batch.get('auto_add_writers');
-                        if(null !== auto_add_writers && auto_add_writers.value === 'on'){
+                        const banned = await batch.get('bnd/'+op.key);
+                        if(null === banned && null !== auto_add_writers && auto_add_writers.value === 'on'){
                             const writerKey = b4a.from(op.key, 'hex');
                             await base.addWriter(writerKey, { isIndexer : false });
                         }
@@ -457,7 +457,6 @@ export class Peer extends ReadyResource {
                         }
                     } else if(op.type === 'setMod') {
                         if(false === this.check.mod(op)) continue;
-                        console.log('after');
                         const admin = await batch.get('admin');
                         const str_value = jsonStringify(op.value);
                         if(null !== admin && null !== str_value &&
@@ -645,28 +644,24 @@ export class Peer extends ReadyResource {
                                     _this.validator_stream = existing_stream;
                                     _this.validator = validator.value.pub;
                                     _this.validator_stream.on('close', () => {
-                                        if(_this.validator_stream !== null && b4a.toString(_this.validator_stream.publicKey, 'hex') === validator.value.pub) {
-                                            _this.validator_stream = null;
-                                            _this.validator = null;
-                                            console.log('Validator stream closed', validator.value.pub);
-                                        }
+                                        _this.validator_stream = null;
+                                        _this.validator = null;
+                                        console.log('Validator stream closed', validator.value.pub);
                                     });
                                     console.log('Validator stream established', validator.value.pub);
                                 } else {
                                     _this.validator_stream = _this.msb.getSwarm().dht.connect(b4a.from(validator.value.pub, 'hex'));
                                     _this.validator = validator.value.pub;
+                                    _this.validator_stream.on('open', () => {
+                                        console.log('Validator stream established', validator.value.pub);
+                                    });
                                     _this.validator_stream.on('close', () => {
-                                        if(_this.validator_stream !== null && b4a.toString(_this.validator_stream.publicKey, 'hex') === validator.value.pub) {
-                                            _this.validator_stream = null;
-                                            _this.validator = null;
-                                            console.log('Validator stream closed', validator.value.pub);
-                                        }
+                                        _this.validator_stream = null;
+                                        _this.validator = null;
                                     });
                                     _this.validator_stream.on('error', (error) => {
-                                        if(_this.validator_stream !== null && b4a.toString(_this.validator_stream.publicKey, 'hex') === validator.value.pub) {
-                                            _this.validator_stream = null;
-                                            _this.validator = null;
-                                        }
+                                        _this.validator_stream = null;
+                                        _this.validator = null;
                                     });
                                 }
                             }
@@ -699,10 +694,10 @@ export class Peer extends ReadyResource {
                 const msb_tx = await view_session.get(tx);
                 await view_session.close();
                 if(null !== msb_tx){
-                    msb_tx['dispatch'] = this.protocol_instance.prepared_transactions_content[tx].dispatch;
                     msb_tx['msbsl'] = msbsl;
+                    msb_tx['dispatch'] = this.protocol_instance.prepared_transactions_content[tx].dispatch;
                     msb_tx['ipk'] = this.protocol_instance.prepared_transactions_content[tx].ipk;
-                    msb_tx['wp'] = this.validator;
+                    msb_tx['wp'] = this.protocol_instance.prepared_transactions_content[tx].validator;
                     delete this.tx_pool[tx];
                     delete this.protocol_instance.prepared_transactions_content[tx];
                     await this.base.append({ type: 'tx', key: tx, value: msb_tx });
@@ -758,7 +753,16 @@ export class Peer extends ReadyResource {
             this.invite = new BlindPairing(this.swarm, {
                 poll: 5000
             });
-            console.log(`Writer key: ${this.writerLocalKey}`)
+            console.log('');
+            console.log('######################################################################################');
+            console.log('# Peer Address:    ', this.wallet.publicKey, '#');
+            this.writerLocalKey = b4a.toString(this.base.local.key, 'hex');
+            console.log('# Peer Writer:     ', this.writerLocalKey, '#');
+            console.log('######################################################################################');
+            console.log('');
+            console.log(`isIndexer: ${this.base.isIndexer}`);
+            console.log(`isWriter: ${this.base.writable}`);
+            console.log('');
 
             this.swarm.on('connection', async (connection, peerInfo) => {
                 const remotePublicKey = b4a.toString(connection.remotePublicKey, 'hex');
@@ -779,9 +783,9 @@ export class Peer extends ReadyResource {
                     this.emit('readyNode');
                 }
 
-                if(this.base.writable){
+                if(this.base !== null && this.base.writable){
                     const auto_add_writers = await this.base.view.get('auto_add_writers');
-                    if(auto_add_writers.value === 'on'){
+                    if(auto_add_writers !== null && auto_add_writers.value === 'on'){
                         try{
                             const { invite, publicKey, discoveryKey } = BlindPairing.createInvite(b4a.from(this.writerLocalKey, 'hex'));
                             connection.send(
@@ -797,22 +801,18 @@ export class Peer extends ReadyResource {
                 connection.on('message', async (msg) => {
                     try{
                         const parsed = jsonParse(b4a.toString(msg));
-                        if(false === this.base.writable && this.myInvite === null && parsed.invite !== undefined){
-                            this.myInvite = parsed.invite
+                        if(false === this.base.writable && parsed.invite !== undefined){
                             connection.send(b4a.from(jsonStringify({
                                 inviteMyKey : this.writerLocalKey,
                                 publicKey : parsed.publicKey,
                                 discoveryKey : parsed.discoveryKey
                             })));
                             try{
-                                const adding = _this.invite.addCandidate({
+                                _this.invite.addCandidate({
                                     invite: b4a.from(parsed.invite, 'hex'),
                                     userData : b4a.from(_this.writerLocalKey, 'hex'),
                                     async onadd (result) { }
                                 })
-                                await adding.pairing;
-                                this.myInvite = null
-                                console.log('paired')
                             }catch(e){}
                         } else if(true === this.base.writable && parsed.inviteMyKey !== undefined){
                             const member = _this.invite.addMember({
@@ -828,7 +828,7 @@ export class Peer extends ReadyResource {
                                     }catch(e){}
                                 }
                             })
-                            await member.flushed();
+                            member.flushed();
                         }
                     }catch(e){}
                 });
@@ -849,40 +849,42 @@ export class Peer extends ReadyResource {
 
     async verifyDag() {
         try {
-            console.log('--- DAG Monitoring ---');
+            console.log('--- Stats ---');
             const dagView = await this.base.view.core.treeHash();
             const lengthdagView = this.base.view.core.length;
             const dagSystem = await this.base.system.core.treeHash();
             const lengthdagSystem = this.base.system.core.length;
-            console.log('this.base.view.core.signedLength:', this.base.view.core.signedLength);
-            console.log("this.base.signedLength", this.base.signedLength);
-            console.log("this.base.linearizer.indexers.length", this.base.linearizer.indexers.length);
-            console.log("this.base.indexedLength", this.base.indexedLength);
-            //console.log("this.base.system.core", this.base.system.core);
-            console.log(`writerLocalKey: ${this.writerLocalKey}`);
+            console.log('wallet.address:', this.wallet !== null ? this.wallet.publicKey : 'unset');
+            console.log('hypermall.writerKey:', this.writerLocalKey);
+            const admin = await this.base.view.get('admin')
+            console.log(`admin: ${admin !== null ? admin.value : 'unset'}`);
+            console.log(`isIndexer: ${this.base.isIndexer}`);
+            console.log(`isWriter: ${this.base.writable}`);
+            console.log('swarm.connections.size:', this.swarm.connections.size);
+            console.log('base.view.core.signedLength:', this.base.view.core.signedLength);
+            console.log("base.signedLength", this.base.signedLength);
+            console.log("base.indexedLength", this.base.indexedLength);
+            console.log("base.linearizer.indexers.length", this.base.linearizer.indexers.length);
             console.log(`base.key: ${this.base.key.toString('hex')}`);
             console.log('discoveryKey:', b4a.toString(this.base.discoveryKey, 'hex'));
-
             console.log(`VIEW Dag: ${dagView.toString('hex')} (length: ${lengthdagView})`);
             console.log(`SYSTEM Dag: ${dagSystem.toString('hex')} (length: ${lengthdagSystem})`);
-
+            const wl = await this.base.view.get('wrl');
+            console.log('Total Registered Writers:', wl !== null ? wl.value : 0);
         } catch (error) {
             console.error('Error during DAG monitoring:', error.message);
         }
     }
 
-    async interactiveMode() {
-        if(this.readline_instance === null || (global.Pear !== undefined && global.Pear.config.options.type === 'desktop')) return;
-
-        const rl = this.readline_instance;
-
+    printHelp(){
         console.log('Node started. Available commands:');
         console.log(' ');
         console.log('- Setup Commands:');
         console.log('- /add_admin | Works only once and only on bootstrap node! Enter a wallet address to assign admin rights: \'/add_admin --address "<address>"\'.');
-        console.log('- /update_admin | Existing admins may transfer admin ownership. Enter "null" as address to waive admin rights for this peer entirely: \'/add_admin --address "<address>"\'.');
+        console.log('- /update_admin | Existing admins may transfer admin ownership. Enter "null" as address to waive admin rights for this peer entirely: \'/update_admin --address "<address>"\'.');
         console.log('- /add_indexer | Only admin. Enter a peer writer key to get included as indexer for this network: \'/add_indexer --key "<key>"\'.');
         console.log('- /add_writer | Only admin. Enter a peer writer key to get included as writer for this network: \'/add_writer --key "<key>"\'.');
+        console.log('- /remove_writer | Only admin. Enter a peer writer key to get removed as writer or indexer for this network: \'/remove_writer --key "<key>"\'.');
         console.log('- /set_auto_add_writers | Only admin. Allow any peer to join as writer automatically: \'/set_auto_add_writers --enabled 1\'');
         console.log(' ');
         console.log('- Chat Commands:');
@@ -897,17 +899,30 @@ export class Peer extends ReadyResource {
         console.log('- /set_whitelist_status | Only admin. Add/remove users to/from the chat whitelist: \'/set_whitelist_status --user "<address>" --status 1\'.');
         console.log(' ');
         console.log('- System Commands:');
-        console.log('- /tx | Perform a contract transaction. The command flag contains contract commands in json format: \'/tx --command "<string, content depends on the protocol>"\'. To try broadcasting to a specific validator, use the validator flag and pass the validator public key: --validator "<validator public key>". To simulate a tx, you must leave out the \'--validator\' flag and use \'--sim 1\' instead.');
-        console.log('- /dag | check system properties such as writer key, DAG, etc.');
+        console.log('- /tx | Perform a contract transaction. The command flag contains contract commands (format is protocol dependent): \'/tx --command "<string>"\'. To simulate a tx, additionally use \'--sim 1\'.');
+        console.log('- /join_validator | Try to connect to a specific validator with its MSB address: \'/join_validator --address "<address>"\'.');
+        console.log('- /stats | check system properties such as writer key, DAG, etc.');
         console.log('- /get_keys | prints your public and private keys. Be careful and never share your private key!');
         console.log('- /exit | Exit the program');
+        console.log('- /help | This help text');
 
         this.protocol_instance.printOptions();
+    }
+
+    async interactiveMode() {
+        if(this.readline_instance === null || (global.Pear !== undefined && global.Pear.config.options.type === 'desktop')) return;
+
+        const rl = this.readline_instance;
+
+        this.printHelp();
 
         rl.on('line', async (input) => {
             switch (input) {
-                case '/dag':
+                case '/stats':
                     await this.verifyDag();
+                    break;
+                case '/help':
+                    await this.printHelp();
                     break;
                 case '/exit':
                     console.log('Exiting...');
@@ -924,6 +939,8 @@ export class Peer extends ReadyResource {
                             await tx(input, this);
                         } else if (input.startsWith('/add_indexer') || input.startsWith('/add_writer')) {
                             await addWriter(input, this);
+                        } else if (input.startsWith('/remove_writer')) {
+                            await removeWriter(input, this);
                         } else if (input.startsWith('/add_admin')) {
                             await addAdmin(input, this);
                         } else if (input.startsWith('/update_admin')) {
@@ -948,6 +965,8 @@ export class Peer extends ReadyResource {
                             await enableWhitelist(input, this);
                         } else if (input.startsWith('/set_whitelist_status')) {
                             await setWhitelistStatus(input, this);
+                        } else if (input.startsWith('/join_validator')) {
+                            await joinValidator(input, this);
                         } else {
                             await this.protocol_instance.customCommand(input);
                         }
