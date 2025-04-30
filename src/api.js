@@ -53,6 +53,10 @@ export class ProtocolApi{
         return prepared;
     }
 
+    msgExposed(){
+        return true === this.api_msg_exposed;
+    }
+
     /**
      * To post a message, an ed25519 signature has to be provided over the given message + nonce.
      *
@@ -72,7 +76,7 @@ export class ProtocolApi{
      * @returns {Promise<void>}
      */
     async post(prepared_message, signature, nonce){
-        if(false === this.api_msg_exposed) throw new Error('Posting messages not exposed in API.');
+        if(true !== this.api_msg_exposed) throw new Error('Posting messages not exposed in API.');
         if(this.peer.base.writable === false) throw new Error('Peer is not writable.');
         if(b4a.byteLength(jsonStringify(prepared_message)) > this.peer.protocol_instance.msgMaxBytes()) throw new Error('Prepared message too large.');
         if(typeof prepared_message !== 'object') throw new Error('Prepared message must be an object generated with api.prepareMessage().');
@@ -110,6 +114,10 @@ export class ProtocolApi{
         return this.peer.protocol_instance.mapTxCommand(command);
     }
 
+    txExposed(){
+        return true === this.api_tx_exposed;
+    }
+
     /**
      * To broadcast a TX, an ed25519 signature has to be provided over the given tx + nonce.
      *
@@ -133,7 +141,7 @@ export class ProtocolApi{
      * @returns {Promise<boolean|object>}
      */
     async tx(tx, prepared_command, address, signature, nonce, sim = false ){
-        if(false === this.api_tx_exposed) throw new Error('Transactions not exposed in API.');
+        if(true !== this.api_tx_exposed) throw new Error('Transactions not exposed in API.');
         if(this.peer.base.writable === false) throw new Error('Peer is not writable.');
         if(this.getPeerValidatorAddress() === null) throw new Error('Peer not connected to a validator.');
         if(typeof prepared_command !== 'object') throw new Error('prepared_command must be an object.');
