@@ -44,6 +44,7 @@ export class Peer extends ReadyResource {
         this.contract = options.contract || null;
         this.wallet = options.wallet || null;
         this.features = options.features || [];
+        this.custom_validators = options.custom_validators || [];
         this.protocol_instance = null;
         this.contract_instance = null;
         this.channel = b4a.alloc(32).fill(options.channel) || null;
@@ -587,28 +588,6 @@ export class Peer extends ReadyResource {
             }
         });
         this.updater();
-
-        // test
-        /*
-        console.log('address length', b4a.byteLength(jsonStringify(this.wallet.publicKey)))
-        const pins = this.protocol_instance;
-        const command = '{"op":"list","tick":"gib","amt":"0.00014","ftick":"tap","fprice":"0.00014"}';
-        const prepared_command = pins.api.prepareTxCommand(command);
-        let nonce = pins.api.generateNonce();
-        let tx_hash = await pins.api.generateTx(
-            this.wallet.publicKey, await this.createHash('sha256', JSON.stringify(prepared_command)), nonce
-        )
-        console.log('TX Hash', tx_hash)
-        const signature = this.wallet.sign(tx_hash + nonce)
-        const res = await pins.api.tx(tx_hash, prepared_command, this.wallet.publicKey, signature, nonce)
-        console.log('TX Res', res)*/
-
-        /*
-        const pins = this.protocol_instance;
-        let nonce = pins.api.generateNonce()
-        let prepared_message = pins.api.prepareMessage("my message", this.wallet.publicKey)
-        let signature = this.wallet.sign(JSON.stringify(prepared_message) + nonce)
-        let result = pins.api.post(prepared_message, signature, nonce)*/
     }
 
     async initContract(){
@@ -645,10 +624,17 @@ export class Peer extends ReadyResource {
                 } else {
                     length = length.value;
                 }
+                if(this.custom_validators.length !== 0){
+                    length = this.custom_validators.length;
+                }
                 async function findSome(){
                     if(_this.validator_stream !== null) return;
                     const rnd_index = Math.floor(Math.random() * length);
                     let validator = await _this.msb.base.view.get('wri/' + rnd_index);
+                    if(_this.custom_validators.length !== 0){
+                        validator = { value : _this.custom_validators[rnd_index] };
+                        console.log('Trying custom', validator.value);
+                    }
                     if(_this.validator_stream !== null) return;
                     if (null !== validator) {
                         validator = await _this.msb.base.view.get(validator.value);
