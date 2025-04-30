@@ -17,8 +17,6 @@ class Protocol{
         this.safeClone = safeClone;
         this.prepared_transactions_content = {};
         this.features = {};
-        this.sim = false;
-        this.surrogate_tx = null;
     }
 
     featMaxBytes(){
@@ -102,31 +100,27 @@ class Protocol{
         return await this.peer.createHash('sha256', await this.peer.createHash('sha256', tx));
     }
 
-    async simulateTransaction(obj){
+    async simulateTransaction(validator_pub_key, obj, surrogate = null){
         const storage = new SimStorage(this.peer);
-        const null_hex = '0000000000000000000000000000000000000000000000000000000000000000';
         let nonce = this.generateNonce();
         const content_hash = await this.peer.createHash('sha256', this.safeJsonStringify(obj));
-        let tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, null_hex,
-            this.peer.writerLocalKey, this.surrogate_tx !== null ? this.surrogate_tx.address : this.peer.wallet.publicKey, content_hash, nonce);
+        let tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, validator_pub_key,
+            this.peer.writerLocalKey, surrogate !== null ? surrogate.address : this.peer.wallet.publicKey, content_hash, nonce);
         const op = {
             type : 'tx',
             key : tx,
             value : {
                 dispatch : obj,
                 value : {
-                    ipk : this.surrogate_tx !== null ? this.surrogate_tx.address : this.peer.wallet.publicKey,
-                    wp : null_hex
+                    ipk : surrogate !== null ? surrogate.address : this.peer.wallet.publicKey,
+                    wp : validator_pub_key
                 }
             }
         }
         return await this.peer.contract_instance.execute(op, storage);
     }
 
-    async broadcastTransaction(validator_pub_key, obj){
-        if(true === this.sim) {
-            return await this.simulateTransaction(obj);
-        }
+    async broadcastTransaction(validator_pub_key, obj, sim = false, surrogate = null){
         if(this.peer.validator_stream !== null &&
             this.peer.wallet.publicKey !== null &&
             this.peer.wallet.secretKey !== null &&
@@ -134,14 +128,18 @@ class Protocol{
             obj.type !== undefined &&
             obj.value !== undefined)
         {
+            if(true === sim) {
+                return await this.simulateTransaction(validator_pub_key, obj, surrogate);
+            }
+
             let tx, signature, nonce, publicKey;
             const content_hash = await this.peer.createHash('sha256', this.safeJsonStringify(obj));
 
-            if(this.surrogate_tx !== null) {
-                nonce = this.surrogate_tx.nonce;
-                tx = this.surrogate_tx.tx;
-                signature = this.surrogate_tx.signature;
-                publicKey = this.surrogate_tx.address;
+            if(surrogate !== null) {
+                nonce = surrogate.nonce;
+                tx = surrogate.tx;
+                signature = surrogate.signature;
+                publicKey = surrogate.address;
             } else {
                 nonce = this.generateNonce();
                 tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, validator_pub_key,
@@ -169,7 +167,6 @@ class Protocol{
         } else {
             throw Error('broadcastTransaction(writer, obj): Cannot prepare transaction. Please make sure inputs and local writer are set.');
         }
-        return null;
     }
 
     async tokenizeInput(input){
@@ -192,14 +189,14 @@ class Protocol{
         return null;
     }
 
-    async tx(subject){
+    async tx(subject, sim = false, surrogate = null){
         if(this.peer.validator_stream === null) throw new Error('HyperMallProtocol::tx(): No validator available.');
         const obj = this.mapTxCommand(subject.command);
         if(null !== obj) {
             return await this.broadcastTransaction(this.peer.validator,{
                 type : obj.type,
                 value : obj.value
-            });
+            }, sim, surrogate);
         }
         throw new Error('HyperMallProtocol::tx(): command not found.');
     }

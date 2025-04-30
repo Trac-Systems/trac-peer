@@ -385,12 +385,12 @@ export async function tx(input, peer){
     } else if(splitted.sim === undefined && peer.validator === null){
         res = new Error('No validator available: Please wait for your peer to find an available one or use joinValidator to connect to a specific one.');
     }
-    while(true === peer.protocol_instance.sim) await peer.sleep(3);
+    let sim = false;
     try{
         if(splitted.sim !== undefined && parseInt(splitted.sim) === 1){
-            peer.protocol_instance.sim = true;
+            sim = true;
         }
-        res = await peer.protocol_instance.tx(splitted);
+        res = await peer.protocol_instance.tx(splitted, sim);
     } catch(e){ console.log(e) }
     if(res !== false){
         const err = peer.protocol_instance.getError(res);
@@ -398,6 +398,5 @@ export async function tx(input, peer){
             console.log(err.message);
         }
     }
-    peer.protocol_instance.sim = false;
     return res;
 }

@@ -29,10 +29,9 @@ export class ProtocolApi{
         return this.peer.protocol_instance.generateNonce();
     }
 
-    async prepareMessage(msg, address, reply_to = null, attachments = []){
+    prepareMessage(msg, address, reply_to = null, attachments = []){
         if(typeof msg !== 'string') throw new Error('Msg must be a string');
-        if(b4a.byteLength(jsonStringify(address)) > 64) throw new Error('Address too large.');
-        if(b4a.byteLength(jsonStringify(reply_to)) > 256) throw new Error('Reply to too large.');
+        if(b4a.byteLength(jsonStringify(address)) !== 66) throw new Error('Address too large.');
         if(reply_to !== null && isNaN(parseInt(reply_to))) throw new Error('Reply to not a number.');
         if(false === Array.isArray(attachments)) throw new Error('attachments must be an array.');
         if(attachments.length > 20) throw new Error('Too many attachments');
@@ -54,8 +53,27 @@ export class ProtocolApi{
         return prepared;
     }
 
+    /**
+     * To post a message, an ed25519 signature has to be provided over the given message + nonce.
+     *
+     * Signing steps:
+     *
+     * let address = your_ed25519_wallet.getAccountAddress()
+     * let nonce = api.generateNonce()
+     * let prepared_message = api.prepareMessage("my message", address)
+     * let signature = your_ed25519_wallet.sign(JSON.stringify(prepared_message) + nonce)
+     * let result = api.post(prepared_message, signature, nonce)
+     *
+     * Note: new messages can be read from this api's msg functions.
+     *
+     * @param prepared_message
+     * @param signature
+     * @param nonce
+     * @returns {Promise<void>}
+     */
     async post(prepared_message, signature, nonce){
         if(false === this.api_msg_exposed) throw new Error('Posting messages not exposed in API.');
+        if(this.peer.base.writable === false) throw new Error('Peer is not writable.');
         if(b4a.byteLength(jsonStringify(prepared_message)) > this.peer.protocol_instance.msgMaxBytes()) throw new Error('Prepared message too large.');
         if(typeof prepared_message !== 'object') throw new Error('Prepared message must be an object generated with api.prepareMessage().');
         if(prepared_message.dispatch === undefined || prepared_message.dispatch.type === undefined ||
@@ -66,6 +84,8 @@ export class ProtocolApi{
         if(prepared_message.dispatch.type !== 'msg') throw new Error('Invalid type.');
         if(typeof prepared_message.dispatch.msg !== 'string') throw new Error('Msg must be a string');
         if(b4a.toString(b4a.from(prepared_message.dispatch.address, 'hex'), 'hex') !== prepared_message.dispatch.address) throw new Error('Invalid address.');
+        if(b4a.toString(b4a.from(signature, 'hex'), 'hex') !== signature) throw new Error('Invalid signature.');
+        if(b4a.toString(b4a.from(nonce, 'hex'), 'hex') !== nonce) throw new Error('Invalid nonce.');
         if(false === Array.isArray(prepared_message.dispatch.attachments)) throw new Error('attachments must be an array.');
         if(prepared_message.dispatch.attachments.length > 20) throw new Error('Too many attachments');
         for(let i = 0; i < prepared_message.dispatch.attachments.length; i++){
@@ -91,13 +111,18 @@ export class ProtocolApi{
     }
 
     /**
-     * To pass a TX, an ed25519 signature has to be provided over the given tx + nonce.
+     * To broadcast a TX, an ed25519 signature has to be provided over the given tx + nonce.
      *
      * Signing steps:
+     *
+     * let address = your_ed25519_wallet.getAccountAddress()
      * let nonce = api.generateNonce()
      * let tx_hash = api.generateTx(address, a_sha256_function(JSON.stringify(api.prepareTxCommand(command))), nonce)
-     * let signature = your_ed25519_sign_lib.sign(tx + nonce, address)
-     * api.tx(tx_hash, api.prepareTxCommand(command), address, signature, nonce)
+     * let signature = your_ed25519_wallet.sign(tx + nonce)
+     * // simulating
+     * let sim_result = api.tx(tx_hash, api.prepareTxCommand(command), address, signature, nonce, true)
+     * // broadcasting
+     * let result = api.tx(tx_hash, api.prepareTxCommand(command), address, signature, nonce)
      *
      * @param tx
      * @param prepared_command
@@ -105,34 +130,32 @@ export class ProtocolApi{
      * @param signature
      * @param nonce
      * @param sim
-     * @returns {Promise<boolean>}
+     * @returns {Promise<boolean|object>}
      */
     async tx(tx, prepared_command, address, signature, nonce, sim = false ){
         if(false === this.api_tx_exposed) throw new Error('Transactions not exposed in API.');
+        if(this.peer.base.writable === false) throw new Error('Peer is not writable.');
+        if(this.getPeerValidatorAddress() === null) throw new Error('Peer not connected to a validator.');
         if(typeof prepared_command !== 'object') throw new Error('prepared_command must be an object.');
-        if(typeof prepared_command.type !== 'string')  throw new Error('prepared_command.type must exist and be a string.');
-        if(prepared_command.value === undefined)  throw new Error('prepared_command.value is missing.');
+        if(typeof prepared_command.type !== 'string') throw new Error('prepared_command.type must exist and be a string.');
+        if(prepared_command.value === undefined) throw new Error('prepared_command.value is missing.');
         if(b4a.byteLength(jsonStringify(prepared_command)) > this.peer.protocol_instance.txMaxBytes()) throw new Error('prepared_command too large.');
-        if(b4a.byteLength(jsonStringify(address)) > 64) throw new Error('Address too large.');
-        if(b4a.byteLength(jsonStringify(signature)) > 128) throw new Error('Signature too large.');
-        if(b4a.byteLength(jsonStringify(nonce)) > 256) throw new Error('Nonce too large.');
-        if(b4a.toString(b4a.from(signature, 'hex'), 'hex') !== signature) throw new Error('Invalid signature.');
+        if(b4a.byteLength(jsonStringify(address)) !== 66) throw new Error('Address length invalid.');
+        if(b4a.byteLength(jsonStringify(signature)) !== 130) throw new Error('Signature length invalid.');
+        if(b4a.byteLength(jsonStringify(nonce)) !== 66) throw new Error('Nonce length invalid.');
         if(b4a.toString(b4a.from(address, 'hex'), 'hex') !== address) throw new Error('Invalid address.');
+        if(b4a.toString(b4a.from(signature, 'hex'), 'hex') !== signature) throw new Error('Invalid signature.');
+        if(b4a.toString(b4a.from(nonce, 'hex'), 'hex') !== nonce) throw new Error('Invalid nonce.');
         const verified = this.peer.wallet.verify(signature, tx + nonce, address);
         if(false === verified) throw new Error('Invalid signature.');
         const content_hash = await this.peer.createHash('sha256', this.peer.protocol_instance.safeJsonStringify(prepared_command));
         let _tx = await this.generateTx(address, content_hash, nonce);
         if(tx !== _tx) throw new Error('Invalid TX.');
-        while(null !== this.peer.protocol_instance.surrogate_tx) await this.peer.sleep(3);
-        this.peer.protocol_instance.surrogate_tx = { tx : ''+tx, nonce : ''+nonce, signature : ''+signature, address : ''+address };
+        const surrogate = { tx : _tx, nonce : ''+nonce, signature : ''+signature, address : ''+address };
         let res = false;
-        while(true === this.peer.protocol_instance.sim) await this.peer.sleep(3);
         try{
-            if(true === sim){
-                this.peer.protocol_instance.sim = true;
-            }
-            const subject = { command : prepared_command.value, validator : ''+this.getPeerValidatorAddress() };
-            res = await this.peer.protocol_instance.tx(subject);
+            const subject = { command : prepared_command.value, validator : this.getPeerValidatorAddress() };
+            res = await this.peer.protocol_instance.tx(subject, sim === true, surrogate);
         } catch(e){ console.log(e) }
         if(res !== false) {
             const err = this.peer.protocol_instance.getError(res);
@@ -140,8 +163,6 @@ export class ProtocolApi{
                 console.log(err.message);
             }
         }
-        this.peer.protocol_instance.sim = false;
-        this.peer.protocol_instance.surrogate_tx = null;
         return res;
     }
 

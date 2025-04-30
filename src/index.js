@@ -124,7 +124,8 @@ export class Peer extends ReadyResource {
                             let _err = null;
                             if(null !== err) {
                                 if(err.constructor.name === 'UnknownContractOperationType') continue;
-                                _err = ''+err.message;
+                                const _err_msg = parseInt(err.message);
+                                _err = isNaN(_err_msg) ? ''+err.message : _err_msg;
                             }
                             let len = await batch.get('txl');
                             if(null === len) {
@@ -132,12 +133,13 @@ export class Peer extends ReadyResource {
                             } else {
                                 len = len.value;
                             }
-                            const cloned = safeClone(op.value.dispatch);
-                            cloned['err'] = _err;
-                            cloned['tx'] = post_tx.value.tx;
-                            cloned['ipk'] = post_tx.value.ipk;
-                            cloned['wp'] = post_tx.value.wp;
-                            await batch.put('txi/'+len, cloned);
+                            const dta = {};
+                            dta['val'] = safeClone(op.value.dispatch);
+                            dta['err'] = _err;
+                            dta['tx'] = post_tx.value.tx;
+                            dta['ipk'] = post_tx.value.ipk;
+                            dta['wp'] = post_tx.value.wp;
+                            await batch.put('txi/'+len, dta);
                             await batch.put('txl', len + 1);
                             await batch.put('tx/'+post_tx.value.tx, len);
                             let ulen = await batch.get('utxl/'+post_tx.value.ipk);
@@ -585,6 +587,28 @@ export class Peer extends ReadyResource {
             }
         });
         this.updater();
+
+        // test
+        /*
+        console.log('address length', b4a.byteLength(jsonStringify(this.wallet.publicKey)))
+        const pins = this.protocol_instance;
+        const command = '{"op":"list","tick":"gib","amt":"0.00014","ftick":"tap","fprice":"0.00014"}';
+        const prepared_command = pins.api.prepareTxCommand(command);
+        let nonce = pins.api.generateNonce();
+        let tx_hash = await pins.api.generateTx(
+            this.wallet.publicKey, await this.createHash('sha256', JSON.stringify(prepared_command)), nonce
+        )
+        console.log('TX Hash', tx_hash)
+        const signature = this.wallet.sign(tx_hash + nonce)
+        const res = await pins.api.tx(tx_hash, prepared_command, this.wallet.publicKey, signature, nonce)
+        console.log('TX Res', res)*/
+
+        /*
+        const pins = this.protocol_instance;
+        let nonce = pins.api.generateNonce()
+        let prepared_message = pins.api.prepareMessage("my message", this.wallet.publicKey)
+        let signature = this.wallet.sign(JSON.stringify(prepared_message) + nonce)
+        let result = pins.api.post(prepared_message, signature, nonce)*/
     }
 
     async initContract(){
