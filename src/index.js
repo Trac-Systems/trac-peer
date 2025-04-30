@@ -633,7 +633,7 @@ export class Peer extends ReadyResource {
                     let validator = await _this.msb.base.view.get('wri/' + rnd_index);
                     if(_this.custom_validators.length !== 0){
                         validator = { value : _this.custom_validators[rnd_index] };
-                        console.log('Trying custom', validator.value);
+                        console.log('Trying custom validator', validator.value);
                     }
                     if(_this.validator_stream !== null) return;
                     if (null !== validator) {
