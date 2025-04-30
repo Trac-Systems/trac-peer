@@ -2,6 +2,14 @@ import b4a from "b4a";
 import {jsonStringify} from "./functions.js";
 
 export class ProtocolApi{
+
+    /**
+     * Exposes read and write functions.
+     * May be extended by contract protocol instances.
+     *
+     * @param peer
+     * @param options
+     */
     constructor(peer, options = {}) {
         this.peer = peer;
         this.api_tx_exposed = options.api_tx_exposed === true;
@@ -9,26 +17,54 @@ export class ProtocolApi{
         this.options = options;
     }
 
+    /**
+     *
+     * @returns {null|string}
+     */
     getPeerValidatorAddress(){
         return this.peer.validator;
     }
 
+    /**
+     *
+     * @returns {null|string}
+     */
     getPeerBootstrap(){
         return this.peer.bootstrap;
     }
 
+    /**
+     *
+     * @returns {null|string}
+     */
     getPeerMsbBootstrap(){
         return this.peer.msb.bootstrap;
     }
 
+    /**
+     *
+     * @returns {null|string}
+     */
     getPeerWriterKey(){
         return this.peer.writerLocalKey;
     }
 
+    /**
+     *
+     * @returns {string}
+     */
     generateNonce(){
         return this.peer.protocol_instance.generateNonce();
     }
 
+    /**
+     * @throws Error
+     * @param msg
+     * @param address
+     * @param reply_to
+     * @param attachments
+     * @returns {{dispatch: {type: string, msg: string, address, attachments: *[], deleted_by: null, reply_to: (number|null), pinned: boolean, pin_id: null}}}
+     */
     prepareMessage(msg, address, reply_to = null, attachments = []){
         if(typeof msg !== 'string') throw new Error('Msg must be a string');
         if(b4a.byteLength(jsonStringify(address)) !== 66) throw new Error('Address too large.');
@@ -53,6 +89,10 @@ export class ProtocolApi{
         return prepared;
     }
 
+    /**
+     *
+     * @returns {boolean}
+     */
     msgExposed(){
         return true === this.api_msg_exposed;
     }
@@ -70,6 +110,7 @@ export class ProtocolApi{
      *
      * Note: new messages can be read from this api's msg functions.
      *
+     * @throws Error
      * @param prepared_message
      * @param signature
      * @param nonce
@@ -104,16 +145,33 @@ export class ProtocolApi{
         await this.peer.base.append({type: 'msg', value: prepared_message, hash : signature, nonce: nonce });
     }
 
+    /**
+     * @throws Error
+     * @param address
+     * @param command_hash
+     * @param nonce
+     * @returns {Promise<*>}
+     */
     async generateTx(address, command_hash, nonce) {
+        if(this.getPeerValidatorAddress() === null) throw new Error('Peer not connected to a validator.');
         return await this.peer.protocol_instance.generateTx(this.getPeerBootstrap(),
             this.getPeerMsbBootstrap(), this.getPeerValidatorAddress(), this.getPeerWriterKey(),
             address, command_hash, nonce);
     }
 
+    /**
+     *
+     * @param command
+     * @returns {*}
+     */
     prepareTxCommand(command){
         return this.peer.protocol_instance.mapTxCommand(command);
     }
 
+    /**
+     *
+     * @returns {boolean}
+     */
     txExposed(){
         return true === this.api_tx_exposed;
     }
@@ -132,6 +190,7 @@ export class ProtocolApi{
      * // broadcasting
      * let result = api.tx(tx_hash, api.prepareTxCommand(command), address, signature, nonce)
      *
+     * @throws Error
      * @param tx
      * @param prepared_command
      * @param address
@@ -174,6 +233,11 @@ export class ProtocolApi{
         return res;
     }
 
+    /**
+     *
+     * @param signed
+     * @returns {Promise<null>}
+     */
     async getAdmin(signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('admin');
@@ -182,6 +246,11 @@ export class ProtocolApi{
         return null;
     }
 
+    /**
+     *
+     * @param signed
+     * @returns {Promise<boolean|null>}
+     */
     async getWhitelistEnabled(signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('wlst');
@@ -190,6 +259,12 @@ export class ProtocolApi{
         return false;
     }
 
+    /**
+     *
+     * @param address
+     * @param signed
+     * @returns {Promise<boolean|null>}
+     */
     async getWhitelistStatus(address, signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('wl/'+address);
@@ -198,6 +273,12 @@ export class ProtocolApi{
         return false;
     }
 
+    /**
+     *
+     * @param address
+     * @param signed
+     * @returns {Promise<boolean|null>}
+     */
     async getModStatus(address, signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('mod/'+address);
@@ -206,6 +287,12 @@ export class ProtocolApi{
         return false;
     }
 
+    /**
+     *
+     * @param address
+     * @param signed
+     * @returns {Promise<boolean|null>}
+     */
     async getMuteStatus(address, signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('mtd/'+address);
@@ -214,6 +301,11 @@ export class ProtocolApi{
         return false;
     }
 
+    /**
+     *
+     * @param signed
+     * @returns {Promise<boolean>}
+     */
     async getAutoAddWritersStatus(signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('auto_add_writers');
@@ -224,6 +316,11 @@ export class ProtocolApi{
         return false;
     }
 
+    /**
+     *
+     * @param signed
+     * @returns {Promise<boolean>}
+     */
     async getChatStatus(signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('chat_status');
@@ -234,6 +331,12 @@ export class ProtocolApi{
         return false;
     }
 
+    /**
+     *
+     * @param nick
+     * @param signed
+     * @returns {Promise<null>}
+     */
     async getAddressFromNick(nick, signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('kcin/'+nick);
@@ -241,6 +344,12 @@ export class ProtocolApi{
         return res;
     }
 
+    /**
+     *
+     * @param address
+     * @param signed
+     * @returns {Promise<null>}
+     */
     async getNick(address, signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('nick/'+address);
@@ -248,6 +357,11 @@ export class ProtocolApi{
         return res;
     }
 
+    /**
+     *
+     * @param signed
+     * @returns {Promise<number>}
+     */
     async getPinnedMessageLength(signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('pnl');
@@ -256,6 +370,12 @@ export class ProtocolApi{
         return res;
     }
 
+    /**
+     *
+     * @param index
+     * @param signed
+     * @returns {Promise<null>}
+     */
     async getPinnedMessage(index, signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('pni/'+parseInt(index));
@@ -266,6 +386,11 @@ export class ProtocolApi{
         return await this.getMessage(res.msg, signed);
     }
 
+    /**
+     *
+     * @param signed
+     * @returns {Promise<number>}
+     */
     async getDeletedMessageLength(signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('delml');
@@ -274,6 +399,12 @@ export class ProtocolApi{
         return res;
     }
 
+    /**
+     *
+     * @param index
+     * @param signed
+     * @returns {Promise<null>}
+     */
     async getDeletedMessage(index, signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('delm/'+parseInt(index));
@@ -284,6 +415,11 @@ export class ProtocolApi{
         return await this.getMessage(res, signed);
     }
 
+    /**
+     *
+     * @param signed
+     * @returns {Promise<number>}
+     */
     async getMessageLength(signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('msgl');
@@ -292,6 +428,12 @@ export class ProtocolApi{
         return res;
     }
 
+    /**
+     *
+     * @param index
+     * @param signed
+     * @returns {Promise<null>}
+     */
     async getMessage(index, signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('msg/'+parseInt(index));
@@ -299,6 +441,12 @@ export class ProtocolApi{
         return res;
     }
 
+    /**
+     *
+     * @param address
+     * @param signed
+     * @returns {Promise<number>}
+     */
     async getUserMessageLength(address, signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('umsgl/'+address);
@@ -307,6 +455,13 @@ export class ProtocolApi{
         return res;
     }
 
+    /**
+     *
+     * @param address
+     * @param index
+     * @param signed
+     * @returns {Promise<null>}
+     */
     async getUserMessage(address, index, signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('umsg/'+address+'/'+parseInt(index));
@@ -317,6 +472,11 @@ export class ProtocolApi{
         return await this.getMessage(res, signed);
     }
 
+    /**
+     *
+     * @param signed
+     * @returns {Promise<number>}
+     */
     async getTxLength(signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('txl');
@@ -325,6 +485,12 @@ export class ProtocolApi{
         return res;
     }
 
+    /**
+     *
+     * @param index
+     * @param signed
+     * @returns {Promise<null>}
+     */
     async getTx(index, signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('txi/'+parseInt(index));
@@ -332,6 +498,12 @@ export class ProtocolApi{
         return res;
     }
 
+    /**
+     *
+     * @param tx
+     * @param signed
+     * @returns {Promise<null>}
+     */
     async getTxData(tx, signed = true){
         let index = null;
         if(true === signed) index = await this.peer.protocol_instance.getSigned('tx/'+tx);
@@ -342,6 +514,12 @@ export class ProtocolApi{
         return null;
     }
 
+    /**
+     *
+     * @param address
+     * @param signed
+     * @returns {Promise<number>}
+     */
     async getUserTxLength(address, signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('utxl/'+address);
@@ -350,6 +528,13 @@ export class ProtocolApi{
         return res;
     }
 
+    /**
+     *
+     * @param address
+     * @param index
+     * @param signed
+     * @returns {Promise<null>}
+     */
     async getUserTx(address, index, signed = true){
         let res = null;
         if(true === signed) res = await this.peer.protocol_instance.getSigned('utxi/'+address+'/'+parseInt(index));

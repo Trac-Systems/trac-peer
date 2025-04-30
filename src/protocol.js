@@ -192,7 +192,7 @@ class Protocol{
     async tx(subject, sim = false, surrogate = null){
         if(this.peer.validator_stream === null) throw new Error('HyperMallProtocol::tx(): No validator available.');
         const obj = this.mapTxCommand(subject.command);
-        if(null !== obj) {
+        if(null !== obj && typeof obj.type === 'string' && obj.value !== undefined) {
             return await this.broadcastTransaction(this.peer.validator,{
                 type : obj.type,
                 value : obj.value
