@@ -152,7 +152,7 @@ export async function enableWhitelist(input, peer){
 export async function unpinMessage(input, peer){
     let address = null;
     const splitted = peer.protocol_instance.parseArgs(input)
-    const value = parseInt(splitted.id);
+    const value = parseInt(splitted.pin_id);
     const nonce = peer.protocol_instance.generateNonce();
     const signature = { dispatch : {
             type : 'unpinMessage',
