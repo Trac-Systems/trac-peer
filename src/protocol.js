@@ -121,7 +121,7 @@ class Protocol{
     }
 
     async broadcastTransaction(validator_pub_key, obj, sim = false, surrogate = null){
-        if(this.peer.validator_stream !== null &&
+        if(this.peer.msb.getNetwork().validator_stream !== null &&
             this.peer.wallet.publicKey !== null &&
             this.peer.wallet.secretKey !== null &&
             this.base.localWriter !== null &&
@@ -190,10 +190,10 @@ class Protocol{
     }
 
     async tx(subject, sim = false, surrogate = null){
-        if(this.peer.validator_stream === null) throw new Error('HyperMallProtocol::tx(): No validator available.');
+        if(this.peer.msb.getNetwork().validator_stream === null) throw new Error('HyperMallProtocol::tx(): No validator available.');
         const obj = this.mapTxCommand(subject.command);
         if(null !== obj && typeof obj.type === 'string' && obj.value !== undefined) {
-            return await this.broadcastTransaction(this.peer.validator,{
+            return await this.broadcastTransaction(this.peer.msb.getNetwork().validator,{
                 type : obj.type,
                 value : obj.value
             }, sim, surrogate);

@@ -11,6 +11,8 @@ import Corestore from 'corestore';
 import w from 'protomux-wakeup';
 import BlindPairing from 'blind-pairing'
 const wakeup = new w();
+import Protomux from 'protomux'
+import c from 'compact-encoding'
 import {
     addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
     enableWhitelist, postMessage, jsonStringify, visibleLength, setNick,
@@ -57,8 +59,6 @@ export class Peer extends ReadyResource {
         this.check = new Check();
         this.dhtBootstrap = ['116.202.214.149:10001', '157.180.12.214:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
         this.invite = null;
-        this.validator = null;
-        this.validator_stream = null;
         this.readline_instance = null;
         this.enable_interactive_mode = options.enable_interactive_mode !== false;
         if(this.enable_interactive_mode !== false){
@@ -507,69 +507,10 @@ export class Peer extends ReadyResource {
     }
 
     async sendTx(msg){
-        if(this.validator_stream === null) return;
+        if(this.msb.getNetwork().validator_stream === null) return;
         let _msg = safeClone(msg);
         if(_msg['ts'] !== undefined) delete _msg['ts'];
-        try{ await this.validator_stream.send(b4a.from(jsonStringify(_msg))); } catch(e){ }
-    }
-
-    async isValidatorAvailable(address){
-        if(null === this.msb.getSwarm()) return null;
-        let writer_key = null;
-
-        this.msb.getSwarm().joinPeer(b4a.from(address, 'hex'))
-
-        let existing_stream = undefined;
-
-        if(this.msb.getSwarm().peers.has(address)){
-            const peerInfo = this.msb.getSwarm().peers.get(address)
-            existing_stream = this.msb.getSwarm()._allConnections.get(peerInfo.publicKey)
-        }
-
-        if(existing_stream !== undefined){
-            existing_stream.on('message', (msg) => {
-                try{
-                    const response = jsonParse(b4a.toString(msg, 'utf-8'));
-                    if(response.op === 'writer_key' && response.key !== undefined){
-                        writer_key = response.key;
-                    }
-                }catch(e){}
-            });
-            existing_stream.on('open', function () { });
-            existing_stream.on('close', () => { });
-            existing_stream.on('error', (error) => { });
-            await existing_stream.send(b4a.from(jsonStringify('get_writer_key')));
-            let i = 0;
-            while(null === writer_key){
-                if(i >= 1_000) break;
-                await this.sleep(10);
-                i += 10;
-            }
-            return writer_key;
-        } else {
-            const stream = this.msb.getSwarm().dht.connect(b4a.from(address, 'hex'))
-            stream.on('connect', async function () {
-                await stream.send(b4a.from(jsonStringify('get_writer_key')));
-            });
-            stream.on('message', (msg) => {
-                try{
-                    const response = jsonParse(b4a.toString(msg, 'utf-8'));
-                    if(response.op === 'writer_key' && response.key !== undefined){
-                        writer_key = response.key;
-                    }
-                }catch(e){}
-            });
-            stream.on('open', function () { });
-            stream.on('close', () => { });
-            stream.on('error', (error) => { });
-            let i = 0;
-            while(null === writer_key){
-                if(i >= 5_000) break;
-                await this.sleep(10);
-                i += 10;
-            }
-            return writer_key;
-        }
+        try{ this.msb.getNetwork().validator_stream.messenger.send(_msg); } catch(e){ }
     }
 
     async _open() {
@@ -615,7 +556,7 @@ export class Peer extends ReadyResource {
 
     async validator_observer(){
         while(true){
-            if(this.msb.getSwarm() !== null && this.validator_stream === null) {
+            if(this.msb.getSwarm() !== null && this.msb.getNetwork().validator_stream === null) {
                 console.log('Looking for available validators, please wait...');
                 const _this = this;
                 let length = await this.msb.base.view.get('wrl');
@@ -628,53 +569,19 @@ export class Peer extends ReadyResource {
                     length = this.custom_validators.length;
                 }
                 async function findSome(){
-                    if(_this.validator_stream !== null) return;
+                    if(_this.msb.getNetwork().validator_stream !== null) return;
                     const rnd_index = Math.floor(Math.random() * length);
                     let validator = await _this.msb.base.view.get('wri/' + rnd_index);
                     if(_this.custom_validators.length !== 0){
                         validator = { value : _this.custom_validators[rnd_index] };
                         console.log('Trying custom validator', validator.value);
                     }
-                    if(_this.validator_stream !== null) return;
+                    if(_this.msb.getNetwork().validator_stream !== null) return;
                     if (null !== validator) {
                         validator = await _this.msb.base.view.get(validator.value);
-                        if(_this.validator_stream !== null) return;
+                        if(_this.msb.getNetwork().validator_stream !== null) return;
                         if(null !== validator && false !== validator.value.isWriter && false === validator.value.isIndexer) {
-                            const result = await _this.isValidatorAvailable(validator.value.pub);
-                            if(_this.validator_stream !== null) return;
-                            if (null !== result) {
-                                await _this.sleep(100);
-                                if(_this.validator_stream !== null) return;
-                                let existing_stream = undefined;
-                                if(_this.msb.getSwarm().peers.has(validator.value.pub)){
-                                    const peerInfo = _this.msb.getSwarm().peers.get(validator.value.pub)
-                                    existing_stream = _this.msb.getSwarm()._allConnections.get(peerInfo.publicKey)
-                                }
-                                if(existing_stream !== undefined){
-                                    _this.validator_stream = existing_stream;
-                                    _this.validator = validator.value.pub;
-                                    _this.validator_stream.on('close', () => {
-                                        _this.validator_stream = null;
-                                        _this.validator = null;
-                                        console.log('Validator stream closed', validator.value.pub);
-                                    });
-                                    console.log('Validator stream established', validator.value.pub);
-                                } else {
-                                    _this.validator_stream = _this.msb.getSwarm().dht.connect(b4a.from(validator.value.pub, 'hex'));
-                                    _this.validator = validator.value.pub;
-                                    _this.validator_stream.on('open', () => {
-                                        console.log('Validator stream established', validator.value.pub);
-                                    });
-                                    _this.validator_stream.on('close', () => {
-                                        _this.validator_stream = null;
-                                        _this.validator = null;
-                                    });
-                                    _this.validator_stream.on('error', (error) => {
-                                        _this.validator_stream = null;
-                                        _this.validator = null;
-                                    });
-                                }
-                            }
+                            await _this.msb.tryConnection(validator.value.pub, 'validator');
                         }
                     }
                 }

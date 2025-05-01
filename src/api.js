@@ -22,7 +22,7 @@ export class ProtocolApi{
      * @returns {null|string}
      */
     getPeerValidatorAddress(){
-        return this.peer.validator;
+        return this.peer.msb.getNetwork().validator;
     }
 
     /**

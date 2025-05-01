@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.1.57",
+  "version": "0.1.60",
   "type": "module",
   "dependencies": {
     "assert": "npm:bare-node-assert",
@@ -37,6 +37,7 @@
     "brittle": "3.0.0",
     "buffer": "npm:bare-node-buffer",
     "child_process": "npm:bare-node-child-process",
+    "compact-encoding": "^2.16.1",
     "console": "npm:bare-node-console",
     "corestore": "7.4.1",
     "crypto": "npm:bare-node-crypto",
@@ -60,6 +61,7 @@
     "path": "npm:bare-node-path",
     "pear-interface": "1.0.0",
     "process": "npm:bare-node-process",
+    "protomux": "^3.10.1",
     "protomux-wakeup": "^2.2.1",
     "readline": "npm:bare-node-readline",
     "ready-resource": "^1.0.0",
