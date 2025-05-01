@@ -17,7 +17,7 @@ import {
     addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
     enableWhitelist, postMessage, jsonStringify, visibleLength, setNick,
     muteStatus, setWhitelistStatus, updateAdmin, tx, safeClone, jsonParse,
-    pinMessage, joinValidator, removeWriter
+    pinMessage, joinValidator, removeWriter, unpinMessage
 } from "./functions.js";
 import Check from "./check.js";
 export {default as Protocol} from "./protocol.js";
