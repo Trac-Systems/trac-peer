@@ -81,6 +81,7 @@ class Check {
         this._mute = this.compileMute();
         this._delete_message = this.compileDeleteMessage();
         this._pin_message = this.compilePinMessage();
+        this._unpin_message = this.compileUnpinMessage();
         this._mod = this.compileMod();
         this._whitelist_status = this.compileWhitelistStatus();
         this._enable_whitelist = this.compileEnableWhitelist();
@@ -194,8 +195,30 @@ class Check {
         return this.validator.compile(schema);
     }
 
+    compileUnpinMessage (){
+        const schema = {
+            nonce: { type : "string", min : 1, max : 256 },
+            hash: { type : "is_hex" },
+            value : {
+                $$type: "object",
+                dispatch : {
+                    $$type : "object",
+                    id : { type : "number", integer: true, min : 0, max : Number.MAX_SAFE_INTEGER },
+                    type : { type : "string", min : 1, max : 256 },
+                    address : { type : "is_hex" }
+                }
+            }
+        };
+        return this.validator.compile(schema);
+    }
+
     pinMessage(op){
         const res = this._pin_message(op);
+        return res === true;
+    }
+
+    unpinMessage(op){
+        const res = this._unpin_message(op);
         return res === true;
     }
 

@@ -423,6 +423,33 @@ export class Peer extends ReadyResource {
                                 }
                             }
                         }
+                    } else if(op.type === 'unpinMessage') {
+                        if(false === this.check.unpinMessage(op)) continue;
+                        const str_value = jsonStringify(op.value);
+                        if(null !== str_value &&
+                            null === await batch.get('sh/'+op.hash)){
+                            const mod = await batch.get('mod/'+op.value.dispatch.address);
+                            const pin = await batch.get('pni/'+op.value.dispatch.id);
+                            if(null !== pin) {
+                                const admin = await batch.get('admin');
+                                let mod_verified = false;
+                                if(null !== mod && true === mod.value) {
+                                    mod_verified = _this.wallet.verify(op.hash, str_value + op.nonce, op.value.dispatch.address);
+                                }
+                                const verified = _this.wallet.verify(op.hash, str_value + op.nonce, admin.value);
+                                if(true === verified || true === mod_verified) {
+                                    const message = await batch.get('msg/'+pin.value.msg)
+                                    if(null !== message){
+                                        message.value.pinned = false;
+                                        message.value.pin_id = null;
+                                        await batch.put('msg/'+pin.value.msg, message.value);
+                                        await batch.put('pni/'+op.value.dispatch.id, { msg : pin.value.msg, pinned : false });
+                                    }
+                                    await batch.put('sh/'+op.hash, '');
+                                    console.log(`Unpinned message ${pin.value.msg} by ${op.value.dispatch.address}`);
+                                }
+                            }
+                        }
                     } else if(op.type === 'pinMessage') {
                         if(false === this.check.pinMessage(op)) continue;
                         const str_value = jsonStringify(op.value);
@@ -812,6 +839,7 @@ export class Peer extends ReadyResource {
         console.log('- /set_mod | Only admin. Set a user as mod: \'/set_mod --user "<address>" --mod 1\'.');
         console.log('- /delete_message | Delete a message: \'/delete_message --id 1\'. Chat must be enabled.');
         console.log('- /pin_message | Set the pin status of a message: \'/pin_message --id 1 --pin 1\'. Chat must be enabled.');
+        console.log('- /unpin_message | Unpin a message by its pin id: \'/unpin_message --pin_id 1\'. Chat must be enabled.');
         console.log('- /enable_whitelist | Only admin. Enable/disable chat whitelists: \'/enable_whitelist --enabled 1\'.');
         console.log('- /set_whitelist_status | Only admin. Add/remove users to/from the chat whitelist: \'/set_whitelist_status --user "<address>" --status 1\'.');
         console.log(' ');
@@ -874,6 +902,8 @@ export class Peer extends ReadyResource {
                             await muteStatus(input, this);
                         } else if (input.startsWith('/pin_message')) {
                             await pinMessage(input, this);
+                        } else if (input.startsWith('/unpin_message')) {
+                            await unpinMessage(input, this);
                         } else if (input.startsWith('/set_mod')) {
                             await setMod(input, this);
                         } else if (input.startsWith('/delete_message')) {

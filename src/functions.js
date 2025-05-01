@@ -149,6 +149,20 @@ export async function enableWhitelist(input, peer){
     await peer.base.append({type: 'enableWhitelist', value: signature, hash : hash, nonce: nonce });
 }
 
+export async function unpinMessage(input, peer){
+    let address = null;
+    const splitted = peer.protocol_instance.parseArgs(input)
+    const value = parseInt(splitted.id);
+    const nonce = peer.protocol_instance.generateNonce();
+    const signature = { dispatch : {
+            type : 'unpinMessage',
+            id: value,
+            address : peer.wallet.publicKey
+        }};
+    const hash = peer.wallet.sign(JSON.stringify(signature) + nonce);
+    await peer.base.append({type: 'unpinMessage', value: signature, hash : hash, nonce: nonce });
+}
+
 export async function pinMessage(input, peer){
     let address = null;
     const splitted = peer.protocol_instance.parseArgs(input)
