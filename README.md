@@ -4,7 +4,7 @@ A peer-to-peer crypto contract network. Interacts with the Main Settlement Bus (
 
 Release 1 (R1) must be used alongside Trac Network R1 releases to maintain contract consistency.
 
-Peer is utilizing the [Pear Runtime and Holepunch](https://pears.com/).
+Trac Peer is utilizing the [Pear Runtime and Holepunch](https://pears.com/).
 
 ## Install
 
