@@ -335,13 +335,23 @@ export async function removeWriter(input, peer){
 }
 
 export async function joinValidator(input, peer){
+    console.log('Please wait...')
     const splitted = peer.protocol_instance.parseArgs(input)
     const address = ''+splitted.address;
     const validator = await peer.msb.base.view.get(address);
     if(validator === null || false === validator.value.isWriter || true === validator.value.isIndexer){
-        throw new Error('Invalid validator address.');
+        throw new Error('Invalid validator address. The target does not seem to be a validator or does not exist.');
     }
-    await peer.msb.tryConnection(address);
+    let cnt = 0;
+    while(peer.msb.getNetwork().validator !== address){
+        if(cnt >= 3) break;
+        await peer.msb.tryConnection(address);
+        await peer.sleep(10);
+        cnt += 1;
+    }
+    if(peer.msb.getNetwork().validator !== address){
+        console.log('Could not connect. You will be connected with the next available one instead.');
+    }
 }
 
 export async function tx(input, peer){
