@@ -9,7 +9,6 @@ import readline from 'readline';
 import tty from 'tty'
 import Corestore from 'corestore';
 import w from 'protomux-wakeup';
-import BlindPairing from 'blind-pairing'
 const wakeup = new w();
 import Protomux from 'protomux'
 import c from 'compact-encoding'
@@ -58,7 +57,6 @@ export class Peer extends ReadyResource {
         this.options = options;
         this.check = new Check();
         this.dhtBootstrap = ['116.202.214.149:10001', '157.180.12.214:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
-        this.invite = null;
         this.readline_instance = null;
         this.enable_interactive_mode = options.enable_interactive_mode !== false;
         if(this.enable_interactive_mode !== false){
@@ -694,9 +692,6 @@ export class Peer extends ReadyResource {
             };
 
             this.swarm = new Hyperswarm({ keyPair, bootstrap: this.dhtBootstrap });
-            this.invite = new BlindPairing(this.swarm, {
-                poll: 5000
-            });
             console.log('');
             console.log('######################################################################################');
             console.log('# Peer Address:    ', this.wallet.publicKey, '#');
@@ -709,6 +704,35 @@ export class Peer extends ReadyResource {
             console.log('');
 
             this.swarm.on('connection', async (connection, peerInfo) => {
+                const mux = Protomux.from(connection)
+                connection.userData = mux
+                const message_channel = mux.createChannel({
+                    protocol: b4a.toString(this.channel, 'utf8'),
+                    onopen() {},
+                    onclose() {}
+                })
+                message_channel.open()
+                const message = message_channel.addMessage({
+                    encoding: c.json,
+                    async onmessage(msg) {
+                        try{
+                            if(true === _this.base.writable && msg.inviteMyKey !== undefined &&
+                                msg.bootstrap === _this.bootstrap){
+                                await _this.base.append({
+                                    type : 'autoAddWriter',
+                                    key : msg.inviteMyKey
+                                });
+                            }
+                        }catch(e){}
+                    }});
+
+                if(false === _this.base.writable){
+                    message.send({
+                        inviteMyKey : _this.writerLocalKey,
+                        bootstrap : _this.bootstrap
+                    });
+                }
+
                 const remotePublicKey = b4a.toString(connection.remotePublicKey, 'hex');
 
                 this.connectedPeers.add(remotePublicKey);
@@ -717,6 +741,7 @@ export class Peer extends ReadyResource {
                 this.connectedNodes++;
 
                 connection.on('close', () => {
+                    try{ message_channel.close() }catch(e){}
                     this.connectedNodes--;
                     this.connectedPeers.delete(remotePublicKey);
                 });
@@ -726,58 +751,6 @@ export class Peer extends ReadyResource {
                 if (!this.isStreaming) {
                     this.emit('readyNode');
                 }
-
-                if(this.base !== null && this.base.writable){
-                    const auto_add_writers = await this.base.view.get('auto_add_writers');
-                    if(auto_add_writers !== null && auto_add_writers.value === 'on'){
-                        try{
-                            const { invite, publicKey, discoveryKey } = BlindPairing.createInvite(b4a.from(this.writerLocalKey, 'hex'));
-                            connection.send(
-                                b4a.from(jsonStringify({
-                                    invite : b4a.toString(invite, 'hex'),
-                                    publicKey : b4a.toString(publicKey, 'hex'),
-                                    discoveryKey : b4a.toString(discoveryKey, 'hex'),
-                                    bootstrap : _this.bootstrap
-                                })));
-                        }catch(e){}
-                    }
-                }
-
-                connection.on('message', async (msg) => {
-                    try{
-                        const parsed = jsonParse(b4a.toString(msg));
-                        if(false === this.base.writable && parsed.invite !== undefined &&
-                            parsed.bootstrap !== undefined && parsed.bootstrap === _this.bootstrap){
-                            connection.send(b4a.from(jsonStringify({
-                                inviteMyKey : this.writerLocalKey,
-                                publicKey : parsed.publicKey,
-                                discoveryKey : parsed.discoveryKey
-                            })));
-                            try{
-                                _this.invite.addCandidate({
-                                    invite: b4a.from(parsed.invite, 'hex'),
-                                    userData : b4a.from(_this.writerLocalKey, 'hex'),
-                                    async onadd (result) { }
-                                })
-                            }catch(e){}
-                        } else if(true === this.base.writable && parsed.inviteMyKey !== undefined){
-                            const member = _this.invite.addMember({
-                                discoveryKey : b4a.from(parsed.discoveryKey, 'hex'),
-                                async onadd (candidate) {
-                                    try{
-                                        candidate.open(b4a.from(parsed.publicKey, 'hex'))
-                                        candidate.confirm({ key: b4a.from(parsed.inviteMyKey, 'hex') })
-                                        await _this.base.append({
-                                            type : 'autoAddWriter',
-                                            key : parsed.inviteMyKey
-                                        });
-                                    }catch(e){}
-                                }
-                            })
-                            member.flushed();
-                        }
-                    }catch(e){}
-                });
             });
 
             this.swarm.join(this.channel, { server: true, client: true });
