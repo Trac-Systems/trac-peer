@@ -717,7 +717,7 @@ export class Peer extends ReadyResource {
                     async onmessage(msg) {
                         try{
                             if(true === _this.base.writable && msg.inviteMyKey !== undefined &&
-                                msg.bootstrap === _this.bootstrap){
+                                msg.bootstrap === _this.bootstrap && b4a.toString(connection.publicKey, 'hex') === msg.to){
                                 await _this.base.append({
                                     type : 'autoAddWriter',
                                     key : msg.inviteMyKey
@@ -729,7 +729,8 @@ export class Peer extends ReadyResource {
                 if(false === _this.base.writable){
                     message.send({
                         inviteMyKey : _this.writerLocalKey,
-                        bootstrap : _this.bootstrap
+                        bootstrap : _this.bootstrap,
+                        to : b4a.toString(connection.remotePublicKey, 'hex')
                     });
                 }
 

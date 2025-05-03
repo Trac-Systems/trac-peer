@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.1.64",
+  "version": "0.1.65",
   "type": "module",
   "dependencies": {
     "assert": "npm:bare-node-assert",
@@ -33,7 +33,6 @@
     "bare-worker": "3.0.0",
     "bare-zlib": "1.2.5",
     "bip39": "3.1.0",
-    "blind-pairing": "2.3.1",
     "brittle": "3.0.0",
     "buffer": "npm:bare-node-buffer",
     "child_process": "npm:bare-node-child-process",
