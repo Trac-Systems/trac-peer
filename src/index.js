@@ -718,20 +718,26 @@ export class Peer extends ReadyResource {
                         try{
                             if(true === _this.base.writable && msg.inviteMyKey !== undefined &&
                                 msg.bootstrap === _this.bootstrap && b4a.toString(connection.publicKey, 'hex') === msg.to){
-                                await _this.base.append({
-                                    type : 'autoAddWriter',
-                                    key : msg.inviteMyKey
-                                });
+                                const auto_add_writers = await _this.base.view.get('auto_add_writers');
+                                if(auto_add_writers !== null && auto_add_writers.value === 'on') {
+                                    await _this.base.append({
+                                        type : 'autoAddWriter',
+                                        key : msg.inviteMyKey
+                                    });
+                                }
                             }
                         }catch(e){}
                     }});
 
                 if(false === _this.base.writable){
-                    message.send({
-                        inviteMyKey : _this.writerLocalKey,
-                        bootstrap : _this.bootstrap,
-                        to : b4a.toString(connection.remotePublicKey, 'hex')
-                    });
+                    const auto_add_writers = await _this.base.view.get('auto_add_writers');
+                    if(auto_add_writers !== null && auto_add_writers.value === 'on') {
+                        message.send({
+                            inviteMyKey : _this.writerLocalKey,
+                            bootstrap : _this.bootstrap,
+                            to : b4a.toString(connection.remotePublicKey, 'hex')
+                        });
+                    }
                 }
 
                 const remotePublicKey = b4a.toString(connection.remotePublicKey, 'hex');
