@@ -736,7 +736,8 @@ export class Peer extends ReadyResource {
                                 b4a.from(jsonStringify({
                                     invite : b4a.toString(invite, 'hex'),
                                     publicKey : b4a.toString(publicKey, 'hex'),
-                                    discoveryKey : b4a.toString(discoveryKey, 'hex')
+                                    discoveryKey : b4a.toString(discoveryKey, 'hex'),
+                                    bootstrap : _this.bootstrap
                                 })));
                         }catch(e){}
                     }
@@ -745,7 +746,8 @@ export class Peer extends ReadyResource {
                 connection.on('message', async (msg) => {
                     try{
                         const parsed = jsonParse(b4a.toString(msg));
-                        if(false === this.base.writable && parsed.invite !== undefined){
+                        if(false === this.base.writable && parsed.invite !== undefined &&
+                            parsed.bootstrap !== undefined && parsed.bootstrap === _this.bootstrap){
                             connection.send(b4a.from(jsonStringify({
                                 inviteMyKey : this.writerLocalKey,
                                 publicKey : parsed.publicKey,
