@@ -553,7 +553,6 @@ export class Peer extends ReadyResource {
                 this.tx_pool[msg.tx] = msg;
             }
         });
-        this.updater();
     }
 
     async initContract(){
@@ -568,15 +567,6 @@ export class Peer extends ReadyResource {
             await this.swarm.destroy();
         }
         await this.base.close();
-    }
-
-    async updater(){
-        while(true){
-            if(this.base.writable){
-                await this.base.append(null);
-            }
-            await this.sleep(10_000);
-        }
     }
 
     async validator_observer(){
