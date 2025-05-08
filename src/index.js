@@ -78,8 +78,8 @@ export class Peer extends ReadyResource {
     async _boot() {
         const _this = this;
         this.base = new Autobase(this.store, this.bootstrap, {
+            ackInterval : 1000,
             valueEncoding: 'json',
-            ackInterval: 1000,
             open(store) {
                 _this.bee = new Hyperbee(store.get('view'), {
                     extension: false,
@@ -563,20 +563,22 @@ export class Peer extends ReadyResource {
         this.contract_instance = new this.contract(this.protocol_instance);
     }
 
+    async updater() {
+        while (true) {
+            if (this.base.isIndexer &&
+                this.base.view.core.length >
+                this.base.view.core.signedLength) {
+                await this.base.append(null);
+            }
+            await this.sleep(10_000);
+        }
+    }
+
     async close() {
         if (this.swarm) {
             await this.swarm.destroy();
         }
         await this.base.close();
-    }
-
-    async updater(){
-        while(true){
-            if(this.base.writable){
-                await this.base.append(null);
-            }
-            await this.sleep(10_000);
-        }
     }
 
     async validator_observer(){
