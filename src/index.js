@@ -248,7 +248,7 @@ export class Peer extends ReadyResource {
                                 const writerKey = b4a.from(op.key, 'hex');
                                 await base.addWriter(writerKey, { isIndexer : false });
                                 await batch.put('sh/'+op.hash, '');
-                                console.log(`Writer added: ${writerKey}`);
+                                console.log(`Writer added: ${op.key}`);
                             }
                         }
                     } else if (op.type === 'removeWriter') {
@@ -553,7 +553,6 @@ export class Peer extends ReadyResource {
                 this.tx_pool[msg.tx] = msg;
             }
         });
-        this.updater();
     }
 
     async initContract(){
@@ -561,17 +560,6 @@ export class Peer extends ReadyResource {
         this.protocol_instance = new this.protocol(this, this.base, this.options);
         await this.protocol_instance.extendApi();
         this.contract_instance = new this.contract(this.protocol_instance);
-    }
-
-    async updater() {
-        while (true) {
-            if (this.base.isIndexer &&
-                this.base.view.core.length >
-                this.base.view.core.signedLength) {
-                await this.base.append(null);
-            }
-            await this.sleep(10_000);
-        }
     }
 
     async close() {
