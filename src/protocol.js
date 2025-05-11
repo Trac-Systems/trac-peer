@@ -111,10 +111,8 @@ class Protocol{
             key : tx,
             value : {
                 dispatch : obj,
-                value : {
-                    ipk : surrogate !== null ? surrogate.address : this.peer.wallet.publicKey,
-                    wp : validator_pub_key
-                }
+                ipk : surrogate !== null ? surrogate.address : this.peer.wallet.publicKey,
+                wp : validator_pub_key
             }
         }
         return await this.peer.contract_instance.execute(op, storage);
