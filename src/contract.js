@@ -38,11 +38,8 @@ class Contract {
                     type : { type : "string", min : 1, max : 256 },
                     value : { type : "any", nullable : true }
                 },
-                value : {
-                    $$type : "object",
-                    ipk : { type : "is_hex" },
-                    wp : { type : "is_hex" }
-                }
+                ipk : { type : "is_hex" },
+                wp : { type : "is_hex" }
             }
         });
 
@@ -76,8 +73,8 @@ class Contract {
 
         if(op.type !== 'feature' && op.type !== 'msg'){
             if(false === this.tx_schema(op)) return false;
-            this.address = op.value.value.ipk;
-            this.validator_address = op.value.value.wp;
+            this.address = op.value.ipk;
+            this.validator_address = op.value.wp;
         } else {
             if(true !== this.address_schema(op)) return false;
             if(op.type === 'feature' && true !== this.textkey_schema(op)) return false;

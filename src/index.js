@@ -112,8 +112,10 @@ export class Peer extends ReadyResource {
                             op.key === post_tx.value.tx &&
                             null === await batch.get('tx/'+post_tx.value.tx) &&
                             post_tx.value.ch === content_hash &&
-                            _this.wallet.verify(post_tx.value.ws, post_tx.value.tx + post_tx.value.wn, op.value.wp) &&
-                            _this.wallet.verify(post_tx.value.is, post_tx.value.tx + post_tx.value.in, op.value.ipk) &&
+                            post_tx.value.ipk === op.value.ipk &&
+                            post_tx.value.wp === op.value.wp &&
+                            _this.wallet.verify(post_tx.value.ws, post_tx.value.tx + post_tx.value.wn, post_tx.value.wp) &&
+                            _this.wallet.verify(post_tx.value.is, post_tx.value.tx + post_tx.value.in, post_tx.value.ipk) &&
                             post_tx.value.tx === await _this.protocol_instance.generateTx(
                                 _this.bootstrap, _this.msb.bootstrap,
                                 post_tx.value.wp, post_tx.value.i, post_tx.value.ipk,
@@ -641,13 +643,14 @@ export class Peer extends ReadyResource {
                 const msb_tx = await view_session.get(tx);
                 await view_session.close();
                 if(null !== msb_tx){
-                    msb_tx['msbsl'] = msbsl;
-                    msb_tx['dispatch'] = this.protocol_instance.prepared_transactions_content[tx].dispatch;
-                    msb_tx['ipk'] = this.protocol_instance.prepared_transactions_content[tx].ipk;
-                    msb_tx['wp'] = this.protocol_instance.prepared_transactions_content[tx].validator;
+                    const _tx = {};
+                    _tx['msbsl'] = msbsl;
+                    _tx['dispatch'] = this.protocol_instance.prepared_transactions_content[tx].dispatch;
+                    _tx['ipk'] = this.protocol_instance.prepared_transactions_content[tx].ipk;
+                    _tx['wp'] = this.protocol_instance.prepared_transactions_content[tx].validator;
                     delete this.tx_pool[tx];
                     delete this.protocol_instance.prepared_transactions_content[tx];
-                    await this.base.append({ type: 'tx', key: tx, value: msb_tx });
+                    await this.base.append({ type: 'tx', key: tx, value: _tx });
                 }
                 await this.sleep(5);
             }

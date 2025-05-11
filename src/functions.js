@@ -138,7 +138,7 @@ export async function setWhitelistStatus(input, peer){
 
 export async function enableTransactions(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input)
-    const value = splitted.enabled === 1;
+    const value = parseInt(splitted.enabled) === 1;
     const nonce = peer.protocol_instance.generateNonce();
     const signature = { dispatch : {
             type : 'enableTransactions',
@@ -151,7 +151,7 @@ export async function enableTransactions(input, peer){
 
 export async function enableWhitelist(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input)
-    const value = splitted.enabled === 1;
+    const value = parseInt(splitted.enabled) === 1;
     const nonce = peer.protocol_instance.generateNonce();
     const signature = { dispatch : {
             type : 'enableWhitelist',
