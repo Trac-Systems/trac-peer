@@ -16,7 +16,7 @@ import {
     addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
     enableWhitelist, postMessage, jsonStringify, visibleLength, setNick,
     muteStatus, setWhitelistStatus, updateAdmin, tx, safeClone, jsonParse,
-    pinMessage, joinValidator, removeWriter, unpinMessage
+    pinMessage, joinValidator, removeWriter, unpinMessage, enableTransactions
 } from "./functions.js";
 import Check from "./check.js";
 export {default as Protocol} from "./protocol.js";
@@ -106,8 +106,10 @@ export class Peer extends ReadyResource {
                         const post_tx = await msb_view_session.get(op.key);
                         await msb_view_session.close();
                         if(false === this.check.postTx(post_tx)) continue;
-                        const content_hash = await _this.createHash('sha256', jsonStringify(op.value.dispatch))
-                        if (op.key === post_tx.value.tx &&
+                        const content_hash = await _this.createHash('sha256', jsonStringify(op.value.dispatch));
+                        const enabled = await batch.get('txen');
+                        if ((null === enabled || true === enabled.value) &&
+                            op.key === post_tx.value.tx &&
                             null === await batch.get('tx/'+post_tx.value.tx) &&
                             post_tx.value.ch === content_hash &&
                             _this.wallet.verify(post_tx.value.ws, post_tx.value.tx + post_tx.value.wn, op.value.wp) &&
@@ -522,6 +524,19 @@ export class Peer extends ReadyResource {
                                 console.log(`Changed whitelist enabled ${op.value.dispatch.enabled}`);
                             }
                         }
+                    } else if(op.type === 'enableTransactions') {
+                        if(false === this.check.enableTransactions(op)) continue;
+                        const admin = await batch.get('admin');
+                        const str_value = jsonStringify(op.value);
+                        if(null !== admin && null !== str_value &&
+                            null === await batch.get('sh/'+op.hash)){
+                            const verified = _this.wallet.verify(op.hash, str_value + op.nonce, admin.value);
+                            if(true === verified) {
+                                await batch.put('txen', op.value.dispatch.enabled);
+                                await batch.put('sh/'+op.hash, '');
+                                console.log(`Changed transactions enabled ${op.value.dispatch.enabled}`);
+                            }
+                        }
                     }
                 }
                 await batch.flush();
@@ -802,6 +817,7 @@ export class Peer extends ReadyResource {
         console.log('- /add_writer | Only admin. Enter a peer writer key to get included as writer for this network: \'/add_writer --key "<key>"\'.');
         console.log('- /remove_writer | Only admin. Enter a peer writer key to get removed as writer or indexer for this network: \'/remove_writer --key "<key>"\'.');
         console.log('- /set_auto_add_writers | Only admin. Allow any peer to join as writer automatically: \'/set_auto_add_writers --enabled 1\'');
+        console.log('- /enable_transactions | Only admin. Disable/enable transactions. Enabled by default: \'/enable_transactions --enabled 0\'');
         console.log(' ');
         console.log('- Chat Commands:');
         console.log('- /set_chat_status | Only admin. Enable/disable the built-in chat system: \'/set_chat_status --enabled 1\'. The chat system is disabled by default.');
@@ -864,6 +880,8 @@ export class Peer extends ReadyResource {
                             await updateAdmin(input, this);
                         } else if (input.startsWith('/set_auto_add_writers')) {
                             await setAutoAddWriters(input, this);
+                        } else if (input.startsWith('/enable_transactions')) {
+                            await enableTransactions(input, this);
                         } else if (input.startsWith('/set_chat_status')) {
                             await setChatStatus(input, this);
                         } else if (input.startsWith('/post')) {

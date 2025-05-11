@@ -121,7 +121,9 @@ class Protocol{
     }
 
     async broadcastTransaction(validator_pub_key, obj, sim = false, surrogate = null){
-        if(this.peer.msb.getNetwork().validator_stream !== null &&
+        const tx_enabled = await this.peer.base.view.get('txen');
+        if( (null === tx_enabled || true === tx_enabled.value ) &&
+            this.peer.msb.getNetwork().validator_stream !== null &&
             this.peer.wallet.publicKey !== null &&
             this.peer.wallet.secretKey !== null &&
             this.base.localWriter !== null &&

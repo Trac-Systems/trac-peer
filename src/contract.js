@@ -185,7 +185,7 @@ class Contract {
             key.startsWith('umsg/') || key.startsWith('umsg/') || key.startsWith('msgl/') || key === 'admin' || key === 'auto_add_writers'
             || key.startsWith('nick/') || key.startsWith('mod/') || key === 'chat_status' || key.startsWith('mtd/') || key === 'delml' ||
             key === 'wlst' || key === 'txl' || key.startsWith('txi/') || key.startsWith('wl/') || key === 'pnl' || key.startsWith('pni/') ||
-            key.startsWith('utxl/') || key.startsWith('utxi/') || key.startsWith('bnd/');
+            key.startsWith('utxl/') || key.startsWith('utxi/') || key.startsWith('bnd/') || key === 'txen';
     }
 
     async del(key){

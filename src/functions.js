@@ -136,6 +136,19 @@ export async function setWhitelistStatus(input, peer){
     await peer.base.append({type: 'setWhitelistStatus', value: signature, hash : hash, nonce: nonce });
 }
 
+export async function enableTransactions(input, peer){
+    const splitted = peer.protocol_instance.parseArgs(input)
+    const value = splitted.enabled === 1;
+    const nonce = peer.protocol_instance.generateNonce();
+    const signature = { dispatch : {
+            type : 'enableTransactions',
+            enabled: value,
+            address : peer.wallet.publicKey
+        }};
+    const hash = peer.wallet.sign(JSON.stringify(signature) + nonce);
+    await peer.base.append({type: 'enableTransactions', value: signature, hash : hash, nonce: nonce });
+}
+
 export async function enableWhitelist(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = splitted.enabled === 1;

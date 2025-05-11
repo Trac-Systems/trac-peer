@@ -85,6 +85,29 @@ class Check {
         this._mod = this.compileMod();
         this._whitelist_status = this.compileWhitelistStatus();
         this._enable_whitelist = this.compileEnableWhitelist();
+        this._enable_transactions = this.compileEnableTransactions();
+    }
+
+    compileEnableTransactions (){
+        const schema = {
+            nonce: { type : "string", min : 1, max : 256 },
+            hash: { type : "is_hex" },
+            value : {
+                $$type: "object",
+                dispatch : {
+                    $$type : "object",
+                    enabled : { type : "boolean" },
+                    type : { type : "string", min : 1, max : 256 },
+                    address : { type : "is_hex" }
+                }
+            }
+        };
+        return this.validator.compile(schema);
+    }
+
+    enableTransactions(op){
+        const res = this._enable_transactions(op);
+        return res === true;
     }
 
     compileEnableWhitelist (){
