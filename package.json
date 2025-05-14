@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.1.73",
+  "version": "0.1.74",
   "type": "module",
   "dependencies": {
     "assert": "npm:bare-node-assert",
@@ -33,7 +33,6 @@
     "bare-worker": "3.0.0",
     "bare-zlib": "1.2.5",
     "bip39": "3.1.0",
-    "brittle": "3.0.0",
     "buffer": "npm:bare-node-buffer",
     "child_process": "npm:bare-node-child-process",
     "compact-encoding": "2.16.1",
@@ -49,9 +48,9 @@
     "https": "npm:bare-node-https",
     "hyperbee": "2.24.2",
     "hypercore": "11.6.3",
-    "hypercore-crypto": "3.4.0",
-    "hyperdht": "6.20.5",
-    "hyperswarm": "4.11.5",
+    "hypercore-crypto": "^3.4.0",
+    "hyperdht": "^6.20.5",
+    "hyperswarm": "^4.11.5",
     "inspector": "npm:bare-node-inspector",
     "is-options": "1.0.2",
     "module": "npm:bare-node-module",
@@ -80,6 +79,7 @@
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
-    "access": "public"
+    "access": "public",
+    "brittle": "3.0.0"
   }
 }
