@@ -97,6 +97,7 @@ export class Peer extends ReadyResource {
                     if (op.type === 'tx') {
                         if(b4a.byteLength(jsonStringify(op)) > _this.protocol_instance.txMaxBytes()) continue;
                         if(false === this.check.tx(op)) continue;
+                        if(op.value.msbbs !== _this.msb.bootstrap) continue;
                         while (_this.msb.base.view.core.signedLength < op.value.msbsl) {
                             await new Promise( (resolve, reject) => {
                                 _this.msb.base.view.core.once('append', resolve);
@@ -618,9 +619,9 @@ export class Peer extends ReadyResource {
                     }
                 }
                 const promises = [];
-                for(let i = 0; i < 10; i++){
+                for(let i = 0; i < 2; i++){
                     promises.push(findSome());
-                    await this.sleep(250);
+                    await this.sleep(500);
                 }
                 await Promise.all(promises);
             }
@@ -648,6 +649,7 @@ export class Peer extends ReadyResource {
                     _tx['dispatch'] = this.protocol_instance.prepared_transactions_content[tx].dispatch;
                     _tx['ipk'] = this.protocol_instance.prepared_transactions_content[tx].ipk;
                     _tx['wp'] = this.protocol_instance.prepared_transactions_content[tx].validator;
+                    _tx['msbbs'] = this.msb.bootstrap;
                     delete this.tx_pool[tx];
                     delete this.protocol_instance.prepared_transactions_content[tx];
                     await this.base.append({ type: 'tx', key: tx, value: _tx });

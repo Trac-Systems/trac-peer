@@ -525,6 +525,7 @@ class Check {
                     value : { type : "any", nullable : true }
                 },
                 msbsl : { type : "number", integer : true, min : 0, max : Number.MAX_SAFE_INTEGER },
+                msbbs : { type : "is_hex" },
                 ipk : { type : "is_hex" },
                 wp : { type : "is_hex" }
             }
