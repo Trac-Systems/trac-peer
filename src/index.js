@@ -753,8 +753,8 @@ export class Peer extends ReadyResource {
                 const remotePublicKey = b4a.toString(connection.remotePublicKey, 'hex');
 
                 this.connectedPeers.add(remotePublicKey);
-                wakeup.addStream(connection);
-                this.store.replicate(connection);
+                const stream = this.store.replicate(connection);
+                wakeup.addStream(stream);
                 this.connectedNodes++;
 
                 connection.on('close', () => {
