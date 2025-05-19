@@ -201,7 +201,7 @@ class Protocol{
             async function push(){
                 await _this.peer.sleep(5_000);
                 try{
-                    await _this.broadcastTransaction(this.peer.msb.getNetwork().validator,{
+                    await _this.broadcastTransaction(_this.peer.msb.getNetwork().validator,{
                         type : 'p',
                         value : ''
                     });
