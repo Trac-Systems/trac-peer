@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.1.82",
+  "version": "0.1.83",
   "type": "module",
   "dependencies": {
     "assert": "npm:bare-node-assert",
@@ -59,8 +59,8 @@
     "path": "npm:bare-node-path",
     "pear-interface": "1.0.0",
     "process": "npm:bare-node-process",
-    "protomux": "3.10.1",
-    "protomux-wakeup": "2.4.0",
+    "protomux": "^3.10.1",
+    "protomux-wakeup": "^2.4.0",
     "readline": "npm:bare-node-readline",
     "ready-resource": "1.1.2",
     "repl": "npm:bare-node-repl",

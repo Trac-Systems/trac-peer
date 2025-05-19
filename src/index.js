@@ -99,6 +99,7 @@ export class Peer extends ReadyResource {
                         if(false === this.check.tx(op)) continue;
                         if(op.value.msbbs !== _this.msb.bootstrap) continue;
                         while (_this.msb.base.view.core.signedLength < op.value.msbsl) {
+                            console.log(_this.msb.base.view.core.signedLength, '<', op.value.msbsl)
                             await new Promise( (resolve, reject) => {
                                 _this.msb.base.view.core.once('append', resolve);
                             });
@@ -644,6 +645,17 @@ export class Peer extends ReadyResource {
                 const msb_tx = await view_session.get(tx);
                 await view_session.close();
                 if(null !== msb_tx){
+                    const _this = this;
+                    async function push(){
+                        await _this.sleep(5_000);
+                        try{
+                            await _this.protocol_instance.broadcastTransaction(_this.msb.getNetwork().validator,{
+                                type : 'p',
+                                value : ''
+                            });
+                        } catch(e) { }
+                    }
+                    push();
                     const _tx = {};
                     _tx['msbsl'] = msbsl;
                     _tx['dispatch'] = this.protocol_instance.prepared_transactions_content[tx].dispatch;

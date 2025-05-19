@@ -193,10 +193,22 @@ class Protocol{
         if(this.peer.msb.getNetwork().validator_stream === null) throw new Error('HyperMallProtocol::tx(): No validator available.');
         const obj = this.mapTxCommand(subject.command);
         if(null !== obj && typeof obj.type === 'string' && obj.value !== undefined) {
-            return await this.broadcastTransaction(this.peer.msb.getNetwork().validator,{
+            const ret = await this.broadcastTransaction(this.peer.msb.getNetwork().validator,{
                 type : obj.type,
                 value : obj.value
             }, sim, surrogate);
+            const _this = this;
+            async function push(){
+                await _this.peer.sleep(5_000);
+                try{
+                    await _this.broadcastTransaction(this.peer.msb.getNetwork().validator,{
+                        type : 'p',
+                        value : ''
+                    });
+                } catch(e) { }
+            }
+            push();
+            return ret;
         }
         throw new Error('HyperMallProtocol::tx(): command not found.');
     }
