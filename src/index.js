@@ -646,17 +646,20 @@ export class Peer extends ReadyResource {
                 const msb_tx = await view_session.get(tx);
                 await view_session.close();
                 if(null !== msb_tx){
-                    const _this = this;
-                    async function push(){
-                        await _this.sleep(10_000 * (backoff * 100));
-                        try{
-                            await _this.protocol_instance.broadcastTransaction(_this.msb.getNetwork().validator,{
-                                type : 'p',
-                                value : ''
-                            });
-                        } catch(e) { }
+                    if(this.protocol_instance.prepared_transactions_content[tx].dispatch.type !== undefined &&
+                        this.protocol_instance.prepared_transactions_content[tx].dispatch.type !== 'p'){
+                        const _this = this;
+                        async function push(){
+                            await _this.sleep(10_000 + (backoff * 250));
+                            try{
+                                await _this.protocol_instance.broadcastTransaction(_this.msb.getNetwork().validator,{
+                                    type : 'p',
+                                    value : ''
+                                });
+                            } catch(e) { }
+                        }
+                        push();
                     }
-                    push();
                     const _tx = {};
                     _tx['msbsl'] = msbsl;
                     _tx['dispatch'] = this.protocol_instance.prepared_transactions_content[tx].dispatch;
