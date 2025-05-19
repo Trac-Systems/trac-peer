@@ -632,6 +632,7 @@ export class Peer extends ReadyResource {
 
     async tx_observer(){
         while(true){
+            let backoff = 1;
             const ts = Math.floor(Date.now() / 1000);
             for(let tx in this.tx_pool){
                 if(ts - this.tx_pool[tx].ts > this.max_tx_delay){
@@ -647,7 +648,7 @@ export class Peer extends ReadyResource {
                 if(null !== msb_tx){
                     const _this = this;
                     async function push(){
-                        await _this.sleep(5_000);
+                        await _this.sleep(10_000 * (backoff * 100));
                         try{
                             await _this.protocol_instance.broadcastTransaction(_this.msb.getNetwork().validator,{
                                 type : 'p',
@@ -665,6 +666,7 @@ export class Peer extends ReadyResource {
                     delete this.tx_pool[tx];
                     delete this.protocol_instance.prepared_transactions_content[tx];
                     await this.base.append({ type: 'tx', key: tx, value: _tx });
+                    backoff += 1;
                 }
                 await this.sleep(5);
             }
