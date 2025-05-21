@@ -59,6 +59,7 @@ export class Peer extends ReadyResource {
         this.dhtBootstrap = ['116.202.214.149:10001', '157.180.12.214:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
         this.readline_instance = null;
         this.enable_interactive_mode = options.enable_interactive_mode !== false;
+        this.enable_txlogs = true === options.enable_txlogs;
         if(this.enable_interactive_mode !== false){
             try{
                 this.readline_instance = readline.createInterface({
@@ -155,7 +156,9 @@ export class Peer extends ReadyResource {
                             }
                             await batch.put('utxi/'+post_tx.value.ipk+'/'+ulen, len);
                             await batch.put('utxl/'+post_tx.value.ipk, ulen + 1);
-                            console.log(`${post_tx.value.tx} appended. Signed length:`, _this.base.view.core.signedLength, 'tx length', len + 1);
+                            if(true === _this.enable_txlogs){
+                                console.log(`${post_tx.value.tx} appended. Signed length:`, _this.base.view.core.signedLength, 'tx length', len + 1);
+                            }
                         }
                     } else if(op.type === 'msg') {
                         if(b4a.byteLength(jsonStringify(op)) > _this.protocol_instance.msgMaxBytes()) continue;
