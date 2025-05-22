@@ -96,7 +96,7 @@ class Contract {
                 await this.features[this.op.type]();
             }
         } else if(this.isMessage()) {
-            if(this.message_handler !== undefined){
+            if(typeof this.message_handler === 'function'){
                 try {
                     _return = await this.message_handler();
                 } catch(e) {
