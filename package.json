@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.1.96",
+  "version": "0.1.97",
   "type": "module",
   "dependencies": {
     "assert": "npm:bare-node-assert",
@@ -21,7 +21,7 @@
     "bare-os": "3.6.1",
     "bare-path": "3.0.0",
     "bare-process": "4.2.1",
-    "bare-readline": "^1.0.9",
+    "bare-readline": "1.0.7",
     "bare-repl": "4.0.0",
     "bare-stream": "2.6.5",
     "bare-subprocess": "5.0.3",
