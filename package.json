@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.1.94",
+  "version": "0.1.96",
   "type": "module",
   "dependencies": {
     "assert": "npm:bare-node-assert",
@@ -13,7 +13,7 @@
     "bare-crypto": "1.4.3",
     "bare-events": "2.5.4",
     "bare-fetch": "2.2.2",
-    "bare-fs": "4.1.2",
+    "bare-fs": "^4.1.5",
     "bare-http1": "4.0.2",
     "bare-https": "2.0.0",
     "bare-inspector": "4.0.1",
@@ -21,7 +21,7 @@
     "bare-os": "3.6.1",
     "bare-path": "3.0.0",
     "bare-process": "4.2.1",
-    "bare-readline": "1.0.7",
+    "bare-readline": "^1.0.9",
     "bare-repl": "4.0.0",
     "bare-stream": "2.6.5",
     "bare-subprocess": "5.0.3",

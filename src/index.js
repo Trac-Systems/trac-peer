@@ -774,6 +774,7 @@ export class Peer extends ReadyResource {
 
                 this.connectedPeers.add(remotePublicKey);
                 const stream = this.store.replicate(connection);
+                stream.on('error', (error) => { });
                 wakeup.addStream(stream);
                 this.connectedNodes++;
 
