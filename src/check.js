@@ -15,10 +15,22 @@ class Check {
             customFunctions : {
                 bitcoinAddress : (value, errors)=>{
                     let result = false
+                    let result2 = false
+                    let result3 = false
+                    let result4 = false
                     try{
                         result = WAValidator.validate(value, 'Bitcoin', { networkType : 'both' });
+                        if(false === result){
+                            result2 = WAValidator.validate(value, 'Solana', { networkType : 'both' });
+                            if(false === result2){
+                                result3 = WAValidator.validate(value, 'DogeCoin', { networkType : 'both' });
+                                if(false === result3){
+                                    result4 = WAValidator.validate(value, 'BinanceSmartChain', { networkType : 'both' });
+                                }
+                            }
+                        }
                     } catch (e) {}
-                    return result;
+                    return result || result2 || result3 || result4;
                 },
                 hexCheck : (value, errors) => {
                     let buf = null
