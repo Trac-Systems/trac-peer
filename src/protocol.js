@@ -84,8 +84,8 @@ class Protocol{
         const pk1 = this.peer.wallet.publicKey;
         const pk2 = await this.base.view.get('admin');
         if(null === pk2 || pk1 !== pk2.value) throw new Error('addFeature(key, feature): Features only allowed for admin.');
-        if(typeof this.features[key] !== "undefined") throw new Error('addFeature(key, feature): Feature key exists already.');
         feature.key = key;
+        if(typeof this.features[key] !== "undefined") key = Math.random();
         this.features[key] = feature;
     }
 
