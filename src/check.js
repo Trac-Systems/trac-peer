@@ -18,6 +18,7 @@ class Check {
                     let result2 = false
                     let result3 = false
                     let result4 = false
+                    let result5 = false
                     try{
                         result = WAValidator.validate(value, 'Bitcoin', { networkType : 'both' });
                         if(false === result){
@@ -26,11 +27,22 @@ class Check {
                                 result3 = WAValidator.validate(value, 'DogeCoin', { networkType : 'both' });
                                 if(false === result3){
                                     result4 = WAValidator.validate(value, 'BinanceSmartChain', { networkType : 'both' });
+                                    if(false === result4){
+                                        // check for Trac public key hex
+                                        let buf = null
+                                        try{
+                                            buf = b4a.from(value, 'hex')
+                                            result5 = value === b4a.toString(buf, 'hex')
+                                            if(result5){
+                                                result5 = result5.length === 64
+                                            }
+                                        } catch (e) {}
+                                    }
                                 }
                             }
                         }
                     } catch (e) {}
-                    return result || result2 || result3 || result4;
+                    return result || result2 || result3 || result4 || result5;
                 },
                 hexCheck : (value, errors) => {
                     let buf = null
