@@ -34,7 +34,7 @@ class Check {
                                             buf = b4a.from(value, 'hex')
                                             result5 = value === b4a.toString(buf, 'hex')
                                             if(result5){
-                                                result5 = result5.length === 64
+                                                result5 = value.length === 64
                                             }
                                         } catch (e) {}
                                     }
