@@ -69,7 +69,7 @@
     "stream": "npm:bare-node-stream",
     "timers": "npm:bare-node-timers",
     "tls": "npm:bare-node-tls",
-    "trac-wallet": "0.0.43",
+    "trac-wallet": "github:Trac-Systems/ed25519-key-generator#implement-keystore-encryption",
     "tty": "npm:bare-node-tty",
     "url": "npm:bare-node-url",
     "util": "npm:bare-node-util",
