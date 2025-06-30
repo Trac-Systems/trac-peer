@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.2.5",
+  "version": "0.2.8",
   "type": "module",
   "dependencies": {
     "assert": "npm:bare-node-assert",
