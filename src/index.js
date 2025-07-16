@@ -31,7 +31,7 @@ export class Peer extends ReadyResource {
         this.STORES_DIRECTORY = options.stores_directory;
         this.KEY_PAIR_PATH = `${this.STORES_DIRECTORY}${options.store_name}/db/keypair.json`;
         this.keyPair = null;
-        this.store = new Corestore(this.STORES_DIRECTORY + options.store_name);
+        this.store = new Corestore(this.STORES_DIRECTORY + options.store_name, options);
         this.msb = options.msb || null;
         this.swarm = null;
         this.base = null;
