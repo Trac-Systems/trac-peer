@@ -6,4 +6,4 @@
 /node_modules/
 /contract/stores/
 /contract/stores_msb/
-/package-lock.json
+.vscode/

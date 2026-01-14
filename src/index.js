@@ -5,19 +5,15 @@ import ReadyResource from 'ready-resource';
 import b4a from 'b4a';
 import sodium from 'sodium-native'
 import Hyperbee from 'hyperbee';
-import readline from 'readline';
-import tty from 'tty'
 import Corestore from 'corestore';
 import w from 'protomux-wakeup';
 const wakeup = new w();
 import Protomux from 'protomux'
 import c from 'compact-encoding'
-import {
-    addWriter, addAdmin, setAutoAddWriters, setChatStatus, setMod, deleteMessage,
-    enableWhitelist, postMessage, jsonStringify, visibleLength, setNick,
-    muteStatus, setWhitelistStatus, updateAdmin, tx, safeClone, jsonParse,
-    pinMessage, joinValidator, removeWriter, unpinMessage, enableTransactions
-} from "./functions.js";
+import { MsbClient } from './msbClient.js';
+import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
+import { blake3Hash } from 'trac-msb/src/utils/crypto.js';
+import { jsonStringify, visibleLength, safeClone, jsonParse } from "./functions.js";
 import Check from "./check.js";
 export {default as Protocol} from "./protocol.js";
 export {default as Contract} from "./contract.js";
@@ -28,11 +24,14 @@ export class Peer extends ReadyResource {
 
     constructor(options = {}) {
         super();
+        this.enable_background_tasks = options.enable_background_tasks !== false;
+        this.enable_updater = options.enable_updater !== false;
         this.STORES_DIRECTORY = options.stores_directory;
         this.KEY_PAIR_PATH = `${this.STORES_DIRECTORY}${options.store_name}/db/keypair.json`;
         this.keyPair = null;
         this.store = new Corestore(this.STORES_DIRECTORY + options.store_name);
         this.msb = options.msb || null;
+        this.msbClient = new MsbClient(this.msb);
         this.swarm = null;
         this.base = null;
         this.key = null;
@@ -40,6 +39,10 @@ export class Peer extends ReadyResource {
         this.writerLocalKey = null;
         this.tx_pool_max_size = options.tx_pool_max_size || 1_000;
         this.max_tx_delay = options.max_tx_delay || 60;
+        this.max_msb_signed_length = Number.isSafeInteger(options.max_msb_signed_length) ? options.max_msb_signed_length : 1_000_000_000;
+        this.max_msb_apply_operation_bytes = Number.isSafeInteger(options.max_msb_apply_operation_bytes)
+            ? options.max_msb_apply_operation_bytes
+            : 1024 * 1024;
         this.bootstrap = options.bootstrap || null;
         this.protocol = options.protocol || null;
         this.contract = options.contract || null;
@@ -57,21 +60,13 @@ export class Peer extends ReadyResource {
         this.options = options;
         this.check = new Check();
         this.dhtBootstrap = ['116.202.214.149:10001', '157.180.12.214:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
-        this.readline_instance = null;
-        this.enable_interactive_mode = options.enable_interactive_mode !== false;
-        this.enable_txlogs = true === options.enable_txlogs;
-        if(this.enable_interactive_mode !== false){
-            try{
-                this.readline_instance = readline.createInterface({
-                    input: new tty.ReadStream(0),
-                    output: new tty.WriteStream(1)
-                });
-            }catch(e){ }
-        }
+        this.readline_instance = options.readline_instance || null;
 
-        this.tx_observer();
-        this.validator_observer();
-        this.nodeListener();
+        if (this.enable_background_tasks) {
+            this.tx_observer();
+            this.validator_observer();
+            this.nodeListener();
+        }
         this._boot();
         this.ready().catch(noop);
     }
@@ -93,74 +88,96 @@ export class Peer extends ReadyResource {
                 if(this.contract_instance === null) await this.initContract();
                 const batch = view.batch();
                 for (const node of nodes) {
+                    // Basic node shape validation (prevents apply crashes on malformed entries)
                     if(false === this.check.node(node)) continue;
                     const op = node.value;
                     if (op.type === 'tx') {
+                        // TX apply: only accept subnet TXs that are confirmed on MSB, then execute contract logic
+                        // deterministically (same ordered log => same state everywhere).
+
+                        // Payload size guard (protect apply from huge JSON ops)
                         if(b4a.byteLength(jsonStringify(op)) > _this.protocol_instance.txMaxBytes()) continue;
+                        // Schema validation (required fields / types)
                         if(false === this.check.tx(op)) continue;
-                        if(op.value.msbbs !== _this.msb.bootstrap) continue;
-                        while (_this.msb.base.view.core.signedLength < op.value.msbsl) {
-                            console.log(_this.msb.base.view.core.signedLength, '<', op.value.msbsl)
-                            await new Promise( (resolve, reject) => {
-                                _this.msb.base.view.core.once('append', resolve);
-                            });
+                        // Stall guard: don't allow a writer to pin apply waiting on an absurd MSB height
+                        if (op.value.msbsl > _this.max_msb_signed_length) continue;
+                        if (!_this.msbClient.isReady()) continue;
+                        const msbCore = _this.msb.state.base.view.core;
+                        // Wait for local MSB view to reach the referenced signed length
+                        while (msbCore.signedLength < op.value.msbsl) {
+                            await new Promise((resolve) => msbCore.once('append', resolve));
                         }
-                        const msb_view_session = _this.msb.base.view.checkout(op.value.msbsl);
-                        const post_tx = await msb_view_session.get(op.key);
+                        // Fetch MSB apply-op at msbsl by tx key (op.key = tx hash)
+                        const msb_view_session = _this.msb.state.base.view.checkout(op.value.msbsl);
+                        const msb_tx_entry = await msb_view_session.get(op.key);
                         await msb_view_session.close();
-                        if(false === this.check.postTx(post_tx)) continue;
-                        const content_hash = await _this.createHash('sha256', jsonStringify(op.value.dispatch));
+                        // MSB entry shape/size guards (protect protobuf decode + keep apply bounded)
+                        if (null === msb_tx_entry || false === b4a.isBuffer(msb_tx_entry.value)) continue;
+                        if (msb_tx_entry.value.byteLength > _this.max_msb_apply_operation_bytes) continue;
+                        // Decode MSB operation and ensure it's a TX (type 12) with required fields
+                        const decoded = safeDecodeApplyOperation(msb_tx_entry.value);
+                        if (null === decoded || decoded.txo === undefined) continue;
+                        if (decoded.type !== 12) continue;
+                        // Cross-check: tx hash matches op.key
+                        if (null === decoded.txo.tx || decoded.txo.tx.toString('hex') !== op.key) continue;
+                        // Cross-check: MSB tx targets this subnet + this MSB network
+                        const subnetBootstrapHex = (b4a.isBuffer(_this.bootstrap) ? _this.bootstrap.toString('hex') : ('' + _this.bootstrap)).toLowerCase();
+                        if (null === decoded.txo.bs || decoded.txo.bs.toString('hex') !== subnetBootstrapHex) continue;
+                        if (null === decoded.txo.mbs || decoded.txo.mbs.toString('hex') !== _this.msbClient.bootstrapHex) continue;
+                        // Cross-check: content hash matches the subnet dispatch payload (blake3)
+                        const content_hash = await _this.createHash('blake3', jsonStringify(op.value.dispatch));
+                        if (null === decoded.txo.ch || decoded.txo.ch.toString('hex') !== content_hash) continue;
+                        // Cross-check: requester identity matches ipk
+                        const invokerAddress = decoded.address ? decoded.address.toString('ascii') : null;
+                        const invokerPubKeyHex = invokerAddress ? _this.msbClient.addressToPubKeyHex(invokerAddress) : null;
+                        if (null === invokerPubKeyHex || invokerPubKeyHex !== ('' + op.value.ipk).toLowerCase()) continue;
+                        // Cross-check: validator identity matches wp
+                        const validatorAddress = decoded.txo.va ? decoded.txo.va.toString('ascii') : null;
+                        const validatorPubKeyHex = validatorAddress ? _this.msbClient.addressToPubKeyHex(validatorAddress) : null;
+                        if (null === validatorPubKeyHex || validatorPubKeyHex !== ('' + op.value.wp).toLowerCase()) continue;
+                        // Transactions enabled gate (default: enabled if missing)
                         const enabled = await batch.get('txen');
-                        if ((null === enabled || true === enabled.value) &&
-                            op.key === post_tx.value.tx &&
-                            null === await batch.get('tx/'+post_tx.value.tx) &&
-                            post_tx.value.ch === content_hash &&
-                            post_tx.value.ipk === op.value.ipk &&
-                            post_tx.value.wp === op.value.wp &&
-                            _this.wallet.verify(post_tx.value.ws, post_tx.value.tx + post_tx.value.wn, post_tx.value.wp) &&
-                            _this.wallet.verify(post_tx.value.is, post_tx.value.tx + post_tx.value.in, post_tx.value.ipk) &&
-                            post_tx.value.tx === await _this.protocol_instance.generateTx(
-                                _this.bootstrap, _this.msb.bootstrap,
-                                post_tx.value.wp, post_tx.value.i, post_tx.value.ipk,
-                                post_tx.value.ch, post_tx.value.in
-                            )) {
-                            const err = _this.protocol_instance.getError(
-                                await _this.contract_instance.execute(op, batch)
-                            );
-                            let _err = null;
-                            if(null !== err) {
-                                if(err.constructor.name === 'UnknownContractOperationType') continue;
-                                const _err_msg = parseInt(err.message);
-                                _err = isNaN(_err_msg) ? ''+err.message : _err_msg;
-                            }
-                            let len = await batch.get('txl');
-                            if(null === len) {
-                                len = 0;
-                            } else {
-                                len = len.value;
-                            }
-                            const dta = {};
-                            dta['val'] = safeClone(op.value.dispatch);
-                            dta['err'] = _err;
-                            dta['tx'] = post_tx.value.tx;
-                            dta['ipk'] = post_tx.value.ipk;
-                            dta['wp'] = post_tx.value.wp;
-                            await batch.put('txi/'+len, dta);
-                            await batch.put('txl', len + 1);
-                            await batch.put('tx/'+post_tx.value.tx, len);
-                            let ulen = await batch.get('utxl/'+post_tx.value.ipk);
-                            if(null === ulen) {
-                                ulen = 0;
-                            } else {
-                                ulen = ulen.value;
-                            }
-                            await batch.put('utxi/'+post_tx.value.ipk+'/'+ulen, len);
-                            await batch.put('utxl/'+post_tx.value.ipk, ulen + 1);
-                            if(true === _this.enable_txlogs){
-                                console.log(`${post_tx.value.tx} appended. Signed length:`, _this.base.view.core.signedLength, 'tx length', len + 1);
-                            }
+                        if (!(enabled === null || enabled.value === true)) continue;
+                        // Replay protection: ignore already-indexed TXs
+                        if (null !== await batch.get('tx/' + op.key)) continue;
+                        // Execute contract and index deterministic result into subnet state
+                        const err = _this.protocol_instance.getError(
+                            await _this.contract_instance.execute(op, batch)
+                        );
+                        let _err = null;
+                        if(null !== err) {
+                            if(err.constructor.name === 'UnknownContractOperationType') continue;
+                            const _err_msg = parseInt(err.message);
+                            _err = isNaN(_err_msg) ? ''+err.message : _err_msg;
+                        }
+                        let len = await batch.get('txl');
+                        if(null === len) {
+                            len = 0;
+                        } else {
+                            len = len.value;
+                        }
+                        const dta = {};
+                        dta['val'] = safeClone(op.value.dispatch);
+                        dta['err'] = _err;
+                        dta['tx'] = op.key;
+                        dta['ipk'] = op.value.ipk;
+                        dta['wp'] = op.value.wp;
+                        await batch.put('txi/'+len, dta);
+                        await batch.put('txl', len + 1);
+                        await batch.put('tx/'+op.key, len);
+                        let ulen = await batch.get('utxl/'+op.value.ipk);
+                        if(null === ulen) {
+                            ulen = 0;
+                        } else {
+                            ulen = ulen.value;
+                        }
+                        await batch.put('utxi/'+op.value.ipk+'/'+ulen, len);
+                        await batch.put('utxl/'+op.value.ipk, ulen + 1);
+                        if(true === _this.enable_txlogs){
+                            console.log(`${op.key} appended. Signed length: ${_this.base.view.core.signedLength}, tx length: ${len + 1}`);
                         }
                     } else if(op.type === 'msg') {
+                        // Chat apply: user-signed message + whitelist/mute checks + replay protection.
                         if(b4a.byteLength(jsonStringify(op)) > _this.protocol_instance.msgMaxBytes()) continue;
                         if(false === this.check.msg(op)) continue;
                         const admin = await batch.get('admin');
@@ -215,6 +232,7 @@ export class Peer extends ReadyResource {
                             console.log(`#${len + 1} | ${nick !== null ? nick.value : op.value.dispatch.address}: ${op.value.dispatch.msg}`);
                         }
                     } else if (op.type === 'feature') {
+                        // Feature apply: admin-signed feature/contract op (replay-protected by sh/<hash>).
                         if(b4a.byteLength(jsonStringify(op)) > _this.protocol_instance.featMaxBytes()) continue;
                         if(false === this.check.feature(op)) continue;
                         const str_dispatch_value = jsonStringify(op.value.dispatch.value);
@@ -229,6 +247,7 @@ export class Peer extends ReadyResource {
                             }
                         }
                     } else if (op.type === 'addIndexer') {
+                        // Membership apply: admin-signed add indexer (Autobase writer with isIndexer: true).
                         if(false === this.check.addIndexer(op)) continue;
                         const str_msg = jsonStringify(op.value.msg);
                         const admin = await batch.get('admin');
@@ -245,6 +264,7 @@ export class Peer extends ReadyResource {
                             }
                         }
                     } else if (op.type === 'addWriter') {
+                        // Membership apply: admin-signed add writer (Autobase writer with isIndexer: false).
                         if(false === this.check.addWriter(op)) continue;
                         const str_msg = jsonStringify(op.value.msg);
                         const admin = await batch.get('admin');
@@ -261,6 +281,7 @@ export class Peer extends ReadyResource {
                             }
                         }
                     } else if (op.type === 'removeWriter') {
+                        // Membership apply: admin-signed remove writer/indexer.
                         if(false === this.check.removeWriter(op)) continue;
                         const str_msg = jsonStringify(op.value.msg);
                         const admin = await batch.get('admin');
@@ -277,6 +298,7 @@ export class Peer extends ReadyResource {
                             }
                         }
                     } else if (op.type === 'setChatStatus') {
+                        // Chat config apply: admin-signed chat on/off toggle.
                         if(false === this.check.setChatStatus(op)) continue;
                         const str_msg = jsonStringify(op.value.msg);
                         const admin = await batch.get('admin');
@@ -292,6 +314,7 @@ export class Peer extends ReadyResource {
                             }
                         }
                     } else if (op.type === 'setAutoAddWriters') {
+                        // Membership config apply: admin-signed toggle for auto-adding writers.
                         if(false === this.check.setAutoAddWriters(op)) continue;
                         const str_msg = jsonStringify(op.value.msg);
                         const admin = await batch.get('admin');
@@ -307,6 +330,7 @@ export class Peer extends ReadyResource {
                             }
                         }
                     } else if (op.type === 'autoAddWriter') {
+                        // Membership apply: when auto_add_writers is on, allow a new writer to join by key.
                         if(false === this.check.key(op)) continue;
                         const auto_add_writers = await batch.get('auto_add_writers');
                         const banned = await batch.get('bnd/'+op.key);
@@ -316,13 +340,16 @@ export class Peer extends ReadyResource {
                         }
                         console.log(`Writer auto added: ${op.key}`);
                     } else if (op.type === 'addAdmin') {
+                        // Admin apply: bootstrap node can set the initial admin once.
                         if(false === this.check.key(op)) continue;
-                        const bootstrap = b4a.toString(node.from.key, 'hex')
-                        if(null === await batch.get('admin') && bootstrap === _this.bootstrap){
+                        const bootstrapWriterKeyHex = b4a.toString(node.from.key, 'hex');
+                        const subnetBootstrapHex = (b4a.isBuffer(_this.bootstrap) ? _this.bootstrap.toString('hex') : (''+_this.bootstrap)).toLowerCase();
+                        if(null === await batch.get('admin') && bootstrapWriterKeyHex === subnetBootstrapHex){
                             await batch.put('admin', op.key);
                             console.log(`Admin added: ${op.key}`);
                         }
                     } else if (op.type === 'updateAdmin') {
+                        // Admin apply: current admin transfers admin rights (replay-protected by sh/<hash>).
                         if(false === this.check.updateAdmin(op)) continue;
                         const admin = await batch.get('admin');
                         const str_value = jsonStringify(op.value);
@@ -336,6 +363,7 @@ export class Peer extends ReadyResource {
                             }
                         }
                     } else if(op.type === 'setNick') {
+                        // Chat apply: nickname changes (user/mod/admin-signed, uniqueness-enforced).
                         if(false === this.check.nick(op)) continue;
                         const taken = await batch.get('kcin/'+op.value.dispatch.nick);
                         const chat_status = await batch.get('chat_status');
@@ -373,6 +401,7 @@ export class Peer extends ReadyResource {
                             console.log(`Changed nick to ${op.value.dispatch.nick} (${op.value.dispatch.address})`);
                         }
                     } else if(op.type === 'muteStatus') {
+                        // Chat moderation apply: admin/mod-signed mute/unmute (stored under mtd/<user>).
                         if(false === this.check.mute(op)) continue;
                         const admin = await batch.get('admin');
                         const str_value = jsonStringify(op.value);
@@ -394,6 +423,7 @@ export class Peer extends ReadyResource {
                             }
                         }
                     } else if(op.type === 'deleteMessage') {
+                        // Chat moderation apply: admin/mod/user-signed message deletion (replay-protected by sh/<hash>).
                         if(false === this.check.deleteMessage(op)) continue;
                         const str_value = jsonStringify(op.value);
                         if(null !== str_value &&
@@ -431,6 +461,7 @@ export class Peer extends ReadyResource {
                             }
                         }
                     } else if(op.type === 'unpinMessage') {
+                        // Chat moderation apply: admin/mod-signed unpin.
                         if(false === this.check.unpinMessage(op)) continue;
                         const str_value = jsonStringify(op.value);
                         if(null !== str_value &&
@@ -458,6 +489,7 @@ export class Peer extends ReadyResource {
                             }
                         }
                     } else if(op.type === 'pinMessage') {
+                        // Chat moderation apply: admin/mod-signed pin/unpin (by pinned flag).
                         if(false === this.check.pinMessage(op)) continue;
                         const str_value = jsonStringify(op.value);
                         if(null !== str_value &&
@@ -493,6 +525,7 @@ export class Peer extends ReadyResource {
                             }
                         }
                     } else if(op.type === 'setMod') {
+                        // Chat moderation apply: admin-signed set/unset mod role.
                         if(false === this.check.mod(op)) continue;
                         const admin = await batch.get('admin');
                         const str_value = jsonStringify(op.value);
@@ -506,6 +539,7 @@ export class Peer extends ReadyResource {
                             }
                         }
                     } else if(op.type === 'setWhitelistStatus') {
+                        // Chat whitelist apply: admin-signed add/remove address from whitelist.
                         if(false === this.check.whitelistStatus(op)) continue;
                         const admin = await batch.get('admin');
                         const str_value = jsonStringify(op.value);
@@ -519,6 +553,7 @@ export class Peer extends ReadyResource {
                             }
                         }
                     } else if(op.type === 'enableWhitelist') {
+                        // Chat whitelist config apply: admin-signed enable/disable whitelist enforcement.
                         if(false === this.check.enableWhitelist(op)) continue;
                         const admin = await batch.get('admin');
                         const str_value = jsonStringify(op.value);
@@ -554,6 +589,12 @@ export class Peer extends ReadyResource {
     }
 
     async sendTx(msg){
+        if(this.msbClient.isReady()){
+            if(msg && typeof msg === 'object' && typeof msg.type === 'number') {
+                try { await this.msbClient.broadcastTransaction(msg); } catch(_e) { }
+            }
+            return;
+        }
         if(this.msb.getNetwork().validator_stream === null) return;
         let _msg = safeClone(msg);
         if(_msg['ts'] !== undefined) delete _msg['ts'];
@@ -562,6 +603,9 @@ export class Peer extends ReadyResource {
 
     async _open() {
         await this.base.ready();
+        if (this.bootstrap === null) {
+            this.bootstrap = this.base.key;
+        }
         await this.wallet.initKeyPair(this.KEY_PAIR_PATH, this.readline_instance);
         this.writerLocalKey = b4a.toString(this.base.local.key, 'hex');
         if(!this.init_contract_starting){
@@ -570,11 +614,22 @@ export class Peer extends ReadyResource {
         if (this.replicate) await this._replicate();
         this.on('tx', async (msg) => {
             if(Object.keys(this.tx_pool).length <= this.tx_pool_max_size && !this.tx_pool[msg.tx]){
-                await this.sendTx(msg);
                 msg['ts'] = Math.floor(Date.now() / 1000);
                 this.tx_pool[msg.tx] = msg;
             }
         });
+        if (this.enable_updater) this.updater();
+    }
+
+    async updater() {
+        while (true) {
+            if (this.base.isIndexer &&
+                this.base.view.core.length >
+                this.base.view.core.signedLength) {
+                await this.base.append(null);
+            }
+            await this.sleep(10_000);
+        }
     }
 
     async initContract(){
@@ -592,6 +647,9 @@ export class Peer extends ReadyResource {
     }
 
     async validator_observer(){
+        if(this.msbClient.isReady()){
+            return;
+        }
         while(true){
             if(this.msb.getSwarm() !== null && this.msb.getNetwork().validator_stream === null) {
                 console.log('Looking for available validators, please wait...');
@@ -644,35 +702,31 @@ export class Peer extends ReadyResource {
                     delete this.protocol_instance.prepared_transactions_content[tx];
                     continue;
                 }
-                const msbsl = this.msb.base.view.core.signedLength;
-                const view_session = this.msb.base.view.checkout(msbsl);
+                if(!this.msbClient.isReady()) continue;
+                const msbsl = this.msbClient.getSignedLength();
+                const view_session = this.msb.state.base.view.checkout(msbsl);
                 const msb_tx = await view_session.get(tx);
                 await view_session.close();
-                if(null !== msb_tx){
-                    if(this.protocol_instance.prepared_transactions_content[tx].dispatch.type !== undefined &&
-                        this.protocol_instance.prepared_transactions_content[tx].dispatch.type !== 'p'){
-                        const _this = this;
-                        async function push(){
-                            await _this.sleep(10_000 + (backoff * 250));
-                            try{
-                                await _this.protocol_instance.broadcastTransaction(_this.msb.getNetwork().validator,{
-                                    type : 'p',
-                                    value : ''
-                                });
-                            } catch(e) { }
-                        }
-                        push();
-                    }
-                    const _tx = {};
-                    _tx['msbsl'] = msbsl;
-                    _tx['dispatch'] = this.protocol_instance.prepared_transactions_content[tx].dispatch;
-                    _tx['ipk'] = this.protocol_instance.prepared_transactions_content[tx].ipk;
-                    _tx['wp'] = this.protocol_instance.prepared_transactions_content[tx].validator;
-                    _tx['msbbs'] = this.msb.bootstrap;
+                if (null !== msb_tx && b4a.isBuffer(msb_tx.value)) {
+                    const decoded = safeDecodeApplyOperation(msb_tx.value);
+                    if (decoded?.type !== 12 || decoded?.txo === undefined) continue;
+                    if (decoded.txo.tx === undefined || decoded.txo.tx.toString('hex') !== tx) continue;
+                    const invokerAddress = decoded?.address ? decoded.address.toString('ascii') : null;
+                    const validatorAddress = decoded?.txo?.va ? decoded.txo.va.toString('ascii') : null;
+                    const ipk = invokerAddress ? this.msbClient.addressToPubKeyHex(invokerAddress) : null;
+                    const wp = validatorAddress ? this.msbClient.addressToPubKeyHex(validatorAddress) : null;
+                    if (null === ipk || null === wp) continue;
+                    const prepared = this.protocol_instance.prepared_transactions_content[tx];
+                    if (prepared === undefined) continue;
+                    const subnet_tx = {
+                        msbsl: msbsl,
+                        dispatch: prepared.dispatch,
+                        ipk: ipk,
+                        wp: wp,
+                    };
                     delete this.tx_pool[tx];
                     delete this.protocol_instance.prepared_transactions_content[tx];
-                    await this.base.append({ type: 'tx', key: tx, value: _tx });
-                    backoff += 1;
+                    await this.base.append({ type: 'tx', key: tx, value: subnet_tx });
                 }
                 await this.sleep(5);
             }
@@ -685,6 +739,10 @@ export class Peer extends ReadyResource {
     }
 
     async createHash(type, message){
+        if(type === 'blake3'){
+            const out = await blake3Hash(message);
+            return out.toString('hex');
+        }
         if(type === 'sha256'){
             const out = b4a.alloc(sodium.crypto_hash_sha256_BYTES);
             sodium.crypto_hash_sha256(out, b4a.from(message));
@@ -831,116 +889,6 @@ export class Peer extends ReadyResource {
         } catch (error) {
             console.error('Error during DAG monitoring:', error.message);
         }
-    }
-
-    printHelp(){
-        console.log('Node started. Available commands:');
-        console.log(' ');
-        console.log('- Setup Commands:');
-        console.log('- /add_admin | Works only once and only on bootstrap node! Enter a wallet address to assign admin rights: \'/add_admin --address "<address>"\'.');
-        console.log('- /update_admin | Existing admins may transfer admin ownership. Enter "null" as address to waive admin rights for this peer entirely: \'/update_admin --address "<address>"\'.');
-        console.log('- /add_indexer | Only admin. Enter a peer writer key to get included as indexer for this network: \'/add_indexer --key "<key>"\'.');
-        console.log('- /add_writer | Only admin. Enter a peer writer key to get included as writer for this network: \'/add_writer --key "<key>"\'.');
-        console.log('- /remove_writer | Only admin. Enter a peer writer key to get removed as writer or indexer for this network: \'/remove_writer --key "<key>"\'.');
-        console.log('- /set_auto_add_writers | Only admin. Allow any peer to join as writer automatically: \'/set_auto_add_writers --enabled 1\'');
-        console.log('- /enable_transactions | Only admin. Disable/enable transactions. Enabled by default: \'/enable_transactions --enabled 0\'');
-        console.log(' ');
-        console.log('- Chat Commands:');
-        console.log('- /set_chat_status | Only admin. Enable/disable the built-in chat system: \'/set_chat_status --enabled 1\'. The chat system is disabled by default.');
-        console.log('- /post | Post a message: \'/post --message "Hello"\'. Chat must be enabled. Optionally use \'--reply_to <message id>\' to respond to a desired message.');
-        console.log('- /set_nick | Change your nickname like this \'/set_nick --nick "Peter"\'. Chat must be enabled. Can be edited by admin and mods using the optional --user <address> flag.');
-        console.log('- /mute_status | Only admin and mods. Mute or unmute a user by their address: \'/mute_status --user "<address>" --muted 1\'.');
-        console.log('- /set_mod | Only admin. Set a user as mod: \'/set_mod --user "<address>" --mod 1\'.');
-        console.log('- /delete_message | Delete a message: \'/delete_message --id 1\'. Chat must be enabled.');
-        console.log('- /pin_message | Set the pin status of a message: \'/pin_message --id 1 --pin 1\'. Chat must be enabled.');
-        console.log('- /unpin_message | Unpin a message by its pin id: \'/unpin_message --pin_id 1\'. Chat must be enabled.');
-        console.log('- /enable_whitelist | Only admin. Enable/disable chat whitelists: \'/enable_whitelist --enabled 1\'.');
-        console.log('- /set_whitelist_status | Only admin. Add/remove users to/from the chat whitelist: \'/set_whitelist_status --user "<address>" --status 1\'.');
-        console.log(' ');
-        console.log('- System Commands:');
-        console.log('- /tx | Perform a contract transaction. The command flag contains contract commands (format is protocol dependent): \'/tx --command "<string>"\'. To simulate a tx, additionally use \'--sim 1\'.');
-        console.log('- /join_validator | Try to connect to a specific validator with its MSB address: \'/join_validator --address "<address>"\'.');
-        console.log('- /stats | check system properties such as writer key, DAG, etc.');
-        console.log('- /get_keys | prints your public and private keys. Be careful and never share your private key!');
-        console.log('- /exit | Exit the program');
-        console.log('- /help | This help text');
-
-        this.protocol_instance.printOptions();
-    }
-
-    async interactiveMode() {
-        if(this.readline_instance === null || (global.Pear !== undefined && global.Pear.config.options.type === 'desktop')) return;
-
-        const rl = this.readline_instance;
-
-        this.printHelp();
-
-        rl.on('line', async (input) => {
-            switch (input) {
-                case '/stats':
-                    await this.verifyDag();
-                    break;
-                case '/help':
-                    await this.printHelp();
-                    break;
-                case '/exit':
-                    console.log('Exiting...');
-                    rl.close();
-                    await this.close();
-                    typeof process !== "undefined" ? process.exit(0) : Pear.exit(0);
-                case '/get_keys':
-                    console.log("Public Key: ", this.wallet.publicKey);
-                    console.log("Secret Key: ", this.wallet.secretKey);
-                    break;
-                default:
-                    try {
-                        if (input.startsWith('/tx')) {
-                            await tx(input, this);
-                        } else if (input.startsWith('/add_indexer') || input.startsWith('/add_writer')) {
-                            await addWriter(input, this);
-                        } else if (input.startsWith('/remove_writer')) {
-                            await removeWriter(input, this);
-                        } else if (input.startsWith('/add_admin')) {
-                            await addAdmin(input, this);
-                        } else if (input.startsWith('/update_admin')) {
-                            await updateAdmin(input, this);
-                        } else if (input.startsWith('/set_auto_add_writers')) {
-                            await setAutoAddWriters(input, this);
-                        } else if (input.startsWith('/enable_transactions')) {
-                            await enableTransactions(input, this);
-                        } else if (input.startsWith('/set_chat_status')) {
-                            await setChatStatus(input, this);
-                        } else if (input.startsWith('/post')) {
-                            await postMessage(input, this);
-                        } else if (input.startsWith('/set_nick')) {
-                            await setNick(input, this);
-                        } else if (input.startsWith('/mute_status')) {
-                            await muteStatus(input, this);
-                        } else if (input.startsWith('/pin_message')) {
-                            await pinMessage(input, this);
-                        } else if (input.startsWith('/unpin_message')) {
-                            await unpinMessage(input, this);
-                        } else if (input.startsWith('/set_mod')) {
-                            await setMod(input, this);
-                        } else if (input.startsWith('/delete_message')) {
-                            await deleteMessage(input, this);
-                        } else if (input.startsWith('/enable_whitelist')) {
-                            await enableWhitelist(input, this);
-                        } else if (input.startsWith('/set_whitelist_status')) {
-                            await setWhitelistStatus(input, this);
-                        } else if (input.startsWith('/join_validator')) {
-                            await joinValidator(input, this);
-                        } else {
-                            await this.protocol_instance.customCommand(input);
-                        }
-                    } catch(e) {
-                        console.log('Command failed:', e.message);
-                    }
-            }
-            rl.prompt();
-        });
-
-        rl.prompt();
     }
 }
 

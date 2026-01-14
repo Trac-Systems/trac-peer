@@ -3,7 +3,31 @@
   "main": "src/index.js",
   "version": "0.2.11",
   "type": "module",
+  "pear": {
+    "name": "trac-peer",
+    "type": "terminal"
+  },
+  "exports": {
+    ".": {
+      "bare": "./peer.mjs",
+      "node": "./src/index.js",
+      "default": "./src/index.js"
+    },
+    "./peer": "./peer.mjs",
+    "./src/*": "./src/*"
+  },
+  "scripts": {
+    "peer:run": "node scripts/run-peer.mjs",
+    "peer:run-rpc": "node scripts/run-peer.mjs --rpc",
+    "peer:smoke": "node scripts/smoke-msb-sync.mjs",
+    "peer:pear": "pear run -d .",
+    "peer:pear-rpc": "pear run -d . --rpc",
+    "test:unit:node": "node tests/unit/unit.test.js",
+    "test:acceptance:node": "node tests/acceptance/acceptance.test.js",
+    "test:all": "npm run test:unit:node && npm run test:acceptance:node"
+  },
   "dependencies": {
+    "@tracsystems/blake3": "^0.0.15",
     "assert": "npm:bare-node-assert",
     "autobase": "7.6.3",
     "b4a": "1.6.7",
@@ -69,7 +93,8 @@
     "stream": "npm:bare-node-stream",
     "timers": "npm:bare-node-timers",
     "tls": "npm:bare-node-tls",
-    "trac-wallet": "0.0.43",
+    "trac-msb": "^0.2.7",
+    "trac-wallet": "^0.0.43-msb-r2.9",
     "tty": "npm:bare-node-tty",
     "url": "npm:bare-node-url",
     "util": "npm:bare-node-util",

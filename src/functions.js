@@ -1,61 +1,38 @@
 import b4a from "b4a";
+import { createMessage } from 'trac-msb/src/utils/buffer.js';
+import { blake3Hash } from 'trac-msb/src/utils/crypto.js';
+import { bigIntToDecimalString, decimalStringToBigInt } from 'trac-msb/src/utils/amountSerialization.js';
+import { MSB_OPERATION_TYPE } from './msbClient.js';
+import { requireAdmin, requireAdminOrMod, requireBootstrapNodeForAdminSet } from "./permissions.js";
 
 export function resolveNumberString(number, decimals){
-    number = number + '';
-    decimals = isNaN(decimals) ? 18 : parseInt(decimals);
-    let splitted = number.split(".");
-    if(splitted.length == 1 && decimals > 0){
-        splitted[1] = '';
+    const raw = (number ?? '').toString().trim();
+    const safeDecimals = isNaN(decimals) ? 18 : parseInt(decimals);
+    const match = raw.match(/^(\d*)(?:\.(\d*))?$/);
+    if (!match) return '0';
+    const integerPart = match[1] && match[1].length ? match[1] : '0';
+    let fractionalPart = match[2] ?? '';
+    if (safeDecimals <= 0) {
+        return decimalStringToBigInt(integerPart, 0).toString();
     }
-    if(splitted.length > 1) {
-        let size = decimals - splitted[1].length;
-        for (let i = 0; i < size; i++) {
-            splitted[1] += "0";
-        }
-        let new_splitted = '';
-        for(let i = 0; i < splitted[1].length; i++)
-        {
-            if(i >= decimals)
-            {
-                break;
-            }
-            new_splitted += splitted[1][i];
-        }
-        number = "" + (splitted[0] == '0' ? '' : splitted[0]) + new_splitted;
-        if(BigInt(number) == 0n || number === ''){
-            number = "0";
-        }
-    }
-
-    try {
-
-        while (number.charAt(0) === '0') {
-            number = number.substring(1);
-        }
-
-    }catch(e){
-
-        number = '0';
-    }
-
-    return number === '' ? '0' : number;
+    if (fractionalPart.length > safeDecimals) fractionalPart = fractionalPart.slice(0, safeDecimals);
+    const normalized = `${integerPart}${fractionalPart.length ? '.' + fractionalPart : ''}`;
+    return decimalStringToBigInt(normalized, safeDecimals).toString();
 }
 
 export function formatNumberString(string, decimals) {
-    string = string + '';
-    decimals = isNaN(decimals) ? 18 : parseInt(decimals);
-    let pos = string.length - decimals;
-
-    if(decimals == 0) {
-        // nothing
-    }else
-    if(pos > 0){
-        string = string.substring(0, pos) + "." + string.substring(pos, string.length);
-    }else{
-        string = '0.' + ( "0".repeat( decimals - string.length ) ) + string;
+    const raw = (string ?? '').toString().trim();
+    const safeDecimals = isNaN(decimals) ? 18 : parseInt(decimals);
+    if (!raw) return '0';
+    try {
+        // Accept either an already-decimal string or an integer-encoded string.
+        const asBigInt = raw.includes('.')
+            ? decimalStringToBigInt(raw, safeDecimals)
+            : BigInt(raw);
+        return bigIntToDecimalString(asBigInt, safeDecimals);
+    } catch (_e) {
+        return '0';
     }
-
-    return removeTrailingZeros(string);
 }
 
 export function removeTrailingZeros(value) {
@@ -122,6 +99,7 @@ export function safeClone(obj){
 }
 
 export async function setWhitelistStatus(input, peer){
+    await requireAdmin(peer);
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.user;
     const status = parseInt(splitted.status) === 1;
@@ -150,6 +128,7 @@ export async function enableTransactions(input, peer){
 }
 
 export async function enableWhitelist(input, peer){
+    await requireAdmin(peer);
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.enabled) === 1;
     const nonce = peer.protocol_instance.generateNonce();
@@ -163,6 +142,7 @@ export async function enableWhitelist(input, peer){
 }
 
 export async function unpinMessage(input, peer){
+    await requireAdminOrMod(peer);
     let address = null;
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.pin_id);
@@ -177,6 +157,7 @@ export async function unpinMessage(input, peer){
 }
 
 export async function pinMessage(input, peer){
+    await requireAdminOrMod(peer);
     let address = null;
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.id);
@@ -193,6 +174,7 @@ export async function pinMessage(input, peer){
 }
 
 export async function deleteMessage(input, peer){
+    await requireAdminOrMod(peer);
     let address = null;
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.id);
@@ -207,6 +189,7 @@ export async function deleteMessage(input, peer){
 }
 
 export async function updateAdmin(input, peer){
+    await requireAdmin(peer);
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.address === 'null' ? null : ''+splitted.address;
     const nonce = peer.protocol_instance.generateNonce();
@@ -220,6 +203,7 @@ export async function updateAdmin(input, peer){
 }
 
 export async function setMod(input, peer){
+    await requireAdmin(peer);
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.user;
     const mod = parseInt(splitted.mod) === 1;
@@ -235,6 +219,7 @@ export async function setMod(input, peer){
 }
 
 export async function muteStatus(input, peer){
+    await requireAdminOrMod(peer);
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = ''+splitted.user;
     const muted = parseInt(splitted.muted) === 1;
@@ -256,6 +241,9 @@ export async function setNick(input, peer){
     if(splitted.user !== undefined){
         user = ''+splitted.user;
     }
+    if (user !== null && user !== peer.wallet.publicKey) {
+        await requireAdminOrMod(peer);
+    }
     const nonce = peer.protocol_instance.generateNonce();
     const signature = { dispatch : {
             type : 'setNick',
@@ -270,6 +258,8 @@ export async function setNick(input, peer){
 export async function postMessage(input, peer){
     const splitted = peer.protocol_instance.parseArgs(input)
     if(typeof splitted.message === "boolean" || splitted.message === undefined) throw new Error('Empty message not allowed');
+    const chat_status = await peer.base.view.get('chat_status');
+    if (chat_status === null || chat_status.value !== 'on') throw new Error('Chat is disabled.');
     const reply_to = splitted.reply_to !== undefined ? parseInt(splitted.reply_to) : null;
     const value = '' + splitted.message;
     const nonce = peer.protocol_instance.generateNonce();
@@ -288,6 +278,7 @@ export async function postMessage(input, peer){
 }
 
 export async function setChatStatus(input, peer){
+    await requireAdmin(peer);
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.enabled) === 1 ? 'on' : 'off';
     const nonce = peer.protocol_instance.generateNonce();
@@ -301,6 +292,7 @@ export async function setChatStatus(input, peer){
 }
 
 export async function setAutoAddWriters(input, peer){
+    await requireAdmin(peer);
     const splitted = peer.protocol_instance.parseArgs(input)
     const value = parseInt(splitted.enabled) === 1 ? 'on' : 'off';
     const nonce = peer.protocol_instance.generateNonce();
@@ -314,80 +306,125 @@ export async function setAutoAddWriters(input, peer){
 }
 
 export async function addAdmin(input, peer){
+    await requireBootstrapNodeForAdminSet(peer);
     const splitted = peer.protocol_instance.parseArgs(input)
-    const publicKey = ''+splitted.address;
+    const publicKey = (splitted.address != null ? String(splitted.address) : '').trim().toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(publicKey)) {
+        throw new Error(
+            'Invalid --address. Expected a 32-byte hex public key (64 hex chars). Example: /add_admin --address "<peer-publicKey-hex>"'
+        );
+    }
+    await addAdminKey(publicKey, peer);
+}
+
+export async function addAdminKey(publicKeyHex, peer){
+    await requireBootstrapNodeForAdminSet(peer);
+    const publicKey = (publicKeyHex != null ? String(publicKeyHex) : '').trim().toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(publicKey)) {
+        throw new Error('Invalid public key. Expected 32-byte hex (64 chars).');
+    }
+    if(peer.base.writable === false){
+        throw new Error('Peer is not writable.');
+    }
     await peer.base.append({ type: 'addAdmin', key: publicKey });
 }
 
-export async function addWriter(input, peer){
-    const splitted = input.split(' ');
-    const parsed = peer.protocol_instance.parseArgs(input)
+async function appendAddWriter(peer, keyHex, isIndexer){
+    await requireAdmin(peer);
+    const wk = (keyHex != null ? String(keyHex) : '').trim().toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(wk)) throw new Error('Invalid --key. Expected 32-byte hex (64 chars).');
     const nonce = peer.protocol_instance.generateNonce();
-    if(splitted[0] === '/add_indexer'){
-        const msg = { type: 'addIndexer', key: ''+parsed.key }
-        const signature = {
-            msg: msg
-        };
-        const hash = peer.wallet.sign(JSON.stringify(msg) + nonce);
-        if(peer.base.writable){
-            await peer.base.append({ op : 'append_writer', type: 'addIndexer', key: parsed.key, value: signature, hash: hash, nonce: nonce });
-        }
-    } else if(splitted[0] === '/add_writer') {
-        const msg = { type: 'addWriter', key: ''+parsed.key }
-        const signature = {
-            msg: msg
-        };
-        const hash = peer.wallet.sign(JSON.stringify(msg) + nonce);
-        if(peer.base.writable){
-            await peer.base.append({ op : 'append_writer', type: 'addWriter', key: ''+parsed.key, value: signature, hash: hash, nonce : nonce });
-        }
+    const msg = { type: isIndexer ? 'addIndexer' : 'addWriter', key: wk };
+    const signature = { msg: msg };
+    const hash = peer.wallet.sign(JSON.stringify(msg) + nonce);
+    if(peer.base.writable === false){
+        throw new Error('Peer is not writable.');
     }
+    await peer.base.append({
+        op : 'append_writer',
+        type: isIndexer ? 'addIndexer' : 'addWriter',
+        key: wk,
+        value: signature,
+        hash: hash,
+        nonce: nonce
+    });
 }
 
+export async function addWriterKey(keyHex, peer){
+    return appendAddWriter(peer, keyHex, false);
+}
+
+export async function addIndexerKey(keyHex, peer){
+    return appendAddWriter(peer, keyHex, true);
+}
+
+export async function addWriter(input, peer){
+    await requireAdmin(peer);
+    const parsed = peer.protocol_instance.parseArgs(input);
+    return addWriterKey(parsed.key, peer);
+}
+
+export async function addIndexer(input, peer){
+    await requireAdmin(peer);
+    const parsed = peer.protocol_instance.parseArgs(input);
+    return addIndexerKey(parsed.key, peer);
+}
+
+async function appendRemoveWriter(peer, keyHex){
+    await requireAdmin(peer);
+    const wk = (keyHex != null ? String(keyHex) : '').trim().toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(wk)) throw new Error('Invalid --key. Expected 32-byte hex (64 chars).');
+    const nonce = peer.protocol_instance.generateNonce();
+    const msg = { type: 'removeWriter', key: wk };
+    const signature = { msg: msg };
+    const hash = peer.wallet.sign(JSON.stringify(msg) + nonce);
+    if(peer.base.writable === false){
+        throw new Error('Peer is not writable.');
+    }
+    await peer.base.append({ op : 'remove_writer', type: 'removeWriter', key: wk, value: signature, hash: hash, nonce : nonce });
+}
+
+export async function removeWriterKey(keyHex, peer){
+    return appendRemoveWriter(peer, keyHex);
+}
+
+export async function removeIndexerKey(keyHex, peer){
+    // Current apply operation is `removeWriter` and it removes either writer or indexer.
+    // This keeps the exact on-chain / on-log operation type unchanged.
+    return appendRemoveWriter(peer, keyHex);
+}
 
 export async function removeWriter(input, peer){
-    const splitted = input.split(' ');
-    const parsed = peer.protocol_instance.parseArgs(input)
-    const nonce = peer.protocol_instance.generateNonce();
-    if(splitted[0] === '/remove_writer') {
-        const msg = { type: 'removeWriter', key: ''+parsed.key }
-        const signature = {
-            msg: msg
-        };
-        const hash = peer.wallet.sign(JSON.stringify(msg) + nonce);
-        if(peer.base.writable){
-            await peer.base.append({ op : 'remove_writer', type: 'removeWriter', key: ''+parsed.key, value: signature, hash: hash, nonce : nonce });
-        }
-    }
+    await requireAdmin(peer);
+    const parsed = peer.protocol_instance.parseArgs(input);
+    return removeWriterKey(parsed.key, peer);
+}
+
+export async function removeIndexer(input, peer){
+    await requireAdmin(peer);
+    const parsed = peer.protocol_instance.parseArgs(input);
+    return removeIndexerKey(parsed.key, peer);
 }
 
 export async function joinValidator(input, peer){
     console.log('Please wait...')
     const splitted = peer.protocol_instance.parseArgs(input)
     const address = ''+splitted.address;
-    const validator = await peer.msb.base.view.get(address);
-    if(validator === null || false === validator.value.isWriter || true === validator.value.isIndexer){
-        throw new Error('Invalid validator address. The target does not seem to be a validator or does not exist.');
+    if(peer.msbClient?.isReady()){
+        const pubKeyHex = peer.msbClient.addressToPubKeyHex(address);
+        if(pubKeyHex === null) throw new Error('Invalid validator address.');
+        await peer.msb.network.tryConnect(pubKeyHex, 'validator');
+        return;
     }
-    let cnt = 0;
-    while(peer.msb.getNetwork().validator !== address){
-        if(cnt >= 3) break;
-        await peer.msb.tryConnection(address);
-        await peer.sleep(10);
-        cnt += 1;
-    }
-    if(peer.msb.getNetwork().validator !== address){
-        console.log('Could not connect. You will be connected with the next available one instead.');
-    }
+    throw new Error('MSB is not ready.');
 }
 
 export async function tx(input, peer){
+    if(peer.base?.writable === false) throw new Error('Peer is not writable.');
     const splitted = peer.protocol_instance.parseArgs(input);
     let res = false;
     if(splitted.command === undefined){
         res = new Error('Missing option. Please use the --command flag.');
-    } else if(splitted.sim === undefined && peer.msb.getNetwork().validator === null){
-        res = new Error('No validator available: Please wait for your peer to find an available one or use joinValidator to connect to a specific one.');
     }
     let sim = false;
     try{
@@ -400,7 +437,59 @@ export async function tx(input, peer){
         const err = peer.protocol_instance.getError(res);
         if(null !== err){
             console.log(err.message);
+        } else if(res && typeof res === 'object') {
+            if(res.txo && res.txo.tx) {
+                console.log('MSB TX broadcasted:', res.txo.tx);
+            } else if(res.bdo && res.bdo.tx) {
+                console.log('MSB BOOTSTRAP_DEPLOYMENT broadcasted:', res.bdo.tx);
+            }
         }
     }
     return res;
+}
+
+export async function deploySubnet(input, peer){
+    if(!peer.msbClient?.isReady()) throw new Error('MSB is not ready.');
+    if(peer.wallet.publicKey === null || peer.wallet.secretKey === null) throw new Error('Wallet is not initialized.');
+
+    const txvHex = await peer.msbClient.getTxvHex();
+    const nonceHex = peer.protocol_instance.generateNonce();
+    const subnetBootstrapHex = (b4a.isBuffer(peer.bootstrap) ? peer.bootstrap.toString('hex') : (''+peer.bootstrap)).toLowerCase();
+    const channelHex = b4a.isBuffer(peer.channel) ? peer.channel.toString('hex') : null;
+    if(channelHex === null) throw new Error('Peer channel is not initialized.');
+
+    const address = peer.msbClient.pubKeyHexToAddress(peer.wallet.publicKey);
+    if(address === null) throw new Error('Failed to create MSB address from public key.');
+
+    const msg = createMessage(
+        peer.msbClient.networkId,
+        b4a.from(txvHex, 'hex'),
+        b4a.from(subnetBootstrapHex, 'hex'),
+        b4a.from(channelHex, 'hex'),
+        b4a.from(nonceHex, 'hex'),
+        MSB_OPERATION_TYPE.BOOTSTRAP_DEPLOYMENT
+    );
+    const txBuf = await blake3Hash(msg);
+    const txHex = txBuf.toString('hex');
+    const signatureHex = peer.wallet.sign(txBuf);
+
+    const payload = {
+        type: MSB_OPERATION_TYPE.BOOTSTRAP_DEPLOYMENT,
+        address,
+        bdo: {
+            tx: txHex,
+            txv: txvHex,
+            bs: subnetBootstrapHex,
+            ic: channelHex,
+            in: nonceHex,
+            is: signatureHex
+        }
+    };
+
+    const ok = await peer.msbClient.broadcastBootstrapDeployment(payload);
+    if(ok !== true) throw new Error('Subnet deployment broadcast failed.');
+    console.log('Subnet bootstrap:', subnetBootstrapHex);
+    console.log('Subnet channel (hex):', channelHex);
+    console.log('Subnet deployment tx:', payload.bdo.tx);
+    return payload;
 }

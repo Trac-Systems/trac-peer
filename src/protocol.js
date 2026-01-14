@@ -1,6 +1,10 @@
 import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone } from "./functions.js";
 import {ProtocolApi} from './api.js';
 import Wallet from 'trac-wallet';
+import b4a from 'b4a';
+import { createMessage } from 'trac-msb/src/utils/buffer.js';
+import { blake3Hash } from 'trac-msb/src/utils/crypto.js';
+import { MSB_OPERATION_TYPE } from './msbClient.js';
 
 class Protocol{
     constructor(peer, base, options = {}) {
@@ -89,23 +93,37 @@ class Protocol{
         this.features[key] = feature;
     }
 
-    async generateTx(bootstrap, msb_bootstrap, validator_public_key, local_writer_key, local_public_key, content_hash, nonce){
-        let tx = bootstrap + '-' +
-            msb_bootstrap + '-' +
-            validator_public_key + '-' +
-            local_writer_key + '-' +
-            local_public_key + '-' +
-            content_hash + '-' +
-            nonce;
-        return await this.peer.createHash('sha256', await this.peer.createHash('sha256', tx));
+    async generateTx(networkId, txvHex, incomingWritingKeyHex, contentHashHex, externalBootstrapHex, msbBootstrapHex, nonceHex){
+        const msg = createMessage(
+            networkId,
+            b4a.from(txvHex, 'hex'),
+            b4a.from(incomingWritingKeyHex, 'hex'),
+            b4a.from(contentHashHex, 'hex'),
+            b4a.from(externalBootstrapHex, 'hex'),
+            b4a.from(msbBootstrapHex, 'hex'),
+            b4a.from(nonceHex, 'hex'),
+            MSB_OPERATION_TYPE.TX
+        );
+        const tx = await blake3Hash(msg);
+        return tx.toString('hex');
     }
 
     async simulateTransaction(validator_pub_key, obj, surrogate = null){
         const storage = new SimStorage(this.peer);
         let nonce = this.generateNonce();
-        const content_hash = await this.peer.createHash('sha256', this.safeJsonStringify(obj));
-        let tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, validator_pub_key,
-            this.peer.writerLocalKey, surrogate !== null ? surrogate.address : this.peer.wallet.publicKey, content_hash, nonce);
+        const content_hash = await this.peer.createHash('blake3', this.safeJsonStringify(obj));
+        const txvHex = await this.peer.msbClient.getTxvHex();
+        const msbBootstrapHex = this.peer.msbClient.bootstrapHex;
+        const subnetBootstrapHex = (b4a.isBuffer(this.peer.bootstrap) ? this.peer.bootstrap.toString('hex') : (''+this.peer.bootstrap)).toLowerCase();
+        const tx = await this.generateTx(
+            this.peer.msbClient.networkId,
+            txvHex,
+            this.peer.writerLocalKey,
+            content_hash,
+            subnetBootstrapHex,
+            msbBootstrapHex,
+            nonce
+        );
         const op = {
             type : 'tx',
             key : tx,
@@ -118,55 +136,80 @@ class Protocol{
         return await this.peer.contract_instance.execute(op, storage);
     }
 
-    async broadcastTransaction(validator_pub_key, obj, sim = false, surrogate = null){
+    // async broadcastTransaction(validator_pub_key, obj, sim = false, surrogate = null){
+    //     const tx_enabled = await this.peer.base.view.get('txen');
+    //     if( (null === tx_enabled || true === tx_enabled.value ) &&
+    //         this.peer.msb.getNetwork().validator_stream !== null &&
+    //         this.peer.wallet.publicKey !== null &&
+    //         this.peer.wallet.secretKey !== null &&
+    //         this.base.localWriter !== null &&
+    //         obj.type !== undefined &&
+    //         obj.value !== undefined)
+    //     {
+    //         if(true === sim) {
+    //             return await this.simulateTransaction(validator_pub_key, obj, surrogate);
+    //         }
+    async broadcastTransaction(obj, sim = false, surrogate = null){
+        if(!this.peer.msbClient.isReady()) throw new Error('MSB is not ready.');
         const tx_enabled = await this.peer.base.view.get('txen');
-        if( (null === tx_enabled || true === tx_enabled.value ) &&
-            this.peer.msb.getNetwork().validator_stream !== null &&
-            this.peer.wallet.publicKey !== null &&
-            this.peer.wallet.secretKey !== null &&
-            this.base.localWriter !== null &&
-            obj.type !== undefined &&
-            obj.value !== undefined)
-        {
-            if(true === sim) {
-                return await this.simulateTransaction(validator_pub_key, obj, surrogate);
-            }
+        if (null === tx_enabled || true !== tx_enabled.value ) throw new Error('Tx is not enabled.');
+        if(this.peer.wallet.publicKey === null || this.peer.wallet.secretKey === null) throw new Error('Wallet is not initialized.');
+        if(this.peer.writerLocalKey === null) throw new Error('Local writer is not initialized.');
+        if(obj.type === undefined || obj.value === undefined) throw new Error('Invalid transaction object.');
 
-            let tx, signature, nonce, publicKey;
-            const content_hash = await this.peer.createHash('sha256', this.safeJsonStringify(obj));
-
-            if(surrogate !== null) {
-                nonce = surrogate.nonce;
-                tx = surrogate.tx;
-                signature = surrogate.signature;
-                publicKey = surrogate.address;
-            } else {
-                nonce = this.generateNonce();
-                tx = await this.generateTx(this.peer.bootstrap, this.peer.msb.bootstrap, validator_pub_key,
-                    this.peer.writerLocalKey, this.peer.wallet.publicKey, content_hash, nonce);
-                signature = this.peer.wallet.sign(tx + nonce);
-                publicKey = this.peer.wallet.publicKey;
-            }
-
-            const _tx = {
-                op: 'pre-tx',
-                tx: tx,
-                is: signature,
-                wp : validator_pub_key,
-                i: this.peer.writerLocalKey,
-                ipk: publicKey,
-                ch : content_hash,
-                in : nonce,
-                bs : this.peer.bootstrap,
-                mbs : this.peer.msb.bootstrap
-            };
-
-            this.peer.emit('tx', _tx);
-            this.prepared_transactions_content[tx] = { dispatch : obj, ipk : publicKey, validator : validator_pub_key };
-            return _tx;
-        } else {
-            throw Error('broadcastTransaction(writer, obj): Cannot prepare transaction. Please make sure inputs and local writer are set.');
+        const validator_pub_key = '0'.repeat(64);
+        if(true === sim) {
+            return await this.simulateTransaction(validator_pub_key, obj, surrogate);
         }
+
+        const txvHex = await this.peer.msbClient.getTxvHex();
+        const msbBootstrapHex = this.peer.msbClient.bootstrapHex;
+        const subnetBootstrapHex = (b4a.isBuffer(this.peer.bootstrap) ? this.peer.bootstrap.toString('hex') : (''+this.peer.bootstrap)).toLowerCase();
+        const content_hash = await this.peer.createHash('blake3', this.safeJsonStringify(obj));
+
+        let nonceHex, txHex, signatureHex, pubKeyHex;
+        if(surrogate !== null) {
+            nonceHex = surrogate.nonce;
+            txHex = surrogate.tx;
+            signatureHex = surrogate.signature;
+            pubKeyHex = surrogate.address;
+        } else {
+            nonceHex = this.generateNonce();
+            txHex = await this.generateTx(
+                this.peer.msbClient.networkId,
+                txvHex,
+                this.peer.writerLocalKey,
+                content_hash,
+                subnetBootstrapHex,
+                msbBootstrapHex,
+                nonceHex
+            );
+            signatureHex = this.peer.wallet.sign(b4a.from(txHex, 'hex'));
+            pubKeyHex = this.peer.wallet.publicKey;
+        }
+
+        const address = this.peer.msbClient.pubKeyHexToAddress(pubKeyHex);
+        if(address === null) throw new Error('Failed to create MSB address from public key.');
+
+        const payload = {
+            type: MSB_OPERATION_TYPE.TX,
+            address: address,
+            txo: {
+                tx: txHex,
+                txv: txvHex,
+                iw: this.peer.writerLocalKey,
+                in: nonceHex,
+                ch: content_hash,
+                is: signatureHex,
+                bs: subnetBootstrapHex,
+                mbs: msbBootstrapHex
+            }
+        };
+
+        await this.peer.msbClient.broadcastTransaction(payload);
+        this.prepared_transactions_content[txHex] = { dispatch : obj, ipk : pubKeyHex, address : address };
+        this.peer.emit('tx', { tx : txHex });
+        return payload;
     }
 
     async tokenizeInput(input){
@@ -179,8 +222,10 @@ class Protocol{
     }
 
     getError(value){
-        if (value === false || (value !== undefined && value.stack !== undefined && value.message !== undefined)) {
-            return value === false ? new Error('Error') : value;
+        if (value === false) return new Error('Error');
+        if (value === null || value === undefined) return null;
+        if (typeof value === 'object' && value.stack !== undefined && value.message !== undefined) {
+            return value;
         }
         return null;
     }
@@ -190,10 +235,9 @@ class Protocol{
     }
 
     async tx(subject, sim = false, surrogate = null){
-        if(this.peer.msb.getNetwork().validator_stream === null) throw new Error('HyperMallProtocol::tx(): No validator available.');
         const obj = this.mapTxCommand(subject.command);
         if(null !== obj && typeof obj.type === 'string' && obj.value !== undefined) {
-            const ret = await this.broadcastTransaction(this.peer.msb.getNetwork().validator,{
+            return await this.broadcastTransaction({
                 type : obj.type,
                 value : obj.value
             }, sim, surrogate);
