@@ -3,13 +3,14 @@ import path from "path";
 import fs from "fs";
 import { ensureTextCodecs } from "./src/textCodec.js";
 
-import { Peer, Wallet, Protocol as BaseProtocol, Contract as BaseContract } from "./src/index.js";
+import { Peer, Wallet } from "./src/index.js";
 import { MainSettlementBus } from "trac-msb/src/index.js";
-import { bufferToBigInt, bigIntToDecimalString } from "trac-msb/src/utils/amountSerialization.js";
 import { getPearRuntime } from "./src/runnerArgs.js";
 import { resolvePeerRunnerConfig } from "./src/peerRunnerConfig.js";
 import { startRpcServer } from "./rpc/rpc_server.js";
 import { startInteractiveCli } from "./src/cli.js";
+import PokemonProtocol from "./src/dev/pokemonProtocol.js";
+import PokemonContract from "./src/dev/pokemonContract.js";
 
 console.log("Starting trac-peer (Pear runner)...");
 
@@ -60,109 +61,15 @@ const msb = new MainSettlementBus({
 });
 await msb.ready();
 
-class DevProtocol extends BaseProtocol {
-  mapTxCommand(command) {
-    if (typeof command !== "string" || command.trim() === "") return null;
-    const raw = command.trim();
-    if (raw.startsWith("{")) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed.type === "string" && parsed.value !== undefined) {
-          return { type: parsed.type, value: parsed.value };
-        }
-      } catch (_e) {}
-    }
-    if (raw === "ping" || raw.startsWith("ping ")) {
-      const msg = raw === "ping" ? "pong" : raw.slice(5);
-      return { type: "ping", value: { msg } };
-    }
-    if (raw.startsWith("set ")) {
-      const parts = raw.split(" ").filter(Boolean);
-      if (parts.length >= 3) {
-        const key = parts[1];
-        const value = parts.slice(2).join(" ");
-        return { type: "set", value: { key, value } };
-      }
-    }
-    return { type: "ping", value: { msg: raw } };
-  }
-
-  async customCommand(input) {
-    if (typeof input !== "string") return;
-    if (input.startsWith("/get")) {
-      const m = input.match(/(?:^|\\s)--key(?:=|\\s+)(.+)$/);
-      const raw = m ? m[1].trim() : null;
-      if (!raw) {
-        console.log('Usage: /get --key "<hyperbee-key>"');
-        return;
-      }
-      const key = raw.replace(/^\"(.*)\"$/, "$1").replace(/^'(.*)'$/, "$1");
-      const v = await this.getSigned(key);
-      console.log(v);
-      return;
-    }
-    if (input.startsWith("/msb")) {
-      const txv = await this.peer.msbClient.getTxvHex();
-      const peerMsbAddress = this.peer.msbClient.pubKeyHexToAddress(this.peer.wallet.publicKey);
-      const entry = peerMsbAddress ? await this.peer.msb.state.getNodeEntryUnsigned(peerMsbAddress) : null;
-      const balance = entry?.balance ? bigIntToDecimalString(bufferToBigInt(entry.balance)) : null;
-      const fee = bigIntToDecimalString(bufferToBigInt(this.peer.msb.state.getFee()));
-      const validators = this.peer.msb.network?.validatorConnectionManager?.connectionCount?.() ?? 0;
-      console.log({
-        networkId: this.peer.msbClient.networkId,
-        msbBootstrap: this.peer.msbClient.bootstrapHex,
-        txv,
-        msbSignedLength: this.peer.msb.state.getSignedLength(),
-        msbUnsignedLength: this.peer.msb.state.getUnsignedLength(),
-        connectedValidators: validators,
-        peerMsbAddress,
-        peerMsbBalance: balance,
-        msbFee: fee,
-      });
-      return;
-    }
-  }
-
-  async printOptions() {
-    console.log("");
-    console.log("- Dev commands:");
-    console.log("- /msb | prints MSB txv + lengths (local MSB node view).");
-    console.log('- /get --key "<key>" | reads signed subnet state key.');
-    console.log("");
-    console.log("- Dev TX examples:");
-    console.log('- /tx --command "ping hello"');
-    console.log('- /tx --command "set foo bar"');
-    console.log('- /tx --command "{\\"type\\":\\"ping\\",\\"value\\":{\\"msg\\":\\"hi\\"}}"');
-  }
-}
-
-class DevContract extends BaseContract {
-  constructor(protocol) {
-    super(protocol);
-    this.addFunction("ping");
-    this.addFunction("set");
-  }
-
-  async ping() {
-    const msg = this.value?.msg != null ? String(this.value.msg) : null;
-    await this.put(`app/ping/${this.tx}`, { from: this.address, msg, tx: this.tx });
-  }
-
-  async set() {
-    const key = this.value?.key != null ? String(this.value.key) : null;
-    const value = this.value?.value != null ? String(this.value.value) : null;
-    if (!key) throw new Error("Missing key");
-    await this.put(`app/kv/${key}`, { value, tx: this.tx, from: this.address });
-  }
-}
+// DevProtocol and DevContract moved to separate files for reuse.
 
 const peer = new Peer({
   stores_directory: cfg.peerStoresDirectory,
   store_name: cfg.peerStoreName,
   msb,
   wallet: new Wallet(),
-  protocol: DevProtocol,
-  contract: DevContract,
+  protocol: PokemonProtocol,
+  contract: PokemonContract,
   bootstrap: cfg.subnetBootstrap ? b4a.from(cfg.subnetBootstrap, "hex") : null,
   channel: cfg.subnetChannel,
   enable_interactive_mode: true,

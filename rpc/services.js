@@ -63,7 +63,7 @@ export async function getState(peer, key, { confirmed = true } = {}) {
 
 export async function broadcastTx(peer, { command, sim = false } = {}) {
   if (!peer.base?.writable) throw new Error("Peer subnet is not writable (writer required for /tx).");
-  const cmd = String(command ?? "").trim();
+  const cmd = command;
   if (!cmd) throw new Error("Missing command.");
   return await peer.protocol_instance.tx({ command: cmd }, !!sim);
 }
