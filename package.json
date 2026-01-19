@@ -93,7 +93,7 @@
     "stream": "npm:bare-node-stream",
     "timers": "npm:bare-node-timers",
     "tls": "npm:bare-node-tls",
-    "trac-msb": "^0.2.7",
+    "trac-msb": "^0.2.8",
     "trac-wallet": "^0.0.43-msb-r2.9",
     "tty": "npm:bare-node-tty",
     "url": "npm:bare-node-url",
@@ -106,5 +106,8 @@
     "registry": "https://registry.npmjs.org",
     "access": "public",
     "brittle": "3.0.0"
+  },
+  "devDependencies": {
+    "brittle": "^3.19.1"
   }
 }
