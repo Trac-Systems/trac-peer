@@ -93,6 +93,7 @@
     "stream": "npm:bare-node-stream",
     "timers": "npm:bare-node-timers",
     "tls": "npm:bare-node-tls",
+    "trac-crypto-api": "^0.1.3",
     "trac-msb": "^0.2.8",
     "trac-wallet": "^0.0.43-msb-r2.9",
     "tty": "npm:bare-node-tty",

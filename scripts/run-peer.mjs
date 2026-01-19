@@ -2,15 +2,20 @@ import b4a from "b4a";
 import path from "path";
 import fs from "fs";
 import PeerWallet from "trac-wallet";
-
 import { Peer, Wallet } from "../src/index.js";
 import { MainSettlementBus } from "trac-msb/src/index.js";
+import { createConfig, ENV } from "trac-msb/src/config/env.js"
 import { startRpcServer } from "../rpc/rpc_server.js";
 import { DEFAULT_RPC_HOST, DEFAULT_RPC_PORT, DEFAULT_MAX_BODY_BYTES } from "../rpc/constants.js";
 import { startInteractiveCli } from "../src/cli.js";
 import { ensureTextCodecs } from "../src/textCodec.js";
 import PokemonProtocol from "../src/dev/pokemonProtocol.js";
 import PokemonContract from "../src/dev/pokemonContract.js";
+
+const createMsb = () => {
+  const config = createConfig(ENV.MAINNET)
+  return new MainSettlementBus(config);
+}
 
 const toArgMap = (argv) => {
   const out = {};
@@ -180,18 +185,7 @@ if (subnetBootstrap) {
   }
 }
 
-const msb = new MainSettlementBus({
-  stores_directory: ensureTrailingSlash(msbStoresDirectory),
-  store_name: `/${msbStoreName}`,
-  bootstrap: msbBootstrapHex,
-  channel: msbChannel,
-  enable_interactive_mode: false,
-  enable_wallet: true,
-  enable_validator_observer: true,
-  enable_role_requester: false,
-  enable_tx_apply_logs: false,
-  enable_error_apply_logs: false,
-});
+const msb = createMsb()
 await msb.ready();
 
 // DevProtocol and DevContract moved to shared src files
@@ -223,8 +217,8 @@ if (!subnetBootstrap) {
 
 console.log("");
 console.log("==================== TRAC-PEER RUNNER ====================");
-console.log("MSB network bootstrap:", msb.bootstrap?.toString("hex") ?? null);
-console.log("MSB channel:", b4a.toString(msb.channel, "utf8"));
+console.log("MSB network bootstrap:", msb.config.bootstrap?.toString("hex") ?? null);
+console.log("MSB channel:", b4a.toString(msb.config.channel, "utf8"));
 console.log("MSB wallet address:", msb.wallet?.address ?? null);
 console.log("----------------------------------------------------------");
 console.log("Peer store:", path.join(peerStoresDirectory, peerStoreNameRaw));
