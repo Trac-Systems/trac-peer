@@ -12,7 +12,7 @@ import Protomux from 'protomux'
 import c from 'compact-encoding'
 import { MsbClient } from './msbClient.js';
 import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
-import { blake3Hash } from 'trac-msb/src/utils/crypto.js';
+import { blake3 } from '@tracsystems/blake3'
 import { jsonStringify, visibleLength, safeClone, jsonParse } from "./functions.js";
 import Check from "./check.js";
 export {default as Protocol} from "./protocol.js";
@@ -740,7 +740,7 @@ export class Peer extends ReadyResource {
 
     async createHash(type, message){
         if(type === 'blake3'){
-            const out = await blake3Hash(message);
+            const out = await blake3(message);
             return out.toString('hex');
         }
         if(type === 'sha256'){

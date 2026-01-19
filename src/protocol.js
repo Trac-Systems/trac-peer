@@ -3,7 +3,7 @@ import {ProtocolApi} from './api.js';
 import Wallet from 'trac-wallet';
 import b4a from 'b4a';
 import { createMessage } from 'trac-msb/src/utils/buffer.js';
-import { blake3Hash } from 'trac-msb/src/utils/crypto.js';
+import { blake3 } from '@tracsystems/blake3'
 import { MSB_OPERATION_TYPE } from './msbClient.js';
 
 class Protocol{
@@ -104,7 +104,7 @@ class Protocol{
             b4a.from(nonceHex, 'hex'),
             MSB_OPERATION_TYPE.TX
         );
-        const tx = await blake3Hash(msg);
+        const tx = await blake3(msg);
         return tx.toString('hex');
     }
 

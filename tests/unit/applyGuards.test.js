@@ -5,8 +5,7 @@ import os from 'os';
 import fs from 'fs/promises';
 import PeerWallet from 'trac-wallet';
 import { safeEncodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
-import { blake3Hash } from 'trac-msb/src/utils/crypto.js';
-
+import { blake3 } from '@tracsystems/blake3'
 import { Peer } from '../../src/index.js';
 import Wallet from '../../src/wallet.js';
 
@@ -177,7 +176,7 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
         const validatorAddress = PeerWallet.encodeBech32mSafe('trac', b4a.from(wpHex, 'hex'));
 
         const dispatch = { type: 'ping', value: { msg: 'hello' } };
-        const ch = (await blake3Hash(JSON.stringify(dispatch))).toString('hex');
+        const ch = (await blake3(JSON.stringify(dispatch))).toString('hex');
 
         const makePeer = async (maxBytes, storeName) => {
             let msbOperation = null;

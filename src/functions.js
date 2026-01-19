@@ -1,6 +1,6 @@
 import b4a from "b4a";
 import { createMessage } from 'trac-msb/src/utils/buffer.js';
-import { blake3Hash } from 'trac-msb/src/utils/crypto.js';
+import { blake3 } from '@tracsystems/blake3'
 import { bigIntToDecimalString, decimalStringToBigInt } from 'trac-msb/src/utils/amountSerialization.js';
 import { MSB_OPERATION_TYPE } from './msbClient.js';
 import { requireAdmin, requireAdminOrMod, requireBootstrapNodeForAdminSet } from "./permissions.js";
@@ -469,7 +469,7 @@ export async function deploySubnet(input, peer){
         b4a.from(nonceHex, 'hex'),
         MSB_OPERATION_TYPE.BOOTSTRAP_DEPLOYMENT
     );
-    const txBuf = await blake3Hash(msg);
+    const txBuf = await blake3(msg);
     const txHex = txBuf.toString('hex');
     const signatureHex = peer.wallet.sign(txBuf);
 
