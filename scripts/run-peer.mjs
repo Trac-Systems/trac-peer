@@ -11,6 +11,7 @@ import { startInteractiveCli } from "../src/cli.js";
 import { ensureTextCodecs } from "../src/textCodec.js";
 import PokemonProtocol from "../src/dev/pokemonProtocol.js";
 import PokemonContract from "../src/dev/pokemonContract.js";
+import process from "bare-process";
 
 const createMsb = (options) => {
   const config = createConfig(ENV.MAINNET, options)
@@ -185,7 +186,7 @@ if (subnetBootstrap) {
   }
 }
 
-const msb = createMsb({ bootstrap: msbBootstrap, channel: msbChannel })
+const msb = createMsb({ bootstrap: msbBootstrap, channel: msbChannel, storeName: msbStoreName, storesDirectory: msbStoresDirectory})
 await msb.ready();
 
 // DevProtocol and DevContract moved to shared src files

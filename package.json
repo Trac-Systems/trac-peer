@@ -20,8 +20,8 @@
     "peer:run": "node scripts/run-peer.mjs",
     "peer:run-rpc": "node scripts/run-peer.mjs --rpc",
     "peer:smoke": "node scripts/smoke-msb-sync.mjs",
-    "peer:pear": "pear run -d .",
-    "peer:pear-rpc": "pear run -d . --rpc",
+    "peer:pear": "pear run -d scripts/run-peer.mjs",
+    "peer:pear-rpc": "pear run -d scripts/run-peer.mjs --rpc",
     "test:unit:node": "node tests/unit/unit.test.js",
     "test:acceptance:node": "node tests/acceptance/acceptance.test.js",
     "test:all": "npm run test:unit:node && npm run test:acceptance:node"
