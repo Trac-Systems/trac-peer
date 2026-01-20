@@ -741,7 +741,7 @@ export class Peer extends ReadyResource {
     async createHash(type, message){
         if(type === 'blake3'){
             const out = await blake3(message);
-            return out.toString('hex');
+            return b4a.toString(out, 'hex');
         }
         if(type === 'sha256'){
             const out = b4a.alloc(sodium.crypto_hash_sha256_BYTES);

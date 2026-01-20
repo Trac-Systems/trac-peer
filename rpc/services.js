@@ -10,7 +10,7 @@ const asHex32 = (value, field) => {
 
 export async function getStatus(peer) {
   const subnetBootstrapHex = b4a.isBuffer(peer.bootstrap)
-    ? peer.bootstrap.toString("hex")
+    ? b4a.toString(peer.bootstrap, "hex")
     : peer.bootstrap != null
       ? String(peer.bootstrap)
       : null;

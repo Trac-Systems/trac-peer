@@ -86,9 +86,9 @@ if (cfg.rpcEnabled) {
 
 const peerMsbAddress = peer.msbClient.pubKeyHexToAddress(peer.wallet.publicKey);
 const effectiveSubnetBootstrapHex = peer.base?.key
-  ? peer.base.key.toString("hex")
+  ? b4a.toString(peer.base.key, "hex")
   : b4a.isBuffer(peer.bootstrap)
-    ? peer.bootstrap.toString("hex")
+    ? b4a.toString(peer.bootstrap, "hex")
     : String(peer.bootstrap);
 
 if (!cfg.subnetBootstrap) {

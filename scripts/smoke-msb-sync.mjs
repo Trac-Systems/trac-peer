@@ -49,8 +49,8 @@ try {
   tmp = await initTemporaryDirectory();
 
   const opts = {
-    bootstrap: randomBytes(32).toString("hex"),
-    channel: randomBytes(32).toString("hex"),
+    bootstrap: b4a.toString(randomBytes(32), "hex"),
+    channel: b4a.toString(randomBytes(32), "hex"),
     enable_role_requester: false,
     enable_wallet: true,
     enable_validator_observer: true,
@@ -92,7 +92,7 @@ try {
   await peer.ready();
 
   const subnetBootstrapHex = b4a.isBuffer(peer.bootstrap)
-    ? peer.bootstrap.toString("hex")
+    ? b4a.toString(peer.bootstrap, "hex")
     : String(peer.bootstrap);
 
   console.log("Peer ready.");

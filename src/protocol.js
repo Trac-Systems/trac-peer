@@ -105,7 +105,7 @@ class Protocol{
             MSB_OPERATION_TYPE.TX
         );
         const tx = await blake3(msg);
-        return tx.toString('hex');
+        return b4a.toString(tx, 'hex');
     }
 
     async simulateTransaction(validator_pub_key, obj, surrogate = null){

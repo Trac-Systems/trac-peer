@@ -470,7 +470,7 @@ export async function deploySubnet(input, peer){
         MSB_OPERATION_TYPE.BOOTSTRAP_DEPLOYMENT
     );
     const txBuf = await blake3(msg);
-    const txHex = txBuf.toString('hex');
+    const txHex = b4a.toString(txBuf, 'hex');
     const signatureHex = peer.wallet.sign(txBuf);
 
     const payload = {

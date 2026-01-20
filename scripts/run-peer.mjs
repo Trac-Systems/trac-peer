@@ -12,8 +12,8 @@ import { ensureTextCodecs } from "../src/textCodec.js";
 import PokemonProtocol from "../src/dev/pokemonProtocol.js";
 import PokemonContract from "../src/dev/pokemonContract.js";
 
-const createMsb = () => {
-  const config = createConfig(ENV.MAINNET)
+const createMsb = (options) => {
+  const config = createConfig(ENV.MAINNET, options)
   return new MainSettlementBus(config);
 }
 
@@ -185,7 +185,7 @@ if (subnetBootstrap) {
   }
 }
 
-const msb = createMsb()
+const msb = createMsb({ bootstrap: msbBootstrap, channel: msbChannel })
 await msb.ready();
 
 // DevProtocol and DevContract moved to shared src files
@@ -209,7 +209,7 @@ if (rpcEnabled) {
 }
 
 const peerMsbAddress = peer.msbClient.pubKeyHexToAddress(peer.wallet.publicKey);
-const effectiveSubnetBootstrapHex = peer.base?.key ? peer.base.key.toString("hex") : (b4a.isBuffer(peer.bootstrap) ? peer.bootstrap.toString("hex") : String(peer.bootstrap));
+const effectiveSubnetBootstrapHex = peer.base?.key ? b4a.toString(peer.base.key, "hex") : (b4a.isBuffer(peer.bootstrap) ? b4a.toString(peer.bootstrap, "hex") : String(peer.bootstrap));
 if (!subnetBootstrap) {
   fs.mkdirSync(path.dirname(subnetBootstrapFile), { recursive: true });
   fs.writeFileSync(subnetBootstrapFile, `${effectiveSubnetBootstrapHex}\n`);
