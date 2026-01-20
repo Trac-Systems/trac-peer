@@ -176,7 +176,7 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
         const validatorAddress = PeerWallet.encodeBech32mSafe('trac', b4a.from(wpHex, 'hex'));
 
         const dispatch = { type: 'ping', value: { msg: 'hello' } };
-        const ch = (await blake3(JSON.stringify(dispatch))).toString('hex');
+        const ch = b4a.toString(await blake3(JSON.stringify(dispatch)), 'hex');
 
         const makePeer = async (maxBytes, storeName) => {
             let msbOperation = null;
@@ -242,6 +242,7 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
             const msbLen = (await peerBlocked.msb.state.base.view.checkout(1).get(txHashHex))?.value?.byteLength ?? null;
             t.ok(msbLen !== null && msbLen > maxBytes, 'fixture MSB payload is larger than max bytes');
             await peerBlocked.base.append(op);
+            await peerBlocked.base.update();
             const txl = await peerBlocked.bee.get('txl');
             t.is(txl, null, 'tx should not be indexed when MSB apply payload exceeds max bytes');
         } finally {
@@ -251,6 +252,7 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
         const peerAllowed = await makePeer(1024 * 1024, 'peer-maxbytes-allowed');
         try {
             await peerAllowed.base.append(op);
+            await peerAllowed.base.update();
             const txl = await peerAllowed.bee.get('txl');
             t.is(txl?.value ?? null, 1, 'tx should be indexed when MSB apply payload is within max bytes');
         } finally {
