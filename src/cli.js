@@ -212,6 +212,7 @@ export async function startInteractiveCli(peer, { readlineInstance = null } = {}
                 await peer.close();
                 typeof process !== "undefined" ? process.exit(0) : Pear.exit(0);
             case '/get_keys':
+                console.log("Address: ", peer.wallet.address);
                 console.log("Public Key: ", peer.wallet.publicKey);
                 console.log("Secret Key: ", peer.wallet.secretKey);
                 break;
