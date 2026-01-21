@@ -36,4 +36,4 @@ jobs:
           registry-url: 'https://registry.npmjs.org/'
           cache: 'npm'
       - run: npm ci
-      - run: npm publish --tag rc
+      - run: npm publish --public
