@@ -22,7 +22,7 @@ export class ProtocolApi{
      * @returns {null|string}
      */
     getPeerValidatorAddress(){
-        return this.peer.msb.getNetwork().validator;
+        return null;
     }
 
     /**
@@ -38,7 +38,7 @@ export class ProtocolApi{
      * @returns {null|string}
      */
     getPeerMsbBootstrap(){
-        return this.peer.msb.bootstrap;
+        return this.peer.msbClient.bootstrapHex;
     }
 
     /**
@@ -153,10 +153,17 @@ export class ProtocolApi{
      * @returns {Promise<*>}
      */
     async generateTx(address, command_hash, nonce) {
-        if(this.getPeerValidatorAddress() === null) throw new Error('Peer not connected to a validator.');
-        return await this.peer.protocol_instance.generateTx(this.getPeerBootstrap(),
-            this.getPeerMsbBootstrap(), this.getPeerValidatorAddress(), this.getPeerWriterKey(),
-            address, command_hash, nonce);
+        const txvHex = await this.peer.msbClient.getTxvHex();
+        const subnetBootstrapHex = (b4a.isBuffer(this.getPeerBootstrap()) ? this.getPeerBootstrap().toString('hex') : (''+this.getPeerBootstrap())).toLowerCase();
+        return await this.peer.protocol_instance.generateTx(
+            this.peer.msbClient.networkId,
+            txvHex,
+            this.getPeerWriterKey(),
+            command_hash,
+            subnetBootstrapHex,
+            this.getPeerMsbBootstrap(),
+            nonce
+        );
     }
 
     /**
@@ -183,7 +190,7 @@ export class ProtocolApi{
      *
      * let address = your_ed25519_wallet.getAccountAddress()
      * let nonce = api.generateNonce()
-     * let tx_hash = api.generateTx(address, a_sha256_function(JSON.stringify(api.prepareTxCommand(command))), nonce)
+     * let tx_hash = api.generateTx(address, a_blake3_function(JSON.stringify(api.prepareTxCommand(command))), nonce)
      * let signature = your_ed25519_wallet.sign(tx + nonce)
      * // simulating
      * let sim_result = api.tx(tx_hash, api.prepareTxCommand(command), address, signature, nonce, true)
@@ -202,7 +209,6 @@ export class ProtocolApi{
     async tx(tx, prepared_command, address, signature, nonce, sim = false ){
         if(true !== this.api_tx_exposed) throw new Error('Transactions not exposed in API.');
         if(this.peer.base.writable === false) throw new Error('Peer is not writable.');
-        if(this.getPeerValidatorAddress() === null) throw new Error('Peer not connected to a validator.');
         if(typeof prepared_command !== 'object') throw new Error('prepared_command must be an object.');
         if(typeof prepared_command.type !== 'string') throw new Error('prepared_command.type must exist and be a string.');
         if(prepared_command.value === undefined) throw new Error('prepared_command.value is missing.');
@@ -213,16 +219,18 @@ export class ProtocolApi{
         if(b4a.toString(b4a.from(address, 'hex'), 'hex') !== address) throw new Error('Invalid address.');
         if(b4a.toString(b4a.from(signature, 'hex'), 'hex') !== signature) throw new Error('Invalid signature.');
         if(b4a.toString(b4a.from(nonce, 'hex'), 'hex') !== nonce) throw new Error('Invalid nonce.');
-        const verified = this.peer.wallet.verify(signature, tx + nonce, address);
+        const verified = this.peer.wallet.verify(signature, b4a.from(tx, 'hex'), address);
         if(false === verified) throw new Error('Invalid signature.');
-        const content_hash = await this.peer.createHash('sha256', this.peer.protocol_instance.safeJsonStringify(prepared_command));
+        const content_hash = await this.peer.createHash('blake3', this.peer.protocol_instance.safeJsonStringify(prepared_command));
         let _tx = await this.generateTx(address, content_hash, nonce);
         if(tx !== _tx) throw new Error('Invalid TX.');
         const surrogate = { tx : _tx, nonce : ''+nonce, signature : ''+signature, address : ''+address };
         let res = false;
         try{
-            const subject = { command : prepared_command.value, validator : this.getPeerValidatorAddress() };
-            res = await this.peer.protocol_instance.tx(subject, sim === true, surrogate);
+            res = await this.peer.protocol_instance.broadcastTransaction({
+                type: prepared_command.type,
+                value: prepared_command.value
+            }, sim === true, surrogate);
         } catch(e){ console.log(e) }
         if(res !== false) {
             const err = this.peer.protocol_instance.getError(res);

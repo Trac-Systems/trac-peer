@@ -9,6 +9,7 @@ class Feature {
     async getSigned(key){
         const view_session = this.peer.base.view.checkout(this.peer.base.view.core.signedLength);
         const result = await view_session.get(key);
+        await view_session.close();
         if(result === null) return null;
         return result.value;
     }

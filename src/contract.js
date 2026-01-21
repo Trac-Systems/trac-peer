@@ -38,11 +38,8 @@ class Contract {
                     type : { type : "string", min : 1, max : 256 },
                     value : { type : "any", nullable : true }
                 },
-                value : {
-                    $$type : "object",
-                    ipk : { type : "is_hex" },
-                    wp : { type : "is_hex" }
-                }
+                ipk : { type : "is_hex" },
+                wp : { type : "is_hex" }
             }
         });
 
@@ -76,8 +73,8 @@ class Contract {
 
         if(op.type !== 'feature' && op.type !== 'msg'){
             if(false === this.tx_schema(op)) return false;
-            this.address = op.value.value.ipk;
-            this.validator_address = op.value.value.wp;
+            this.address = op.value.ipk;
+            this.validator_address = op.value.wp;
         } else {
             if(true !== this.address_schema(op)) return false;
             if(op.type === 'feature' && true !== this.textkey_schema(op)) return false;
@@ -99,7 +96,7 @@ class Contract {
                 await this.features[this.op.type]();
             }
         } else if(this.isMessage()) {
-            if(this.message_handler !== undefined){
+            if(typeof this.message_handler === 'function'){
                 try {
                     _return = await this.message_handler();
                 } catch(e) {
@@ -185,7 +182,7 @@ class Contract {
             key.startsWith('umsg/') || key.startsWith('umsg/') || key.startsWith('msgl/') || key === 'admin' || key === 'auto_add_writers'
             || key.startsWith('nick/') || key.startsWith('mod/') || key === 'chat_status' || key.startsWith('mtd/') || key === 'delml' ||
             key === 'wlst' || key === 'txl' || key.startsWith('txi/') || key.startsWith('wl/') || key === 'pnl' || key.startsWith('pni/') ||
-            key.startsWith('utxl/') || key.startsWith('utxi/') || key.startsWith('bnd/');
+            key.startsWith('utxl/') || key.startsWith('utxi/') || key.startsWith('bnd/') || key === 'txen';
     }
 
     async del(key){
