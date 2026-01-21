@@ -7,6 +7,10 @@
     "name": "trac-peer",
     "type": "terminal"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Trac-Systems/trac-peer"
+  },
   "exports": {
     ".": {
       "bare": "./peer.mjs",
