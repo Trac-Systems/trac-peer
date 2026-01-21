@@ -218,7 +218,7 @@ if (!subnetBootstrap) {
 
 console.log("");
 console.log("==================== TRAC-PEER RUNNER ====================");
-console.log("MSB network bootstrap:", msb.config.bootstrap?.toString("hex") ?? null);
+console.log("MSB network bootstrap:", b4a.toString(msb.config.bootstrap, "hex") ?? null);
 console.log("MSB channel:", b4a.toString(msb.config.channel, "utf8"));
 console.log("MSB wallet address:", msb.wallet?.address ?? null);
 console.log("----------------------------------------------------------");
