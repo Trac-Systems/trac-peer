@@ -98,6 +98,25 @@ export function safeClone(obj){
     return obj2;
 }
 
+export function dumpContractMetadata(contract){
+    if(!contract || typeof contract !== 'object') return null;
+    const registrations = contract.metadata ?? {};
+    const schemas = registrations.schemas ?? {};
+    const functions = registrations.functions ?? {};
+    const features = registrations.features ?? {};
+    const meta = {
+        contractClass: contract.constructor?.name ?? null,
+        protocolClass: contract.protocol?.constructor?.name ?? null,
+        functions: functions,
+        schemas: schemas,
+        schemaNames: contract.schemata ? Object.keys(contract.schemata) : [],
+        features: features,
+        hasMessageHandler: typeof contract.message_handler === 'function'
+    };
+    console.log(meta);
+    return meta;
+}
+
 export async function setWhitelistStatus(input, peer){
     await requireAdmin(peer);
     const splitted = peer.protocol_instance.parseArgs(input)

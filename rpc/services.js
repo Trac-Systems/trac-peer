@@ -1,5 +1,5 @@
 import b4a from "b4a";
-import { deploySubnet as deploySubnetFn, setChatStatus as setChatStatusFn, setNick as setNickFn } from "../src/functions.js";
+import { deploySubnet as deploySubnetFn, setChatStatus as setChatStatusFn, setNick as setNickFn, dumpContractMetadata } from "../src/functions.js";
 import { addAdminKey, addWriterKey, addIndexerKey, removeWriterKey, removeIndexerKey, joinValidator as joinValidatorFn } from "../src/functions.js";
 
 const asHex32 = (value, field) => {
@@ -42,6 +42,11 @@ export async function getStatus(peer) {
       signedLength: peer.msbClient?.isReady?.() ? peer.msbClient.getSignedLength() : null,
     },
   };
+}
+
+export async function getContractMetadata(peer) {
+  if (!peer?.contract_instance) throw new Error("Contract instance not initialized.");
+  return dumpContractMetadata(peer.contract_instance);
 }
 
 export async function getState(peer, key, { confirmed = true } = {}) {
