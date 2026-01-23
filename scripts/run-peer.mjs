@@ -11,7 +11,12 @@ import { startInteractiveCli } from "../src/cli.js";
 import { ensureTextCodecs } from "../src/textCodec.js";
 import PokemonProtocol from "../src/dev/pokemonProtocol.js";
 import PokemonContract from "../src/dev/pokemonContract.js";
-import process from "bare-process";
+
+let process = globalThis.process;
+if (globalThis.Pear !== undefined) {
+  const { default: bareProcess } = await import("bare-process");
+  process = bareProcess;
+}
 
 const createMsb = (options) => {
   const config = createConfig(ENV.MAINNET, options)
