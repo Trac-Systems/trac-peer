@@ -9,6 +9,7 @@ import { Peer, Protocol, Contract } from "../../src/index.js";
 import PokemonContract from "../../src/dev/pokemonContract.js";
 import PokemonProtocol from "../../src/dev/pokemonProtocol.js";
 import HyperMallContract from "../../src/dev/HyperMallConctract.js";
+import HyperMallProtocol from "../../src/dev/HyperMallProtocol.js";
 import Wallet from "../../src/wallet.js";
 
 async function withTempDir(fn) {
@@ -206,7 +207,7 @@ test("rpc: body size limit returns 413", async (t) => {
   });
 });
 
-test("rpc: contract metadata (pokemon)", async (t) => {
+test("rpc: contract schema (pokemon)", async (t) => {
   await withTempDir(async ({ storesDirectory }) => {
     const storeName = "peer";
     const wallet = await prepareWallet(storesDirectory, storeName);
@@ -231,12 +232,14 @@ test("rpc: contract metadata (pokemon)", async (t) => {
       server = rpc.server;
       const baseUrl = rpc.baseUrl;
 
-      const r = await httpJson("GET", `${baseUrl}/v1/contract/metadata`);
+      const r = await httpJson("GET", `${baseUrl}/v1/contract/schema`);
       t.is(r.status, 200);
-      t.is(r.json?.metadata?.contractClass, "PokemonContract");
-      t.is(typeof r.json?.metadata?.functions?.catch, "object");
-      t.is(Object.keys(r.json?.metadata?.schemas ?? {}).length, 0);
-      t.is(Object.keys(r.json?.metadata?.features ?? {}).length, 0);
+      t.is(r.json?.schemaFormat, "json-schema");
+      t.is(r.json?.contract?.contractClass, "PokemonContract");
+      t.ok(Array.isArray(r.json?.contract?.txTypes));
+      t.ok(r.json.contract.txTypes.includes("catch"));
+      t.is(typeof r.json?.api?.methods?.tx, "object");
+      t.is(typeof r.json?.api?.methods?.post, "object");
     } finally {
       if (server) await new Promise((resolve) => server.close(resolve));
       await closePeer(peer);
@@ -244,7 +247,7 @@ test("rpc: contract metadata (pokemon)", async (t) => {
   });
 });
 
-test("rpc: contract metadata (hypermall)", async (t) => {
+test("rpc: contract schema (hypermall)", async (t) => {
   await withTempDir(async ({ storesDirectory }) => {
     const storeName = "peer";
     const wallet = await prepareWallet(storesDirectory, storeName);
@@ -253,7 +256,7 @@ test("rpc: contract metadata (hypermall)", async (t) => {
       stores_directory: storesDirectory,
       store_name: storeName,
       wallet,
-      protocol: Protocol,
+      protocol: HyperMallProtocol,
       contract: HyperMallContract,
       msb: null,
       replicate: false,
@@ -269,13 +272,13 @@ test("rpc: contract metadata (hypermall)", async (t) => {
       server = rpc.server;
       const baseUrl = rpc.baseUrl;
 
-      const r = await httpJson("GET", `${baseUrl}/v1/contract/metadata`);
+      const r = await httpJson("GET", `${baseUrl}/v1/contract/schema`);
       t.is(r.status, 200);
-      t.is(r.json?.metadata?.contractClass, "HyperMallContract");
-      t.is(typeof r.json?.metadata?.schemas?.stake, "object");
-      t.is(r.json?.metadata?.schemas?.stake?.value?.tick?.type, "string");
-      t.is(typeof r.json?.metadata?.schemas?.tap_hypermall_feature_deposit, "object");
-      t.is(r.json?.metadata?.features?.tap_hypermall_feature?.name != null, true);
+      t.is(r.json?.schemaFormat, "json-schema");
+      t.is(r.json?.contract?.contractClass, "HyperMallContract");
+      t.ok(r.json?.contract?.txTypes?.includes("stake"));
+      t.is(typeof r.json?.contract?.ops?.stake?.value, "object");
+      t.is(typeof r.json?.api?.methods?.getListingsLength, "object");
     } finally {
       if (server) await new Promise((resolve) => server.close(resolve));
       await closePeer(peer);

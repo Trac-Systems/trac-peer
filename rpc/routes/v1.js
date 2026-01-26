@@ -2,7 +2,7 @@ import {
   handleHealth,
   handleStatus,
   handleGetState,
-  handleGetContractMetadata,
+  handleGetContractSchema,
   handleBroadcastTx,
   handleDeploySubnet,
   handleSetChatStatus,
@@ -20,7 +20,7 @@ export const v1Routes = [
   { method: "GET", path: "/health", handler: handleHealth },
   { method: "GET", path: "/status", handler: handleStatus },
   { method: "GET", path: "/state", handler: handleGetState },
-  { method: "GET", path: "/contract/metadata", handler: handleGetContractMetadata },
+  { method: "GET", path: "/contract/schema", handler: handleGetContractSchema },
 
   { method: "POST", path: "/tx", handler: handleBroadcastTx },
   { method: "POST", path: "/deploy-subnet", handler: handleDeploySubnet },

@@ -23,6 +23,84 @@ class Protocol{
         this.features = {};
     }
 
+    getApiSchema() {
+        const api = this.api;
+        if (!api) return { methods: {} };
+
+        const hex32 = { type: "string", pattern: "^[0-9a-fA-F]{64}$" };
+        const hex64 = { type: "string", pattern: "^[0-9a-fA-F]{128}$" };
+        const preparedCommand = {
+            type: "object",
+            additionalProperties: true,
+            properties: {
+                type: { type: "string", minLength: 1, maxLength: 256 },
+                value: {},
+            },
+            required: ["type", "value"],
+        };
+
+        const baseMethods = {
+            generateNonce: { params: [], returns: { type: "string", minLength: 1, maxLength: 256 } },
+            prepareTxCommand: { params: [{ name: "command", schema: { type: "string" } }], returns: preparedCommand },
+            generateTx: {
+                params: [
+                    { name: "address", schema: hex32 },
+                    { name: "command_hash", schema: hex32 },
+                    { name: "nonce", schema: hex32 },
+                ],
+                returns: hex32,
+            },
+            tx: {
+                params: [
+                    { name: "tx", schema: hex32 },
+                    { name: "prepared_command", schema: preparedCommand },
+                    { name: "address", schema: hex32 },
+                    { name: "signature", schema: hex64 },
+                    { name: "nonce", schema: hex32 },
+                    { name: "sim", schema: { type: "boolean" } },
+                ],
+                returns: {},
+            },
+            prepareMessage: {
+                params: [
+                    { name: "msg", schema: { type: "string" } },
+                    { name: "address", schema: hex32 },
+                    { name: "reply_to", schema: { type: ["integer", "null"] } },
+                    { name: "attachments", schema: { type: "array", items: { type: "string" } } },
+                ],
+                returns: {},
+            },
+            post: {
+                params: [
+                    { name: "prepared_message", schema: {} },
+                    { name: "signature", schema: hex64 },
+                    { name: "nonce", schema: hex32 },
+                ],
+                returns: {},
+            },
+        };
+
+        const methods = {};
+        for (const [name, def] of Object.entries(baseMethods)) {
+            if (typeof api[name] === "function") methods[name] = def;
+        }
+
+        // Include extendApi() methods (own props) - treated as read/query methods by convention.
+        for (const name of Object.getOwnPropertyNames(api)) {
+            if (name === "constructor") continue;
+            if (name.startsWith("_")) continue;
+            if (methods[name] !== undefined) continue;
+            if (typeof api[name] !== "function") continue;
+
+            const params = [];
+            const count = Number.isSafeInteger(api[name].length) ? api[name].length : 0;
+            for (let i = 0; i < count; i++) params.push({ name: `arg${i}`, schema: {} });
+            methods[name] = { params, returns: {} };
+        }
+
+        return { methods };
+    }
+
     featMaxBytes(){
         return 4_096;
     }
