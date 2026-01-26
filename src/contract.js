@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { safeClone } from './functions.js';
 
 class Contract {
 
@@ -11,6 +12,7 @@ class Contract {
         this.features = {};
         this.schemata = {};
         this.funcs = {};
+        this.metadata = { schemas: {}, functions: {}, features: {} };
         this.message_handler = null;
         this.address = null;
         this.validator_address = null;
@@ -149,16 +151,20 @@ class Contract {
     addFunction(type){
         if(this.features[type] !== undefined || this.schemata[type] !== undefined) throw new Error('addFunction(type): The type has been registered already.');
         this.funcs[type] = true;
+        this.metadata.functions[type] = { type };
     }
 
     addSchema(type, schema){
         if(this.funcs[type] !== undefined || this.features[type] !== undefined) throw new Error('addSchema(type, schema): The type has been registered already.');
+        const cloned = safeClone(schema);
+        this.metadata.schemas[type] = cloned ?? schema;
         this.schemata[type] = this.protocol.peer.check.validator.compile(schema);
     }
 
     addFeature(type, func) {
         if(this.funcs[type] !== undefined || this.schemata[type] !== undefined) throw new Error('addFeature(type, func): The type has been registered already.');
         this.features[type] = func;
+        this.metadata.features[type] = { type, name: func?.name ?? null };
     }
 
     messageHandler(func){

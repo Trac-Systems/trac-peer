@@ -408,6 +408,8 @@ npm run peer:pear-rpc -- \
 
 - Status:
   - `GET /v1/status`
+- Contract schema (JSON Schema; contract tx types + Protocol API methods):
+  - `GET /v1/contract/schema`
 - Read state:
   - `GET /v1/state?key=app%2Fkv%2Ffoo&confirmed=true`
 - Enable chat (admin-only):

@@ -106,6 +106,7 @@ Endpoints (all JSON):
 - `GET /v1/health`
 - `GET /v1/status`
 - `GET /v1/state?key=<hyperbee-key>&confirmed=true|false`
+- `GET /v1/contract/schema` (JSON Schema; contract tx types + Protocol API methods)
 - `POST /v1/tx` body: `{ "command": "ping hello", "sim": false }`
 - `POST /v1/deploy-subnet`
 - `POST /v1/chat/status` body: `{ "enabled": true }`

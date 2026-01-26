@@ -6,6 +6,10 @@ import b4a from "b4a";
 
 import { createServer } from "../../rpc/create_server.js";
 import { Peer, Protocol, Contract } from "../../src/index.js";
+import PokemonContract from "../../src/dev/pokemonContract.js";
+import PokemonProtocol from "../../src/dev/pokemonProtocol.js";
+import HyperMallContract from "../../src/dev/HyperMallConctract.js";
+import HyperMallProtocol from "../../src/dev/HyperMallProtocol.js";
 import Wallet from "../../src/wallet.js";
 
 async function withTempDir(fn) {
@@ -196,6 +200,85 @@ test("rpc: body size limit returns 413", async (t) => {
       const big = "x".repeat(100);
       const r = await httpJson("POST", `${baseUrl}/v1/chat/post`, { message: big });
       t.is(r.status, 413);
+    } finally {
+      if (server) await new Promise((resolve) => server.close(resolve));
+      await closePeer(peer);
+    }
+  });
+});
+
+test("rpc: contract schema (pokemon)", async (t) => {
+  await withTempDir(async ({ storesDirectory }) => {
+    const storeName = "peer";
+    const wallet = await prepareWallet(storesDirectory, storeName);
+
+    const peer = new Peer({
+      stores_directory: storesDirectory,
+      store_name: storeName,
+      wallet,
+      protocol: PokemonProtocol,
+      contract: PokemonContract,
+      msb: null,
+      replicate: false,
+      enable_interactive_mode: false,
+      enable_background_tasks: false,
+      enable_updater: false,
+    });
+
+    let server = null;
+    try {
+      await peer.ready();
+      const rpc = await startRpc(peer);
+      server = rpc.server;
+      const baseUrl = rpc.baseUrl;
+
+      const r = await httpJson("GET", `${baseUrl}/v1/contract/schema`);
+      t.is(r.status, 200);
+      t.is(r.json?.schemaFormat, "json-schema");
+      t.is(r.json?.contract?.contractClass, "PokemonContract");
+      t.ok(Array.isArray(r.json?.contract?.txTypes));
+      t.ok(r.json.contract.txTypes.includes("catch"));
+      t.is(typeof r.json?.api?.methods?.tx, "object");
+      t.is(typeof r.json?.api?.methods?.post, "object");
+    } finally {
+      if (server) await new Promise((resolve) => server.close(resolve));
+      await closePeer(peer);
+    }
+  });
+});
+
+test("rpc: contract schema (hypermall)", async (t) => {
+  await withTempDir(async ({ storesDirectory }) => {
+    const storeName = "peer";
+    const wallet = await prepareWallet(storesDirectory, storeName);
+
+    const peer = new Peer({
+      stores_directory: storesDirectory,
+      store_name: storeName,
+      wallet,
+      protocol: HyperMallProtocol,
+      contract: HyperMallContract,
+      msb: null,
+      replicate: false,
+      enable_interactive_mode: false,
+      enable_background_tasks: false,
+      enable_updater: false,
+    });
+
+    let server = null;
+    try {
+      await peer.ready();
+      const rpc = await startRpc(peer);
+      server = rpc.server;
+      const baseUrl = rpc.baseUrl;
+
+      const r = await httpJson("GET", `${baseUrl}/v1/contract/schema`);
+      t.is(r.status, 200);
+      t.is(r.json?.schemaFormat, "json-schema");
+      t.is(r.json?.contract?.contractClass, "HyperMallContract");
+      t.ok(r.json?.contract?.txTypes?.includes("stake"));
+      t.is(typeof r.json?.contract?.ops?.stake?.value, "object");
+      t.is(typeof r.json?.api?.methods?.getListingsLength, "object");
     } finally {
       if (server) await new Promise((resolve) => server.close(resolve));
       await closePeer(peer);

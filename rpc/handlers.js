@@ -3,6 +3,7 @@ import { readJsonBody } from "./utils/body.js";
 import {
   getStatus,
   getState,
+  getContractSchema,
   broadcastTx,
   deploySubnet,
   setChatStatus,
@@ -31,6 +32,11 @@ export async function handleGetState({ req, respond, peer }) {
   const confirmedBool = confirmed == null ? true : confirmed === "true";
   const value = await getState(peer, key, { confirmed: confirmedBool });
   respond(200, { key, confirmed: confirmedBool, value });
+}
+
+export async function handleGetContractSchema({ respond, peer }) {
+  const schema = await getContractSchema(peer);
+  respond(200, schema);
 }
 
 export async function handleBroadcastTx({ req, respond, peer, maxBodyBytes }) {

@@ -1,12 +1,15 @@
 import b4a from "b4a";
 import { deploySubnet as deploySubnetFn, setChatStatus as setChatStatusFn, setNick as setNickFn } from "../src/functions.js";
 import { addAdminKey, addWriterKey, addIndexerKey, removeWriterKey, removeIndexerKey, joinValidator as joinValidatorFn } from "../src/functions.js";
+import { fastestToJsonSchema } from "./utils/schemaToJson.js";
 
 const asHex32 = (value, field) => {
   const hex = String(value ?? "").trim().toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(hex)) throw new Error(`Invalid ${field}. Expected 32-byte hex (64 chars).`);
   return hex;
 };
+
+const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
 export async function getStatus(peer) {
   const subnetBootstrapHex = b4a.isBuffer(peer.bootstrap)
@@ -41,6 +44,69 @@ export async function getStatus(peer) {
       networkId: peer.msbClient?.networkId ?? null,
       signedLength: peer.msbClient?.isReady?.() ? peer.msbClient.getSignedLength() : null,
     },
+  };
+}
+
+const inferPrototypeOps = (contract) => {
+  const proto = Object.getPrototypeOf(contract);
+  const baseProto = Object.getPrototypeOf(proto);
+  const baseNames = new Set(Object.getOwnPropertyNames(baseProto ?? {}));
+  const names = Object.getOwnPropertyNames(proto);
+  const ops = [];
+  for (const name of names) {
+    if (name === "constructor") continue;
+    if (name.startsWith("_")) continue;
+    if (baseNames.has(name)) continue;
+    const desc = Object.getOwnPropertyDescriptor(proto, name);
+    if (!desc || typeof desc.value !== "function") continue;
+    ops.push(name);
+  }
+  return ops;
+};
+
+const convertContractOpSchema = (fv) => {
+  if (!isObject(fv)) return { value: {} };
+  const out = {};
+  if (fv.key !== undefined) out.key = fastestToJsonSchema(fv.key);
+  if (fv.value !== undefined) out.value = fastestToJsonSchema(fv.value);
+  if (Object.keys(out).length === 0) out.value = fastestToJsonSchema(fv);
+  return out;
+};
+
+export async function getContractSchema(peer) {
+  const contract = peer?.contract_instance;
+  if (!contract) throw new Error("Contract instance not initialized.");
+
+  const registrations = contract.metadata ?? {};
+  const regSchemas = registrations.schemas ?? {};
+  const regFunctions = registrations.functions ?? {};
+  const regFeatures = registrations.features ?? {};
+
+  const schemaNames = Object.keys(regSchemas);
+  const functionNames = Object.keys(regFunctions);
+  const featureNames = Object.keys(regFeatures);
+
+  const hasAnyExplicit = schemaNames.length > 0 || functionNames.length > 0 || featureNames.length > 0;
+
+  const inferred = hasAnyExplicit ? [] : inferPrototypeOps(contract);
+  const txTypes = [...new Set([...schemaNames, ...functionNames, ...featureNames, ...inferred])].sort();
+
+  const ops = {};
+  for (const type of txTypes) {
+    if (regSchemas[type] !== undefined) ops[type] = convertContractOpSchema(regSchemas[type]);
+    else ops[type] = { value: {} };
+  }
+
+  return {
+    schemaVersion: 1,
+    schemaFormat: "json-schema",
+    contract: {
+      contractClass: contract.constructor?.name ?? null,
+      protocolClass: peer.protocol_instance?.constructor?.name ?? null,
+      txTypes,
+      ops,
+    },
+    api: peer.protocol_instance?.getApiSchema ? peer.protocol_instance.getApiSchema() : { methods: {} },
   };
 }
 
