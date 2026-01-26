@@ -1,6 +1,4 @@
 import b4a from "b4a";
-import { deploySubnet as deploySubnetFn, setChatStatus as setChatStatusFn, setNick as setNickFn } from "../src/functions.js";
-import { addAdminKey, addWriterKey, addIndexerKey, removeWriterKey, removeIndexerKey, joinValidator as joinValidatorFn } from "../src/functions.js";
 import { fastestToJsonSchema } from "./utils/schemaToJson.js";
 
 const asHex32 = (value, field) => {
@@ -10,6 +8,12 @@ const asHex32 = (value, field) => {
 };
 
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+
+const requireApi = (peer) => {
+  const api = peer?.protocol_instance?.api;
+  if (!api) throw new Error("Protocol API not initialized.");
+  return api;
+};
 
 export async function getStatus(peer) {
   const subnetBootstrapHex = b4a.isBuffer(peer.bootstrap)
@@ -110,6 +114,34 @@ export async function getContractSchema(peer) {
   };
 }
 
+export async function contractGenerateNonce(peer) {
+  const api = requireApi(peer);
+  return api.generateNonce();
+}
+
+export async function contractPrepareTx(peer, { prepared_command, address, nonce } = {}) {
+  const api = requireApi(peer);
+  if (!isObject(prepared_command)) throw new Error("prepared_command must be an object.");
+  const addr = asHex32(address, "address");
+  const n = asHex32(nonce, "nonce");
+
+  const json = peer?.protocol_instance?.safeJsonStringify
+    ? peer.protocol_instance.safeJsonStringify(prepared_command)
+    : JSON.stringify(prepared_command);
+  if (json == null) throw new Error("Failed to stringify prepared_command.");
+
+  const command_hash = await peer.createHash("blake3", json);
+  const tx = await api.generateTx(addr, command_hash, n);
+  return { tx, command_hash };
+}
+
+export async function contractTx(peer, { tx, prepared_command, address, signature, nonce, sim = false } = {}) {
+  const api = requireApi(peer);
+  if (!isObject(prepared_command)) throw new Error("prepared_command must be an object.");
+  const res = await api.tx(tx, prepared_command, address, signature, nonce, sim === true);
+  return { result: res };
+}
+
 export async function getState(peer, key, { confirmed = true } = {}) {
   const k = String(key ?? "");
   if (!k) throw new Error("Missing key.");
@@ -125,92 +157,4 @@ export async function getState(peer, key, { confirmed = true } = {}) {
   }
   const res = await peer.base.view.get(k);
   return res?.value ?? null;
-}
-
-export async function broadcastTx(peer, { command, sim = false } = {}) {
-  if (!peer.base?.writable) throw new Error("Peer subnet is not writable (writer required for /tx).");
-  const cmd = command;
-  if (!cmd) throw new Error("Missing command.");
-  return await peer.protocol_instance.tx({ command: cmd }, !!sim);
-}
-
-export async function deploySubnet(peer) {
-  if (!peer.base?.writable) throw new Error("Peer subnet is not writable (writer required for /deploy-subnet).");
-  return await deploySubnetFn("/deploy_subnet", peer);
-}
-
-export async function setChatStatus(peer, enabled) {
-  if (!peer.base?.writable) throw new Error("Peer subnet is not writable (writer required).");
-  const on = enabled === true || enabled === 1 || enabled === "1";
-  return await setChatStatusFn(`/set_chat_status --enabled ${on ? 1 : 0}`, peer);
-}
-
-export async function postChatMessage(peer, { message, reply_to = null } = {}) {
-  if (!peer.base?.writable) throw new Error("Peer subnet is not writable (writer required).");
-  const chatStatus = await peer.base.view.get('chat_status');
-  if (chatStatus === null || chatStatus.value !== 'on') throw new Error('Chat is disabled.');
-  const msg = String(message ?? "");
-  if (!msg.trim()) throw new Error("Empty message not allowed.");
-  if (b4a.byteLength(msg) > peer.protocol_instance.msgMaxBytes()) throw new Error("Message too large.");
-  const nonce = peer.protocol_instance.generateNonce();
-  const signature = {
-    dispatch: {
-      type: "msg",
-      msg,
-      address: peer.wallet.publicKey,
-      attachments: [],
-      deleted_by: null,
-      reply_to: reply_to != null ? parseInt(reply_to) : null,
-      pinned: false,
-      pin_id: null,
-    },
-  };
-  const hash = peer.wallet.sign(JSON.stringify(signature) + nonce);
-  await peer.base.append({ type: "msg", value: signature, hash, nonce });
-  return { ok: true };
-}
-
-export async function setNick(peer, { nick, user = null } = {}) {
-  if (!peer.base?.writable) throw new Error("Peer subnet is not writable (writer required).");
-  const n = String(nick ?? "").trim();
-  if (!n) throw new Error("Missing nick.");
-  const u = user != null ? String(user).trim().toLowerCase() : null;
-  const input = u ? `/set_nick --nick "${n}" --user "${u}"` : `/set_nick --nick "${n}"`;
-  return await setNickFn(input, peer);
-}
-
-export async function addAdmin(peer, { address }) {
-  if (!peer.base?.writable) throw new Error("Peer subnet is not writable (writer required).");
-  const pk = asHex32(address, "address");
-  return await addAdminKey(pk, peer);
-}
-
-export async function addWriter(peer, { key }) {
-  if (!peer.base?.writable) throw new Error("Peer subnet is not writable (writer required).");
-  const wk = asHex32(key, "key");
-  return await addWriterKey(wk, peer);
-}
-
-export async function addIndexer(peer, { key }) {
-  if (!peer.base?.writable) throw new Error("Peer subnet is not writable (writer required).");
-  const wk = asHex32(key, "key");
-  return await addIndexerKey(wk, peer);
-}
-
-export async function removeWriter(peer, { key }) {
-  if (!peer.base?.writable) throw new Error("Peer subnet is not writable (writer required).");
-  const wk = asHex32(key, "key");
-  return await removeWriterKey(wk, peer);
-}
-
-export async function removeIndexer(peer, { key }) {
-  if (!peer.base?.writable) throw new Error("Peer subnet is not writable (writer required).");
-  const wk = asHex32(key, "key");
-  return await removeIndexerKey(wk, peer);
-}
-
-export async function joinValidator(peer, { address }) {
-  const addr = String(address ?? "").trim();
-  if (!addr) throw new Error("Missing address.");
-  return await joinValidatorFn(`/join_validator --address ${addr}`, peer);
 }

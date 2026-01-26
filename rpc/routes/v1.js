@@ -3,17 +3,9 @@ import {
   handleStatus,
   handleGetState,
   handleGetContractSchema,
-  handleBroadcastTx,
-  handleDeploySubnet,
-  handleSetChatStatus,
-  handlePostChatMessage,
-  handleSetNick,
-  handleAddAdmin,
-  handleAddWriter,
-  handleAddIndexer,
-  handleRemoveWriter,
-  handleRemoveIndexer,
-  handleJoinValidator,
+  handleContractNonce,
+  handleContractPrepareTx,
+  handleContractTx,
 } from "../handlers.js";
 
 export const v1Routes = [
@@ -21,19 +13,8 @@ export const v1Routes = [
   { method: "GET", path: "/status", handler: handleStatus },
   { method: "GET", path: "/state", handler: handleGetState },
   { method: "GET", path: "/contract/schema", handler: handleGetContractSchema },
-
-  { method: "POST", path: "/tx", handler: handleBroadcastTx },
-  { method: "POST", path: "/deploy-subnet", handler: handleDeploySubnet },
-
-  { method: "POST", path: "/chat/status", handler: handleSetChatStatus },
-  { method: "POST", path: "/chat/post", handler: handlePostChatMessage },
-  { method: "POST", path: "/chat/nick", handler: handleSetNick },
-
-  { method: "POST", path: "/admin/add-admin", handler: handleAddAdmin },
-  { method: "POST", path: "/admin/add-writer", handler: handleAddWriter },
-  { method: "POST", path: "/admin/add-indexer", handler: handleAddIndexer },
-  { method: "POST", path: "/admin/remove-writer", handler: handleRemoveWriter },
-  { method: "POST", path: "/admin/remove-indexer", handler: handleRemoveIndexer },
-
-  { method: "POST", path: "/msb/join-validator", handler: handleJoinValidator },
+  // Wallet→peer flow: server-side tx prepare + wallet signature + broadcast.
+  { method: "GET", path: "/contract/nonce", handler: handleContractNonce },
+  { method: "POST", path: "/contract/tx/prepare", handler: handleContractPrepareTx },
+  { method: "POST", path: "/contract/tx", handler: handleContractTx },
 ];

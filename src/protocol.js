@@ -61,23 +61,6 @@ class Protocol{
                 ],
                 returns: {},
             },
-            prepareMessage: {
-                params: [
-                    { name: "msg", schema: { type: "string" } },
-                    { name: "address", schema: hex32 },
-                    { name: "reply_to", schema: { type: ["integer", "null"] } },
-                    { name: "attachments", schema: { type: "array", items: { type: "string" } } },
-                ],
-                returns: {},
-            },
-            post: {
-                params: [
-                    { name: "prepared_message", schema: {} },
-                    { name: "signature", schema: hex64 },
-                    { name: "nonce", schema: hex32 },
-                ],
-                returns: {},
-            },
         };
 
         const methods = {};
@@ -230,7 +213,8 @@ class Protocol{
     async broadcastTransaction(obj, sim = false, surrogate = null){
         if(!this.peer.msbClient.isReady()) throw new Error('MSB is not ready.');
         const tx_enabled = await this.peer.base.view.get('txen');
-        if (null === tx_enabled || true !== tx_enabled.value ) throw new Error('Tx is not enabled.');
+        // Default to enabled if missing, consistent with apply() gating.
+        if (null !== tx_enabled && true !== tx_enabled.value ) throw new Error('Tx is not enabled.');
         if(this.peer.wallet.publicKey === null || this.peer.wallet.secretKey === null) throw new Error('Wallet is not initialized.');
         if(this.peer.writerLocalKey === null) throw new Error('Local writer is not initialized.');
         if(obj.type === undefined || obj.value === undefined) throw new Error('Invalid transaction object.');
