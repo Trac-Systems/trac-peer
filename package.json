@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.2.12",
+  "version": "0.3.0",
   "type": "module",
   "pear": {
     "name": "trac-peer",
@@ -55,7 +55,7 @@
     "bare-tls": "2.0.4",
     "bare-tty": "5.0.2",
     "bare-url": "2.1.5",
-    "bare-utils": "1.2.0",
+    "bare-utils": "1.5.1",
     "bare-worker": "3.0.0",
     "bare-zlib": "1.2.5",
     "bip39": "3.1.0",
@@ -83,7 +83,7 @@
     "multicoin-address-validator": "0.5.25",
     "os": "npm:bare-node-os",
     "path": "npm:bare-node-path",
-    "pear-interface": "1.0.0",
+    "pear-interface": "1.1.0",
     "process": "npm:bare-node-process",
     "protomux": "^3.10.1",
     "protomux-wakeup": "^2.4.0",
