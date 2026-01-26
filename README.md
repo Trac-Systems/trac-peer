@@ -91,13 +91,16 @@ npm run peer:run -- \
 
 ## RPC API (HTTP)
 
-You can start an HTTP API alongside the interactive peer:
+You can start an HTTP API alongside the interactive peer.
+
+This RPC is intended for **wallet/app connectivity** (URL + JSON), not for operating the peer node. Operator/admin actions remain CLI-only.
 
 ```sh
 npm run peer:run -- \
   --msb-bootstrap <32-byte-hex> \
   --msb-channel <channel-string> \
   --rpc \
+  --api-tx-exposed \
   --rpc-host 127.0.0.1 \
   --rpc-port 5001
 ```
@@ -107,17 +110,10 @@ Endpoints (all JSON):
 - `GET /v1/status`
 - `GET /v1/state?key=<hyperbee-key>&confirmed=true|false`
 - `GET /v1/contract/schema` (JSON Schema; contract tx types + Protocol API methods)
-- `POST /v1/tx` body: `{ "command": "ping hello", "sim": false }`
-- `POST /v1/deploy-subnet`
-- `POST /v1/chat/status` body: `{ "enabled": true }`
-- `POST /v1/chat/post` body: `{ "message": "hello", "reply_to": 1 }`
-- `POST /v1/chat/nick` body: `{ "nick": "alice" }`
-- `POST /v1/admin/add-admin` body: `{ "address": "<pubkey-hex32>" }`
-- `POST /v1/admin/add-writer` body: `{ "key": "<writerKey-hex32>" }`
-- `POST /v1/admin/add-indexer` body: `{ "key": "<writerKey-hex32>" }`
-- `POST /v1/admin/remove-writer` body: `{ "key": "<writerKey-hex32>" }`
-- `POST /v1/msb/join-validator` body: `{ "address": "<msb-bech32m-address>" }`
+- `GET /v1/contract/nonce`
+- `POST /v1/contract/tx/prepare` body: `{ "prepared_command": { "type": "...", "value": {} }, "address": "<pubkey-hex32>", "nonce": "<hex32>" }`
+- `POST /v1/contract/tx` body: `{ "tx": "<hex32>", "prepared_command": { ... }, "address": "<pubkey-hex32>", "signature": "<hex64>", "nonce": "<hex32>", "sim": true|false }`
 
 Notes:
-- Write endpoints require the node to be subnet-writable (`/v1/status` shows `peer.baseWritable`).
+- To allow wallet tx submission, start the peer with `--api-tx-exposed` (or env `PEER_API_TX_EXPOSED=1`).
 - RPC request bodies are limited to `1_000_000` bytes by default (override with `--rpc-max-body-bytes`).

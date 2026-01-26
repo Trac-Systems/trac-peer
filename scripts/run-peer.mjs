@@ -91,6 +91,12 @@ if (rpcEnabled && (isNaN(rpcMaxBodyBytes) || rpcMaxBodyBytes < 1)) {
   process.exit(1);
 }
 
+const apiTxExposed =
+  args["api-tx-exposed"] === true ||
+  args["api-tx-exposed"] === "true" ||
+  process.env.PEER_API_TX_EXPOSED === "true" ||
+  process.env.PEER_API_TX_EXPOSED === "1";
+
 const msbStoresDirectory =
   (args["msb-stores-directory"] && String(args["msb-stores-directory"])) ||
   process.env.MSB_STORES_DIRECTORY ||
@@ -201,6 +207,7 @@ const peer = new Peer({
   bootstrap: subnetBootstrap ? b4a.from(subnetBootstrap, "hex") : null,
   channel: subnetChannel,
   enable_interactive_mode: true,
+  api_tx_exposed: apiTxExposed,
 });
 await peer.ready();
 

@@ -63,7 +63,20 @@ async function httpJson(method, url, body = null) {
   return { status: res.status, json, text };
 }
 
-test("rpc: health/status/state + chat flow", async (t) => {
+const createMsbStub = () => {
+  return {
+    config: { bootstrap: b4a.alloc(32), networkId: 918, addressPrefix: "trac", channel: b4a.from("test", "utf8") },
+    bootstrap: b4a.alloc(32),
+    state: {
+      getIndexerSequenceState: async () => b4a.alloc(32),
+      getSignedLength: () => 0,
+    },
+    network: {},
+    broadcastTransactionCommand: async (payload) => ({ message: "ok", tx: payload?.txo?.tx ?? payload?.tro?.tx ?? null }),
+  };
+};
+
+test("rpc: health/status/state", async (t) => {
   await withTempDir(async ({ storesDirectory }) => {
     const storeName = "peer";
     const wallet = await prepareWallet(storesDirectory, storeName);
@@ -115,56 +128,6 @@ test("rpc: health/status/state + chat flow", async (t) => {
         t.is(r.status, 200);
         t.is(r.json?.value ?? null, null);
       }
-
-      // Set admin to ourselves.
-      {
-        const r = await httpJson("POST", `${baseUrl}/v1/admin/add-admin`, { address: wallet.publicKey });
-        t.is(r.status, 200);
-      }
-      {
-        const r = await httpJson("GET", `${baseUrl}/v1/state?key=admin&confirmed=true`);
-        t.is(r.status, 200);
-        t.is(r.json?.value, wallet.publicKey);
-      }
-
-      // Enable chat.
-      {
-        const r = await httpJson("POST", `${baseUrl}/v1/chat/status`, { enabled: true });
-        t.is(r.status, 200);
-      }
-      {
-        const r = await httpJson("GET", `${baseUrl}/v1/state?key=chat_status&confirmed=true`);
-        t.is(r.status, 200);
-        t.is(r.json?.value, "on");
-      }
-
-      // Set nick.
-      {
-        const r = await httpJson("POST", `${baseUrl}/v1/chat/nick`, { nick: "alice" });
-        t.is(r.status, 200);
-      }
-      {
-        const r = await httpJson("GET", `${baseUrl}/v1/state?key=${encodeURIComponent(`nick/${wallet.publicKey}`)}&confirmed=true`);
-        t.is(r.status, 200);
-        t.is(r.json?.value, "alice");
-      }
-
-      // Post message.
-      {
-        const r = await httpJson("POST", `${baseUrl}/v1/chat/post`, { message: "hello" });
-        t.is(r.status, 200);
-      }
-      {
-        const r = await httpJson("GET", `${baseUrl}/v1/state?key=msgl&confirmed=true`);
-        t.is(r.status, 200);
-        t.is(r.json?.value, 1);
-      }
-      {
-        const r = await httpJson("GET", `${baseUrl}/v1/state?key=msg%2F0&confirmed=true`);
-        t.is(r.status, 200);
-        t.is(r.json?.value?.msg, "hello");
-        t.is(r.json?.value?.address, wallet.publicKey);
-      }
     } finally {
       if (server) await new Promise((resolve) => server.close(resolve));
       await closePeer(peer);
@@ -198,7 +161,11 @@ test("rpc: body size limit returns 413", async (t) => {
       const baseUrl = rpc.baseUrl;
 
       const big = "x".repeat(100);
-      const r = await httpJson("POST", `${baseUrl}/v1/chat/post`, { message: big });
+      const r = await httpJson("POST", `${baseUrl}/v1/contract/tx/prepare`, {
+        prepared_command: { type: big, value: {} },
+        address: wallet.publicKey,
+        nonce: "0".repeat(64),
+      });
       t.is(r.status, 413);
     } finally {
       if (server) await new Promise((resolve) => server.close(resolve));
@@ -239,7 +206,6 @@ test("rpc: contract schema (pokemon)", async (t) => {
       t.ok(Array.isArray(r.json?.contract?.txTypes));
       t.ok(r.json.contract.txTypes.includes("catch"));
       t.is(typeof r.json?.api?.methods?.tx, "object");
-      t.is(typeof r.json?.api?.methods?.post, "object");
     } finally {
       if (server) await new Promise((resolve) => server.close(resolve));
       await closePeer(peer);
@@ -279,6 +245,64 @@ test("rpc: contract schema (hypermall)", async (t) => {
       t.ok(r.json?.contract?.txTypes?.includes("stake"));
       t.is(typeof r.json?.contract?.ops?.stake?.value, "object");
       t.is(typeof r.json?.api?.methods?.getListingsLength, "object");
+    } finally {
+      if (server) await new Promise((resolve) => server.close(resolve));
+      await closePeer(peer);
+    }
+  });
+});
+
+test("rpc: wallet-signed tx simulate via prepare+sign+broadcast", async (t) => {
+  await withTempDir(async ({ storesDirectory }) => {
+    const storeName = "peer";
+    const peerWallet = await prepareWallet(storesDirectory, storeName);
+    const externalWallet = new Wallet();
+    await externalWallet.generateKeyPair();
+
+    const peer = new Peer({
+      stores_directory: storesDirectory,
+      store_name: storeName,
+      wallet: peerWallet,
+      protocol: PokemonProtocol,
+      contract: PokemonContract,
+      msb: createMsbStub(),
+      replicate: false,
+      enable_interactive_mode: false,
+      enable_background_tasks: false,
+      enable_updater: false,
+      api_tx_exposed: true,
+    });
+
+    let server = null;
+    try {
+      await peer.ready();
+      const rpc = await startRpc(peer);
+      server = rpc.server;
+      const baseUrl = rpc.baseUrl;
+
+      const nonceRes = await httpJson("GET", `${baseUrl}/v1/contract/nonce`);
+      t.is(nonceRes.status, 200);
+      const nonce = nonceRes.json?.nonce;
+
+      const prepared_command = { type: "catch", value: {} };
+      const prep = await httpJson("POST", `${baseUrl}/v1/contract/tx/prepare`, {
+        prepared_command,
+        address: externalWallet.publicKey,
+        nonce,
+      });
+      t.is(prep.status, 200);
+      const tx = prep.json?.tx;
+
+      const signature = externalWallet.sign(b4a.from(tx, "hex"));
+      const simRes = await httpJson("POST", `${baseUrl}/v1/contract/tx`, {
+        tx,
+        prepared_command,
+        address: externalWallet.publicKey,
+        signature,
+        nonce,
+        sim: true,
+      });
+      t.is(simRes.status, 200);
     } finally {
       if (server) await new Promise((resolve) => server.close(resolve));
       await closePeer(peer);

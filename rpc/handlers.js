@@ -4,17 +4,9 @@ import {
   getStatus,
   getState,
   getContractSchema,
-  broadcastTx,
-  deploySubnet,
-  setChatStatus,
-  postChatMessage,
-  setNick,
-  addAdmin,
-  addWriter,
-  addIndexer,
-  removeWriter,
-  removeIndexer,
-  joinValidator,
+  contractGenerateNonce,
+  contractPrepareTx,
+  contractTx,
 } from "./services.js";
 
 export async function handleHealth({ respond }) {
@@ -39,79 +31,32 @@ export async function handleGetContractSchema({ respond, peer }) {
   respond(200, schema);
 }
 
-export async function handleBroadcastTx({ req, respond, peer, maxBodyBytes }) {
-  const body = await readJsonBody(req, { maxBytes: maxBodyBytes });
-  if (!body || typeof body !== "object") return respond(400, { error: "Missing JSON body." });
-  const payload = await broadcastTx(peer, { command: body.command, sim: body.sim });
-  respond(200, { payload });
+export async function handleContractNonce({ respond, peer }) {
+  const nonce = await contractGenerateNonce(peer);
+  respond(200, { nonce });
 }
 
-export async function handleDeploySubnet({ req, respond, peer, maxBodyBytes }) {
-  // Optional body for future compatibility.
-  await readJsonBody(req, { maxBytes: maxBodyBytes }).catch(() => null);
-  const payload = await deploySubnet(peer);
-  respond(200, { payload });
-}
-
-export async function handleSetChatStatus({ req, respond, peer, maxBodyBytes }) {
+export async function handleContractPrepareTx({ req, respond, peer, maxBodyBytes }) {
   const body = await readJsonBody(req, { maxBytes: maxBodyBytes });
   if (!body || typeof body !== "object") return respond(400, { error: "Missing JSON body." });
-  await setChatStatus(peer, body.enabled);
-  respond(200, { ok: true });
+  const payload = await contractPrepareTx(peer, {
+    prepared_command: body.prepared_command,
+    address: body.address,
+    nonce: body.nonce,
+  });
+  respond(200, payload);
 }
 
-export async function handlePostChatMessage({ req, respond, peer, maxBodyBytes }) {
+export async function handleContractTx({ req, respond, peer, maxBodyBytes }) {
   const body = await readJsonBody(req, { maxBytes: maxBodyBytes });
   if (!body || typeof body !== "object") return respond(400, { error: "Missing JSON body." });
-  await postChatMessage(peer, { message: body.message, reply_to: body.reply_to });
-  respond(200, { ok: true });
-}
-
-export async function handleSetNick({ req, respond, peer, maxBodyBytes }) {
-  const body = await readJsonBody(req, { maxBytes: maxBodyBytes });
-  if (!body || typeof body !== "object") return respond(400, { error: "Missing JSON body." });
-  await setNick(peer, { nick: body.nick, user: body.user });
-  respond(200, { ok: true });
-}
-
-export async function handleAddAdmin({ req, respond, peer, maxBodyBytes }) {
-  const body = await readJsonBody(req, { maxBytes: maxBodyBytes });
-  if (!body || typeof body !== "object") return respond(400, { error: "Missing JSON body." });
-  await addAdmin(peer, { address: body.address });
-  respond(200, { ok: true });
-}
-
-export async function handleAddWriter({ req, respond, peer, maxBodyBytes }) {
-  const body = await readJsonBody(req, { maxBytes: maxBodyBytes });
-  if (!body || typeof body !== "object") return respond(400, { error: "Missing JSON body." });
-  await addWriter(peer, { key: body.key });
-  respond(200, { ok: true });
-}
-
-export async function handleAddIndexer({ req, respond, peer, maxBodyBytes }) {
-  const body = await readJsonBody(req, { maxBytes: maxBodyBytes });
-  if (!body || typeof body !== "object") return respond(400, { error: "Missing JSON body." });
-  await addIndexer(peer, { key: body.key });
-  respond(200, { ok: true });
-}
-
-export async function handleRemoveWriter({ req, respond, peer, maxBodyBytes }) {
-  const body = await readJsonBody(req, { maxBytes: maxBodyBytes });
-  if (!body || typeof body !== "object") return respond(400, { error: "Missing JSON body." });
-  await removeWriter(peer, { key: body.key });
-  respond(200, { ok: true });
-}
-
-export async function handleRemoveIndexer({ req, respond, peer, maxBodyBytes }) {
-  const body = await readJsonBody(req, { maxBytes: maxBodyBytes });
-  if (!body || typeof body !== "object") return respond(400, { error: "Missing JSON body." });
-  await removeIndexer(peer, { key: body.key });
-  respond(200, { ok: true });
-}
-
-export async function handleJoinValidator({ req, respond, peer, maxBodyBytes }) {
-  const body = await readJsonBody(req, { maxBytes: maxBodyBytes });
-  if (!body || typeof body !== "object") return respond(400, { error: "Missing JSON body." });
-  await joinValidator(peer, { address: body.address });
-  respond(200, { ok: true });
+  const payload = await contractTx(peer, {
+    tx: body.tx,
+    prepared_command: body.prepared_command,
+    address: body.address,
+    signature: body.signature,
+    nonce: body.nonce,
+    sim: body.sim,
+  });
+  respond(200, payload);
 }
