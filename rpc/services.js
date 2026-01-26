@@ -125,9 +125,11 @@ export async function contractPrepareTx(peer, { prepared_command, address, nonce
   const addr = asHex32(address, "address");
   const n = asHex32(nonce, "nonce");
 
-  const json = peer?.protocol_instance?.safeJsonStringify
-    ? peer.protocol_instance.safeJsonStringify(prepared_command)
-    : JSON.stringify(prepared_command);
+  if (peer?.protocol_instance?.safeJsonStringify == null) {
+    throw new Error("safeJsonStringify is not available on protocol instance.");
+  }
+
+  const json = peer.protocol_instance.safeJsonStringify(prepared_command);
   if (json == null) throw new Error("Failed to stringify prepared_command.");
 
   const command_hash = await peer.createHash("blake3", json);
