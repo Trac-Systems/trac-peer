@@ -1,16 +1,14 @@
+import { BaseCheck } from '../base/check.js';
 import { jsonStringify } from '../../functions.js';
-import { MuteStatusCheck } from './check.js';
-
-const check = new MuteStatusCheck();
 
 export class MuteStatusOperation {
-    #check
+    #validator
     #wallet
     #protocolInstance
     #contractInstance
 
-    constructor({ wallet, protocolInstance, contractInstance }) {
-        this.#check = check
+    constructor(validator, { wallet, protocolInstance, contractInstance }) {
+        this.#validator = validator
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
@@ -18,7 +16,7 @@ export class MuteStatusOperation {
 
     async handle(op, batch, base, node) {
         // Chat moderation apply: admin/mod-signed mute/unmute (stored under mtd/<user>).
-        if(false === this.#check.validate(op)) return;
+        if(false === this.#validator.validate(op)) return;
         const admin = await batch.get('admin');
         const strValue = jsonStringify(op.value);
         if(null !== strValue &&
@@ -38,5 +36,37 @@ export class MuteStatusOperation {
                 console.log(`Changed mute status ${op.value.dispatch.user} to ${op.value.dispatch.muted}`);
             }
         }
+    }
+}
+
+export class MuteStatusCheck extends BaseCheck {
+    #validate
+
+    constructor() {
+        super()
+        this.#validate = this.#compile()
+    }
+
+    #compile() {
+        const schema = {
+            nonce: { type : "string", min : 1, max : 256 },
+            hash: { type : "is_hex" },
+            value : {
+                $$type: "object",
+                dispatch : {
+                    $$type : "object",
+                    muted : { type : "boolean" },
+                    type : { type : "string", min : 1, max : 256 },
+                    address : { type : "is_hex" },
+                    user : { type : "is_hex" }
+                }
+            }
+        };
+
+        return this.validator.compile(schema)
+    }
+
+    validate(op) {
+        return this.#validate(op) === true
     }
 }

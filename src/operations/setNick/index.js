@@ -1,17 +1,15 @@
+import { BaseCheck } from '../base/check.js';
 import b4a from 'b4a';
 import { jsonStringify, visibleLength } from '../../functions.js';
-import { SetNickCheck } from './check.js';
-
-const check = new SetNickCheck();
 
 export class SetNickOperation {
-    #check
+    #validator
     #wallet
     #protocolInstance
     #contractInstance
 
-    constructor({ wallet, protocolInstance, contractInstance }) {
-        this.#check = check
+    constructor(validator, { wallet, protocolInstance, contractInstance }) {
+        this.#validator = validator
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
@@ -19,7 +17,7 @@ export class SetNickOperation {
 
     async handle(op, batch, base, node) {
         // Chat apply: nickname changes (user/mod/admin-signed, uniqueness-enforced).
-        if(false === this.#check.validate(op)) return;
+        if(false === this.#validator.validate(op)) return;
         const taken = await batch.get(`kcin/${op.value.dispatch.nick}`);
         const chatStatus = await batch.get('chat_status');
         const strValue = jsonStringify(op.value);
@@ -55,5 +53,37 @@ export class SetNickOperation {
             await batch.put(`sh/${op.hash}`, '');
             console.log(`Changed nick to ${op.value.dispatch.nick} (${op.value.dispatch.address})`);
         }
+    }
+}
+
+export class SetNickCheck extends BaseCheck {
+    #validate
+
+    constructor() {
+        super()
+        this.#validate = this.#compile()
+    }
+
+    #compile() {
+        const schema = {
+            nonce: { type : "string", min : 1, max : 256 },
+            hash: { type : "is_hex" },
+            value : {
+                $$type: "object",
+                dispatch : {
+                    $$type : "object",
+                    nick : { type : "string", min : 1, max : 256 },
+                    type : { type : "string", min : 1, max : 256 },
+                    address : { type : "is_hex" },
+                    initiator : { type : "is_hex" }
+                }
+            }
+        };
+
+        return this.validator.compile(schema)
+    }
+
+    validate(op) {
+        return this.#validate(op) === true
     }
 }

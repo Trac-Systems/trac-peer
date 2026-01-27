@@ -1,26 +1,24 @@
+import { BaseCheck } from '../base/check.js';
 import b4a from 'b4a';
 import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
 import { jsonStringify, safeClone, createHash } from '../../functions.js';
-import { TxCheck } from './check.js';
-
-const check = new TxCheck();
 
 export class TxOperation {
-    #check
+    #validator
     #wallet
     #protocolInstance
     #contractInstance
     #msbClient
     #config
 
-    constructor({
+    constructor(validator, {
         wallet,
         protocolInstance,
         contractInstance,
         msbClient,
         config
     }) {
-        this.#check = check
+        this.#validator = validator
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
@@ -35,7 +33,7 @@ export class TxOperation {
         // Payload size guard (protect apply from huge JSON ops)
         if(b4a.byteLength(jsonStringify(op)) > this.#protocolInstance.txMaxBytes()) return;
         // Schema validation (required fields / types)
-        if(false === this.#check.validate(op)) return;
+        if(false === this.#validator.validate(op)) return;
         // Stall guard: don't allow a writer to pin apply waiting on an absurd MSB height
         if (op.value.msbsl > this.#config.maxMsbSignedLength) return;
         if (!this.#msbClient.isReady()) return;
@@ -114,5 +112,38 @@ export class TxOperation {
         if(true === this.#config.enableTxlogs){
             console.log(`${op.key} appended. Signed length: ${base.view.core.signedLength}, tx length: ${len + 1}`);
         }
+    }
+}
+
+export class TxCheck extends BaseCheck {
+    #validate
+
+    constructor() {
+        super()
+        this.#validate = this.#compile()
+    }
+
+    #compile() {
+        const schema = {
+            key: { type : "is_hex" },
+            value : {
+                $$type: "object",
+                dispatch : {
+                    $$strict : true,
+                    $$type : "object",
+                    type : { type : "string", min : 1, max : 256 },
+                    value : { type : "any", nullable : true }
+                },
+                msbsl : { type : "number", integer : true, min : 0, max : Number.MAX_SAFE_INTEGER },
+                ipk : { type : "is_hex" },
+                wp : { type : "is_hex" }
+            }
+        };
+
+        return this.validator.compile(schema)
+    }
+
+    validate(op) {
+        return this.#validate(op) === true
     }
 }

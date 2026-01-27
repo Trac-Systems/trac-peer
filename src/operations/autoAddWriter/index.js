@@ -1,23 +1,21 @@
+import { BaseCheck } from '../base/check.js';
 import b4a from 'b4a';
-import { AutoAddWritersCheck } from './check.js';
-
-const check = new AutoAddWritersCheck();
 
 export class AutoAddWritersOperation {
-    #check
+    #validator
     #wallet
     #protocolInstance
     #contractInstance
 
-    constructor({ wallet, protocolInstance, contractInstance }) {
-        this.#check = check
+    constructor(validator, { wallet, protocolInstance, contractInstance }) {
+        this.#validator = validator
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
     }
 
     async handle(op, batch, base, node) {
-        if(false === this.#check.validate(op)) return;
+        if(false === this.#validator.validate(op)) return;
         const autoAddWriters = await batch.get('auto_add_writers');
         const banned = await batch.get(`bnd/${op.key}`);
         if(null === banned && null !== autoAddWriters && autoAddWriters.value === 'on'){
@@ -25,5 +23,26 @@ export class AutoAddWritersOperation {
             await base.addWriter(writerKey, { isIndexer : false });
         }
         console.log(`Writer auto added: ${op.key}`);
+    }
+}
+
+export class AutoAddWritersCheck extends BaseCheck {
+    #validate
+
+    constructor() {
+        super()
+        this.#validate = this.#compile()
+    }
+
+    #compile() {
+        const schema = {
+            key: { type : "is_hex" }
+        };
+
+        return this.validator.compile(schema)
+    }
+
+    validate(op) {
+        return this.#validate(op) === true
     }
 }

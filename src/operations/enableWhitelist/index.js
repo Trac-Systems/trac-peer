@@ -1,20 +1,18 @@
+import { BaseCheck } from '../base/check.js';
 import { jsonStringify } from '../../functions.js';
-import { EnableWhitelistCheck } from './check.js';
-
-const check = new EnableWhitelistCheck();
 
 export class EnableWhitelistOperation {
     #wallet
-    #check
+    #validator
 
-    constructor({ wallet }) {
-        this.#check = check
+    constructor(validator, { wallet }) {
+        this.#validator = validator
         this.#wallet = wallet
     }
 
     async handle(op, batch, base, node) {
         // Chat whitelist config apply: admin-signed enable/disable whitelist enforcement.
-        if(false === this.#check.validate(op)) return;
+        if(false === this.#validator.validate(op)) return;
         const admin = await batch.get('admin');
         const strValue = jsonStringify(op.value);
         if(null !== admin && null !== strValue &&
@@ -26,5 +24,36 @@ export class EnableWhitelistOperation {
                 console.log(`Changed whitelist enabled ${op.value.dispatch.enabled}`);
             }
         }
+    }
+}
+
+export class EnableWhitelistCheck extends BaseCheck {
+    #validate
+
+    constructor() {
+        super()
+        this.#validate = this.#compile()
+    }
+
+    #compile() {
+        const schema = {
+            nonce: { type : "string", min : 1, max : 256 },
+            hash: { type : "is_hex" },
+            value : {
+                $$type: "object",
+                dispatch : {
+                    $$type : "object",
+                    enabled : { type : "boolean" },
+                    type : { type : "string", min : 1, max : 256 },
+                    address : { type : "is_hex" }
+                }
+            }
+        };
+
+        return this.validator.compile(schema)
+    }
+
+    validate(op) {
+        return this.#validate(op) === true
     }
 }

@@ -1,16 +1,14 @@
+import { BaseCheck } from '../base/check.js';
 import { jsonStringify } from '../../functions.js';
-import { SetAutoAddWritersCheck } from './check.js';
-
-const check = new SetAutoAddWritersCheck();
 
 export class SetAutoAddWritersOperation {
-    #check
+    #validator
     #wallet
     #protocolInstance
     #contractInstance
 
-    constructor({ wallet, protocolInstance, contractInstance }) {
-        this.#check = check
+    constructor(validator, { wallet, protocolInstance, contractInstance }) {
+        this.#validator = validator
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
@@ -18,7 +16,7 @@ export class SetAutoAddWritersOperation {
 
     async handle(op, batch, base, node) {
         // Membership config apply: admin-signed toggle for auto-adding writers.
-        if(false === this.#check.validate(op)) return;
+        if(false === this.#validator.validate(op)) return;
         const strMsg = jsonStringify(op.value.msg);
         const admin = await batch.get('admin');
         if(null !== admin && op.value.msg.key === op.key &&
@@ -32,5 +30,36 @@ export class SetAutoAddWritersOperation {
                 console.log(`Set auto_add_writers: ${op.key}`);
             }
         }
+    }
+}
+
+export class SetAutoAddWritersCheck extends BaseCheck {
+    #validate
+
+    constructor() {
+        super()
+        this.#validate = this.#compile()
+    }
+
+    #compile() {
+        const schema = {
+            key: { type : "string", min : 1, max : 256 },
+            hash : { type : "is_hex" },
+            nonce : { type : "string", min : 1, max : 256 },
+            value : {
+                $$type: "object",
+                msg : {
+                    $$type : "object",
+                    type : { type : "string", min : 1, max : 256 },
+                    key: { type : "string", min : 1, max : 256 }
+                }
+            }
+        };
+
+        return this.validator.compile(schema)
+    }
+
+    validate(op) {
+        return this.#validate(op) === true
     }
 }

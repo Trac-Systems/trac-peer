@@ -1,17 +1,15 @@
+import { BaseCheck } from '../base/check.js';
 import b4a from 'b4a';
-import { RemoveWriterCheck } from './check.js';
 import { jsonStringify } from '../../functions.js';
 
-const check = new RemoveWriterCheck();
-
 export class RemoveWriterOperation {
-    #check
+    #validator
     #wallet
     #protocolInstance
     #contractInstance
 
-    constructor({ wallet, protocolInstance, contractInstance }) {
-        this.#check = check
+    constructor(validator, { wallet, protocolInstance, contractInstance }) {
+        this.#validator = validator
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
@@ -19,7 +17,7 @@ export class RemoveWriterOperation {
 
     async handle(op, batch, base, node) {
         // Membership apply: admin-signed remove writer/indexer.
-        if(false === this.#check.validate(op)) return;
+        if(false === this.#validator.validate(op)) return;
         const strMsg = jsonStringify(op.value.msg);
         const admin = await batch.get('admin');
         if(null !== admin && op.value.msg.key === op.key && op.value.msg.type === 'removeWriter' && null === await batch.get(`sh/${op.hash}`)) {
@@ -31,5 +29,36 @@ export class RemoveWriterOperation {
                 console.log(`Writer removed: ${op.key}`);
             }
         }
+    }
+}
+
+export class RemoveWriterCheck extends BaseCheck {
+    #validate
+
+    constructor() {
+        super()
+        this.#validate = this.#compile()
+    }
+
+    #compile() {
+        const schema = {
+            key: { type : "is_hex" },
+            hash : { type : "is_hex" },
+            nonce : { type : "string", min : 1, max : 256 },
+            value : {
+                $$type: "object",
+                msg : {
+                    $$type : "object",
+                    type : { type : "string", min : 1, max : 256 },
+                    key: { type : "is_hex" }
+                }
+            }
+        };
+
+        return this.validator.compile(schema)
+    }
+
+    validate(op) {
+        return this.#validate(op) === true
     }
 }

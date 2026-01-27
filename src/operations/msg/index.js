@@ -1,17 +1,15 @@
+import { BaseCheck } from '../base/check.js';
 import b4a from 'b4a';
 import { jsonStringify } from '../../functions.js';
-import { MsgCheck } from './check.js';
-
-const check = new MsgCheck();
 
 export class MsgOperation {
-    #check
+    #validator
     #wallet
     #protocolInstance
     #contractInstance
 
-    constructor({ wallet, protocolInstance, contractInstance }) {
-        this.#check = check
+    constructor(validator, { wallet, protocolInstance, contractInstance }) {
+        this.#validator = validator
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
@@ -20,7 +18,7 @@ export class MsgOperation {
     async handle(op, batch, base, node) {
         // Chat apply: user-signed message + whitelist/mute checks + replay protection.
         if (b4a.byteLength(jsonStringify(op)) > this.#protocolInstance.msgMaxBytes()) return;
-        if (false === this.#check.validate(op)) return;
+        if (false === this.#validator.validate(op)) return;
         const admin = await batch.get('admin');
         let muted = false;
         let whitelisted = true;
@@ -66,5 +64,45 @@ export class MsgOperation {
             const nick = await batch.get(`nick/${op.value.dispatch.address}`);
             console.log(`#${len + 1} | ${nick !== null ? nick.value : op.value.dispatch.address}: ${op.value.dispatch.msg}`);
         }
+    }
+}
+
+export class MsgCheck extends BaseCheck {
+    #validate
+
+    constructor() {
+        super()
+        this.#validate = this.#compile()
+    }
+
+    #compile() {
+        const schema = {
+            $$strict: true,
+            type : { type : "string", min : 1, max : 256 },
+            nonce: { type : "string", min : 1, max : 256 },
+            hash: { type : "is_hex" },
+            value : {
+                $$strict: true,
+                $$type: "object",
+                dispatch : {
+                    $$strict: true,
+                    $$type : "object",
+                    attachments : { type : "array", items : "string" },
+                    msg : { type : "string", min : 1 },
+                    type : { type : "string", min : 1, max : 256 },
+                    address : { type : "is_hex" },
+                    deleted_by : { type : "is_hex", nullable : true },
+                    reply_to : { type : "number", integer : true, min : 0, max : Number.MAX_SAFE_INTEGER, nullable : true },
+                    pinned : { type : "boolean" },
+                    pin_id : { type : "number", integer : true, min : 0, max : Number.MAX_SAFE_INTEGER, nullable : true },
+                }
+            }
+        };
+
+        return this.validator.compile(schema)
+    }
+
+    validate(op) {
+        return this.#validate(op) === true
     }
 }

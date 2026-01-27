@@ -1,20 +1,18 @@
+import { BaseCheck } from '../base/check.js';
 import { jsonStringify } from '../../functions.js';
-import { PinMessageCheck } from './check.js';
-
-const check = new PinMessageCheck();
 
 export class PinMessageOperation {
-    #check
+    #validator
     #wallet
 
-    constructor({ wallet }) {
-        this.#check = check
+    constructor(validator, { wallet }) {
+        this.#validator = validator
         this.#wallet = wallet
     }
 
     async handle(op, batch, base, node) {
         // Chat moderation apply: admin/mod-signed pin/unpin (by pinned flag).
-        if(false === this.#check.validate(op)) return;
+        if(false === this.#validator.validate(op)) return;
         const strValue = jsonStringify(op.value);
         if(null !== strValue &&
             null === await batch.get(`sh/${op.hash}`)){
@@ -48,5 +46,37 @@ export class PinMessageOperation {
                 }
             }
         }
+    }
+}
+
+export class PinMessageCheck extends BaseCheck {
+    #validate
+
+    constructor() {
+        super()
+        this.#validate = this.#compile()
+    }
+
+    #compile() {
+        const schema = {
+            nonce: { type : "string", min : 1, max : 256 },
+            hash: { type : "is_hex" },
+            value : {
+                $$type: "object",
+                dispatch : {
+                    $$type : "object",
+                    id : { type : "number", integer: true, min : 0, max : Number.MAX_SAFE_INTEGER },
+                    pinned : { type : "boolean" },
+                    type : { type : "string", min : 1, max : 256 },
+                    address : { type : "is_hex" }
+                }
+            }
+        };
+
+        return this.validator.compile(schema)
+    }
+
+    validate(op) {
+        return this.#validate(op) === true
     }
 }

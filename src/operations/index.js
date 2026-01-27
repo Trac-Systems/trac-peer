@@ -1,50 +1,50 @@
-import { TxOperation } from './tx/index.js';
-import { MsgOperation } from './msg/index.js';
-import { FeatureOperation } from './feature/index.js';
-import { AddIndexerOperation } from './addIndexer/index.js';
-import { AddWriterOperation } from './addWriter/index.js';
-import { RemoveWriterOperation } from './removeWriter/index.js';
-import { SetChatStatusOperation } from './setChatStatus/index.js';
-import { SetAutoAddWritersOperation } from './setAutoAddWriters/index.js';
-import { AutoAddWritersOperation } from './autoAddWriter/index.js';
-import { AddAdminOperation } from './addAdmin/index.js';
-import { UpdateAdminOperation } from './updateAdmin/index.js';
-import { SetNickOperation } from './setNick/index.js';
-import { MuteStatusOperation } from './muteStatus/index.js';
-import { DeleteMessageOperation } from './deleteMessage/index.js';
-import { UnpinMessageOperation } from './unpinMessage/index.js';
-import { PinMessageOperation } from './pinMessage/index.js';
-import { SetModOperation } from './setMod/index.js';
-import { SetWhitelistStatusOperation } from './setWhitelistStatus/index.js';
-import { EnableWhitelistOperation } from './enableWhitelist/index.js';
-import { EnableTransactionsOperation } from './enableTransactions/index.js';
+import { TxOperation, TxCheck } from './tx/index.js';
+import { MsgOperation, MsgCheck } from './msg/index.js';
+import { FeatureOperation, FeatureCheck } from './feature/index.js';
+import { AddIndexerOperation, AddIndexerCheck } from './addIndexer/index.js';
+import { AddWriterOperation, AddWriterCheck } from './addWriter/index.js';
+import { RemoveWriterOperation, RemoveWriterCheck } from './removeWriter/index.js';
+import { SetChatStatusOperation, SetChatStatusCheck } from './setChatStatus/index.js';
+import { SetAutoAddWritersOperation, SetAutoAddWritersCheck } from './setAutoAddWriters/index.js';
+import { AutoAddWritersOperation, AutoAddWritersCheck } from './autoAddWriter/index.js';
+import { AddAdminOperation, AddAdminCheck } from './addAdmin/index.js';
+import { UpdateAdminOperation, UpdateAdminCheck } from './updateAdmin/index.js';
+import { SetNickOperation, SetNickCheck } from './setNick/index.js';
+import { MuteStatusOperation, MuteStatusCheck } from './muteStatus/index.js';
+import { DeleteMessageOperation, DeleteMessageCheck } from './deleteMessage/index.js';
+import { UnpinMessageOperation, UnpinMessageCheck } from './unpinMessage/index.js';
+import { PinMessageOperation, PinMessageCheck } from './pinMessage/index.js';
+import { SetModOperation, SetModCheck } from './setMod/index.js';
+import { SetWhitelistStatusOperation, SetWhitelistStatusCheck } from './setWhitelistStatus/index.js';
+import { EnableWhitelistOperation, EnableWhitelistCheck } from './enableWhitelist/index.js';
+import { EnableTransactionsOperation, EnableTransactionsCheck } from './enableTransactions/index.js';
 
 const handlers = [
-    { operation: 'tx', Class: TxOperation },
-    { operation: 'msg', Class: MsgOperation },
-    { operation: 'feature', Class: FeatureOperation },
-    { operation: 'addIndexer', Class: AddIndexerOperation },
-    { operation: 'addWriter', Class: AddWriterOperation },
-    { operation: 'removeWriter', Class: RemoveWriterOperation },
-    { operation: 'setChatStatus', Class: SetChatStatusOperation },
-    { operation: 'setAutoAddWriters', Class: SetAutoAddWritersOperation },
-    { operation: 'autoAddWriter', Class: AutoAddWritersOperation },
-    { operation: 'addAdmin', Class: AddAdminOperation },
-    { operation: 'updateAdmin', Class: UpdateAdminOperation },
-    { operation: 'setNick', Class: SetNickOperation },
-    { operation: 'muteStatus', Class: MuteStatusOperation },
-    { operation: 'deleteMessage', Class: DeleteMessageOperation },
-    { operation: 'unpinMessage', Class: UnpinMessageOperation },
-    { operation: 'pinMessage', Class: PinMessageOperation },
-    { operation: 'setMod', Class: SetModOperation },
-    { operation: 'setWhitelistStatus', Class: SetWhitelistStatusOperation },
-    { operation: 'enableWhitelist', Class: EnableWhitelistOperation },
-    { operation: 'enableTransactions', Class: EnableTransactionsOperation }
+    { operation: 'tx', Class: TxOperation, validator: new TxCheck() },
+    { operation: 'msg', Class: MsgOperation, validator: new MsgCheck() },
+    { operation: 'feature', Class: FeatureOperation, validator: new FeatureCheck() },
+    { operation: 'addIndexer', Class: AddIndexerOperation, validator: new AddIndexerCheck() },
+    { operation: 'addWriter', Class: AddWriterOperation, validator: new AddWriterCheck() },
+    { operation: 'removeWriter', Class: RemoveWriterOperation, validator: new RemoveWriterCheck() },
+    { operation: 'setChatStatus', Class: SetChatStatusOperation, validator: new SetChatStatusCheck() },
+    { operation: 'setAutoAddWriters', Class: SetAutoAddWritersOperation, validator: new SetAutoAddWritersCheck() },
+    { operation: 'autoAddWriter', Class: AutoAddWritersOperation, validator: new AutoAddWritersCheck() },
+    { operation: 'addAdmin', Class: AddAdminOperation, validator: new AddAdminCheck() },
+    { operation: 'updateAdmin', Class: UpdateAdminOperation, validator: new UpdateAdminCheck() },
+    { operation: 'setNick', Class: SetNickOperation, validator: new SetNickCheck() },
+    { operation: 'muteStatus', Class: MuteStatusOperation, validator: new MuteStatusCheck() },
+    { operation: 'deleteMessage', Class: DeleteMessageOperation, validator: new DeleteMessageCheck() },
+    { operation: 'unpinMessage', Class: UnpinMessageOperation, validator: new UnpinMessageCheck() },
+    { operation: 'pinMessage', Class: PinMessageOperation, validator: new PinMessageCheck() },
+    { operation: 'setMod', Class: SetModOperation, validator: new SetModCheck() },
+    { operation: 'setWhitelistStatus', Class: SetWhitelistStatusOperation, validator: new SetWhitelistStatusCheck() },
+    { operation: 'enableWhitelist', Class: EnableWhitelistOperation, validator: new EnableWhitelistCheck() },
+    { operation: 'enableTransactions', Class: EnableTransactionsOperation, validator: new EnableTransactionsCheck() }
 ]
 
 export const handlerFor = (node, context) => {
     const handler = handlers.find(({ operation }) => operation === node.value.type)
     if (handler) {
-        return new handler.Class(context)
+        return new handler.Class(handler.validator, context)
     }
 }
