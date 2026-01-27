@@ -8,11 +8,8 @@ export class TxOperation {
     #protocolInstance
     #contractInstance
     #msbClient
-    #bootstrap
     #msb
-    #maxMsbApplyOperationBytes
-    #maxMsbSignedLength
-    #enableTxLogs
+    #config
 
     constructor({
         check,
@@ -20,22 +17,16 @@ export class TxOperation {
         protocolInstance,
         contractInstance,
         msbClient,
-        bootstrap,
         msb,
-        max_msb_apply_operation_bytes: maxMsbApplyOperationBytes,
-        max_msb_signed_length: maxMsbSignedLength,
-        enable_txlogs: enableTxLogs
+        config
     }) {
         this.#check = check
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
         this.#msbClient = msbClient
-        this.#bootstrap = bootstrap
         this.#msb = msb
-        this.#maxMsbApplyOperationBytes = maxMsbApplyOperationBytes
-        this.#maxMsbSignedLength = maxMsbSignedLength
-        this.#enableTxLogs = enableTxLogs
+        this.#config = config
     }
 
     async handle(op, batch, base, node) {
@@ -47,7 +38,7 @@ export class TxOperation {
         // Schema validation (required fields / types)
         if(false === this.#check.tx(op)) return;
         // Stall guard: don't allow a writer to pin apply waiting on an absurd MSB height
-        if (op.value.msbsl > this.#maxMsbSignedLength) return;
+        if (op.value.msbsl > this.#config.maxMsbSignedLength) return;
         if (!this.#msbClient.isReady()) return;
         const msbCore = this.#msb.state.base.view.core;
         // Wait for local MSB view to reach the referenced signed length
@@ -60,7 +51,7 @@ export class TxOperation {
         await msbViewSession.close();
         // MSB entry shape/size guards (protect protobuf decode + keep apply bounded)
         if (null === msbTxEntry || false === b4a.isBuffer(msbTxEntry.value)) return;
-        if (msbTxEntry.value.byteLength > this.#maxMsbApplyOperationBytes) return;
+        if (msbTxEntry.value.byteLength > this.#config.maxMsbApplyOperationBytes) return;
         // Decode MSB operation and ensure it's a TX (type 12) with required fields
         const decoded = safeDecodeApplyOperation(msbTxEntry.value);
         if (null === decoded || decoded.txo === undefined) return;
@@ -68,7 +59,7 @@ export class TxOperation {
         // Cross-check: tx hash matches op.key
         if (null === decoded.txo.tx || decoded.txo.tx.toString('hex') !== op.key) return;
         // Cross-check: MSB tx targets this subnet + this MSB network
-        const subnetBootstrapHex = (b4a.isBuffer(this.#bootstrap) ? this.#bootstrap.toString('hex') : `${this.#bootstrap}`).toLowerCase();
+        const subnetBootstrapHex = (b4a.isBuffer(this.#config.bootstrap) ? this.#config.bootstrap.toString('hex') : `${this.#config.bootstrap}`).toLowerCase();
         if (null === decoded.txo.bs || decoded.txo.bs.toString('hex') !== subnetBootstrapHex) return;
         if (null === decoded.txo.mbs || decoded.txo.mbs.toString('hex') !== this.#msbClient.bootstrapHex) return;
         // Cross-check: content hash matches the subnet dispatch payload (blake3)
@@ -120,7 +111,7 @@ export class TxOperation {
         }
         await batch.put(`utxi/${op.value.ipk}/${ulen}`, len);
         await batch.put(`utxl/${op.value.ipk}`, ulen + 1);
-        if(true === this.#enableTxLogs){
+        if(true === this.#config.enableTxlogs){
             console.log(`${op.key} appended. Signed length: ${base.view.core.signedLength}, tx length: ${len + 1}`);
         }
     }

@@ -133,10 +133,12 @@ export class Peer extends ReadyResource {
                     contractInstance: this.contract_instance,
                     msbClient: this.msbClient,
                     msb: this.msb,
-                    bootstrap: this.bootstrap,
-                    max_msb_apply_operation_bytes: this.max_msb_apply_operation_bytes,
-                    max_msb_signed_length: this.max_msb_signed_length,
-                    enable_txlogs: this.options.enable_txlogs
+                    config: {
+                        bootstrap: this.bootstrap,
+                        maxMsbApplyOperationBytes: this.max_msb_apply_operation_bytes,
+                        maxMsbSignedLength: this.max_msb_signed_length,
+                        enableTxlogs: this.options.enable_txlogs
+                    }
                 }
                 for (const node of nodes) {
                     // Basic node shape validation (prevents apply crashes on malformed entries)
