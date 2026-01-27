@@ -1,5 +1,8 @@
 import b4a from 'b4a';
+import { RemoveWriterCheck } from './check.js';
 import { jsonStringify } from '../../functions.js';
+
+const check = new RemoveWriterCheck();
 
 export class RemoveWriterOperation {
     #check
@@ -7,7 +10,7 @@ export class RemoveWriterOperation {
     #protocolInstance
     #contractInstance
 
-    constructor({ check, wallet, protocolInstance, contractInstance }) {
+    constructor({ wallet, protocolInstance, contractInstance }) {
         this.#check = check
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
@@ -16,7 +19,7 @@ export class RemoveWriterOperation {
 
     async handle(op, batch, base, node) {
         // Membership apply: admin-signed remove writer/indexer.
-        if(false === this.#check.removeWriter(op)) return;
+        if(false === this.#check.validate(op)) return;
         const strMsg = jsonStringify(op.value.msg);
         const admin = await batch.get('admin');
         if(null !== admin && op.value.msg.key === op.key && op.value.msg.type === 'removeWriter' && null === await batch.get(`sh/${op.hash}`)) {

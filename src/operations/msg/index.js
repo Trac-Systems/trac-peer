@@ -1,5 +1,8 @@
 import b4a from 'b4a';
 import { jsonStringify } from '../../functions.js';
+import { MsgCheck } from './check.js';
+
+const check = new MsgCheck();
 
 export class MsgOperation {
     #check
@@ -7,7 +10,7 @@ export class MsgOperation {
     #protocolInstance
     #contractInstance
 
-    constructor({ check, wallet, protocolInstance, contractInstance }) {
+    constructor({ wallet, protocolInstance, contractInstance }) {
         this.#check = check
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
@@ -17,7 +20,7 @@ export class MsgOperation {
     async handle(op, batch, base, node) {
         // Chat apply: user-signed message + whitelist/mute checks + replay protection.
         if (b4a.byteLength(jsonStringify(op)) > this.#protocolInstance.msgMaxBytes()) return;
-        if (false === this.#check.msg(op)) return;
+        if (false === this.#check.validate(op)) return;
         const admin = await batch.get('admin');
         let muted = false;
         let whitelisted = true;

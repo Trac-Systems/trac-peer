@@ -1,6 +1,9 @@
 import b4a from 'b4a';
 import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
 import { jsonStringify, safeClone, createHash } from '../../functions.js';
+import { TxCheck } from './check.js';
+
+const check = new TxCheck();
 
 export class TxOperation {
     #check
@@ -11,7 +14,6 @@ export class TxOperation {
     #config
 
     constructor({
-        check,
         wallet,
         protocolInstance,
         contractInstance,
@@ -33,7 +35,7 @@ export class TxOperation {
         // Payload size guard (protect apply from huge JSON ops)
         if(b4a.byteLength(jsonStringify(op)) > this.#protocolInstance.txMaxBytes()) return;
         // Schema validation (required fields / types)
-        if(false === this.#check.tx(op)) return;
+        if(false === this.#check.validate(op)) return;
         // Stall guard: don't allow a writer to pin apply waiting on an absurd MSB height
         if (op.value.msbsl > this.#config.maxMsbSignedLength) return;
         if (!this.#msbClient.isReady()) return;

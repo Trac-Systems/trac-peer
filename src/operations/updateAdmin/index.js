@@ -1,4 +1,7 @@
 import { jsonStringify } from '../../functions.js';
+import { UpdateAdminCheck } from './check.js';
+
+const check = new UpdateAdminCheck();
 
 export class UpdateAdminOperation {
     #check
@@ -6,7 +9,7 @@ export class UpdateAdminOperation {
     #protocolInstance
     #contractInstance
 
-    constructor({ check, wallet, protocolInstance, contractInstance }) {
+    constructor({ wallet, protocolInstance, contractInstance }) {
         this.#check = check
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
@@ -15,7 +18,7 @@ export class UpdateAdminOperation {
 
     async handle(op, batch, base, node) {
         // Admin apply: current admin transfers admin rights (replay-protected by sh/<hash>).
-        if(false === this.#check.updateAdmin(op)) return;
+        if(false === this.#check.validate(op)) return;
         const admin = await batch.get('admin');
         const strValue = jsonStringify(op.value);
         if(null !== admin && null !== strValue &&

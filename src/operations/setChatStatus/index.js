@@ -1,4 +1,7 @@
 import { jsonStringify } from '../../functions.js';
+import { SetChatStatusCheck } from './check.js';
+
+const check = new SetChatStatusCheck();
 
 export class SetChatStatusOperation {
     #check
@@ -6,7 +9,7 @@ export class SetChatStatusOperation {
     #protocolInstance
     #contractInstance
 
-    constructor({ check, wallet, protocolInstance, contractInstance }) {
+    constructor({ wallet, protocolInstance, contractInstance }) {
         this.#check = check
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
@@ -15,7 +18,7 @@ export class SetChatStatusOperation {
 
     async handle(op, batch, base, node) {
         // Chat config apply: admin-signed chat on/off toggle.
-        if(false === this.#check.setChatStatus(op)) return;
+        if(false === this.#check.validate(op)) return;
         const strMsg = jsonStringify(op.value.msg);
         const admin = await batch.get('admin');
         if(null !== admin && op.value.msg.key === op.key && op.value.msg.type === 'setChatStatus' && (op.key === 'on' || op.key === 'off') && null === await batch.get(`sh/${op.hash}`)) {

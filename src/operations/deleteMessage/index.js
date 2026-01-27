@@ -1,17 +1,20 @@
 import { jsonStringify } from '../../functions.js';
+import { DeleteMessageCheck } from './check.js';
+
+const check = new DeleteMessageCheck();
 
 export class DeleteMessageOperation {
     #check
     #wallet
 
-    constructor({ check, wallet }) {
+    constructor({ wallet }) {
         this.#check = check
         this.#wallet = wallet
     }
 
     async handle(op, batch, base, node) {
         // Chat moderation apply: admin/mod/user-signed message deletion (replay-protected by sh/<hash>).
-        if(false === this.#check.deleteMessage(op)) return;
+        if(false === this.#check.validate(op)) return;
         const strValue = jsonStringify(op.value);
         if(null !== strValue &&
             null === await batch.get(`sh/${op.hash}`)){

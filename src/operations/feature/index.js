@@ -1,5 +1,8 @@
 import b4a from 'b4a';
 import { jsonStringify } from '../../functions.js';
+import { FeatureCheck } from './check.js';
+
+const check = new FeatureCheck();
 
 export class FeatureOperation {
     #check
@@ -7,7 +10,7 @@ export class FeatureOperation {
     #protocolInstance
     #contractInstance
 
-    constructor({ check, wallet, protocolInstance, contractInstance }) {
+    constructor({ wallet, protocolInstance, contractInstance }) {
         this.#check = check
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
@@ -17,7 +20,7 @@ export class FeatureOperation {
     async handle(op, batch, base, node) {
         // Feature apply: admin-signed feature/contract op (replay-protected by sh/<hash>).
         if(b4a.byteLength(jsonStringify(op)) > this.#protocolInstance.featMaxBytes()) return;
-        if(false === this.#check.feature(op)) return;
+        if(false === this.#check.validate(op)) return;
         const strDispatchValue = jsonStringify(op.value.dispatch.value);
         const admin = await batch.get('admin');
         if(null !== admin &&

@@ -1,17 +1,20 @@
 import { jsonStringify } from '../../functions.js';
+import { PinMessageCheck } from './check.js';
+
+const check = new PinMessageCheck();
 
 export class PinMessageOperation {
     #check
     #wallet
 
-    constructor({ check, wallet }) {
+    constructor({ wallet }) {
         this.#check = check
         this.#wallet = wallet
     }
 
     async handle(op, batch, base, node) {
         // Chat moderation apply: admin/mod-signed pin/unpin (by pinned flag).
-        if(false === this.#check.pinMessage(op)) return;
+        if(false === this.#check.validate(op)) return;
         const strValue = jsonStringify(op.value);
         if(null !== strValue &&
             null === await batch.get(`sh/${op.hash}`)){

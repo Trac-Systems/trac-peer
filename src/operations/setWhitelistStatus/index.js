@@ -1,17 +1,20 @@
 import { jsonStringify } from '../../functions.js';
+import { SetWhitelistStatusCheck } from './check.js';
+
+const check = new SetWhitelistStatusCheck();
 
 export class SetWhitelistStatusOperation {
     #wallet
     #check
 
-    constructor({ wallet, check }) {
+    constructor({ wallet }) {
         this.#check = check
         this.#wallet = wallet
     }
 
     async handle(op, batch, base, node) {
         // Chat whitelist apply: admin-signed add/remove address from whitelist.
-        if(false === this.#check.whitelistStatus(op)) return;
+        if(false === this.#check.validate(op)) return;
         const admin = await batch.get('admin');
         const strValue = jsonStringify(op.value);
         if(null !== admin && null !== strValue &&

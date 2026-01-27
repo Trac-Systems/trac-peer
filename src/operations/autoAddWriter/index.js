@@ -1,4 +1,7 @@
 import b4a from 'b4a';
+import { AutoAddWritersCheck } from './check.js';
+
+const check = new AutoAddWritersCheck();
 
 export class AutoAddWritersOperation {
     #check
@@ -6,7 +9,7 @@ export class AutoAddWritersOperation {
     #protocolInstance
     #contractInstance
 
-    constructor({ check, wallet, protocolInstance, contractInstance }) {
+    constructor({ wallet, protocolInstance, contractInstance }) {
         this.#check = check
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
@@ -14,7 +17,7 @@ export class AutoAddWritersOperation {
     }
 
     async handle(op, batch, base, node) {
-        if(false === this.#check.key(op)) return;
+        if(false === this.#check.validate(op)) return;
         const autoAddWriters = await batch.get('auto_add_writers');
         const banned = await batch.get(`bnd/${op.key}`);
         if(null === banned && null !== autoAddWriters && autoAddWriters.value === 'on'){

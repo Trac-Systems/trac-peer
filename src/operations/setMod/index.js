@@ -1,17 +1,20 @@
 import { jsonStringify } from '../../functions.js';
+import { SetModCheck } from './check.js';
+
+const check = new SetModCheck();
 
 export class SetModOperation {
     #check
     #wallet
 
-    constructor({ check, wallet }) {
+    constructor({ wallet }) {
         this.#check = check
         this.#wallet = wallet
     }
 
     async handle(op, batch, base, node) {
         // Chat moderation apply: admin-signed set/unset mod role.
-        if(false === this.#check.mod(op)) return;
+        if(false === this.#check.validate(op)) return;
         const admin = await batch.get('admin');
         const strValue = jsonStringify(op.value);
         if(null !== admin && null !== strValue &&

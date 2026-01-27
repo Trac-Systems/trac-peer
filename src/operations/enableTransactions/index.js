@@ -1,16 +1,19 @@
 import { jsonStringify } from '../../functions.js';
+import { EnableTransactionsCheck } from './check.js';
+
+const check = new EnableTransactionsCheck();
 
 export class EnableTransactionsOperation {
     #wallet
     #check
 
-    constructor({ wallet, check }) {
+    constructor({ wallet }) {
         this.#check = check
         this.#wallet = wallet
     }
 
     async handle(op, batch, base, node) {
-        if(false === this.#check.enableTransactions(op)) return;
+        if(false === this.#check.validate(op)) return;
         const admin = await batch.get('admin');
         const strValue = jsonStringify(op.value);
         if(null !== admin && null !== strValue &&

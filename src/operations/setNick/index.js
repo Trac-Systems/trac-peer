@@ -1,5 +1,8 @@
 import b4a from 'b4a';
 import { jsonStringify, visibleLength } from '../../functions.js';
+import { SetNickCheck } from './check.js';
+
+const check = new SetNickCheck();
 
 export class SetNickOperation {
     #check
@@ -7,7 +10,7 @@ export class SetNickOperation {
     #protocolInstance
     #contractInstance
 
-    constructor({ check, wallet, protocolInstance, contractInstance }) {
+    constructor({ wallet, protocolInstance, contractInstance }) {
         this.#check = check
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
@@ -16,7 +19,7 @@ export class SetNickOperation {
 
     async handle(op, batch, base, node) {
         // Chat apply: nickname changes (user/mod/admin-signed, uniqueness-enforced).
-        if(false === this.#check.nick(op)) return;
+        if(false === this.#check.validate(op)) return;
         const taken = await batch.get(`kcin/${op.value.dispatch.nick}`);
         const chatStatus = await batch.get('chat_status');
         const strValue = jsonStringify(op.value);

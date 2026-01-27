@@ -1,4 +1,7 @@
 import { jsonStringify } from '../../functions.js';
+import { SetAutoAddWritersCheck } from './check.js';
+
+const check = new SetAutoAddWritersCheck();
 
 export class SetAutoAddWritersOperation {
     #check
@@ -6,7 +9,7 @@ export class SetAutoAddWritersOperation {
     #protocolInstance
     #contractInstance
 
-    constructor({ check, wallet, protocolInstance, contractInstance }) {
+    constructor({ wallet, protocolInstance, contractInstance }) {
         this.#check = check
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
@@ -15,7 +18,7 @@ export class SetAutoAddWritersOperation {
 
     async handle(op, batch, base, node) {
         // Membership config apply: admin-signed toggle for auto-adding writers.
-        if(false === this.#check.setAutoAddWriters(op)) return;
+        if(false === this.#check.validate(op)) return;
         const strMsg = jsonStringify(op.value.msg);
         const admin = await batch.get('admin');
         if(null !== admin && op.value.msg.key === op.key &&

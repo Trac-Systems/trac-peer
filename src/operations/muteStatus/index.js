@@ -1,4 +1,7 @@
 import { jsonStringify } from '../../functions.js';
+import { MuteStatusCheck } from './check.js';
+
+const check = new MuteStatusCheck();
 
 export class MuteStatusOperation {
     #check
@@ -6,7 +9,7 @@ export class MuteStatusOperation {
     #protocolInstance
     #contractInstance
 
-    constructor({ check, wallet, protocolInstance, contractInstance }) {
+    constructor({ wallet, protocolInstance, contractInstance }) {
         this.#check = check
         this.#wallet = wallet
         this.#protocolInstance = protocolInstance
@@ -15,7 +18,7 @@ export class MuteStatusOperation {
 
     async handle(op, batch, base, node) {
         // Chat moderation apply: admin/mod-signed mute/unmute (stored under mtd/<user>).
-        if(false === this.#check.mute(op)) return;
+        if(false === this.#check.validate(op)) return;
         const admin = await batch.get('admin');
         const strValue = jsonStringify(op.value);
         if(null !== strValue &&

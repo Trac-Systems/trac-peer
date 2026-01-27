@@ -146,9 +146,6 @@ class Protocol{
     }
 
     async addFeature(key, feature){
-        //const pk1 = this.peer.wallet.publicKey;
-        //const pk2 = await this.base.view.get('admin');
-        //if(null === pk2 || pk1 !== pk2.value) throw new Error('addFeature(key, feature): Features only allowed for admin.');
         feature.key = key;
         if(typeof this.features[key] !== "undefined") key = Math.random();
         this.features[key] = feature;
@@ -197,19 +194,6 @@ class Protocol{
         return await this.peer.contract_instance.execute(op, storage);
     }
 
-    // async broadcastTransaction(validator_pub_key, obj, sim = false, surrogate = null){
-    //     const tx_enabled = await this.peer.base.view.get('txen');
-    //     if( (null === tx_enabled || true === tx_enabled.value ) &&
-    //         this.peer.msb.getNetwork().validator_stream !== null &&
-    //         this.peer.wallet.publicKey !== null &&
-    //         this.peer.wallet.secretKey !== null &&
-    //         this.base.localWriter !== null &&
-    //         obj.type !== undefined &&
-    //         obj.value !== undefined)
-    //     {
-    //         if(true === sim) {
-    //             return await this.simulateTransaction(validator_pub_key, obj, surrogate);
-    //         }
     async broadcastTransaction(obj, sim = false, surrogate = null){
         if(!this.peer.msbClient.isReady()) throw new Error('MSB is not ready.');
         const tx_enabled = await this.peer.base.view.get('txen');

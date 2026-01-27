@@ -1,17 +1,20 @@
 import { jsonStringify } from '../../functions.js';
+import { UnpinMessageCheck } from './check.js';
+
+const check = new UnpinMessageCheck();
 
 export class UnpinMessageOperation {
     #check
     #wallet
 
-    constructor({ check, wallet }) {
+    constructor({ wallet }) {
         this.#check = check
         this.#wallet = wallet
     }
 
     async handle(op, batch, base, node) {
         // Chat moderation apply: admin/mod-signed unpin.
-        if(false === this.#check.unpinMessage(op)) return;
+        if(false === this.#check.validate(op)) return;
         const strValue = jsonStringify(op.value);
         if(null !== strValue &&
             null === await batch.get(`sh/${op.hash}`)){
