@@ -493,3 +493,8 @@ export async function deploySubnet(input, peer){
     console.log('Subnet deployment tx:', payload.bdo.tx);
     return payload;
 }
+
+export async function createHash(message) {
+    const out = await blake3(message);
+    return b4a.toString(out, 'hex');
+}

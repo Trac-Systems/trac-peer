@@ -1,0 +1,127 @@
+import b4a from 'b4a';
+import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
+import { jsonStringify, safeClone, createHash } from '../../functions.js';
+
+export class TxOperation {
+    #check
+    #wallet
+    #protocolInstance
+    #contractInstance
+    #msbClient
+    #bootstrap
+    #msb
+    #maxMsbApplyOperationBytes
+    #maxMsbSignedLength
+    #enableTxLogs
+
+    constructor({
+        check,
+        wallet,
+        protocolInstance,
+        contractInstance,
+        msbClient,
+        bootstrap,
+        msb,
+        max_msb_apply_operation_bytes: maxMsbApplyOperationBytes,
+        max_msb_signed_length: maxMsbSignedLength,
+        enable_txlogs: enableTxLogs
+    }) {
+        this.#check = check
+        this.#wallet = wallet
+        this.#protocolInstance = protocolInstance
+        this.#contractInstance = contractInstance
+        this.#msbClient = msbClient
+        this.#bootstrap = bootstrap
+        this.#msb = msb
+        this.#maxMsbApplyOperationBytes = maxMsbApplyOperationBytes
+        this.#maxMsbSignedLength = maxMsbSignedLength
+        this.#enableTxLogs = enableTxLogs
+    }
+
+    async handle(op, batch, base, node) {
+        // TX apply: only accept subnet TXs that are confirmed on MSB, then execute contract logic
+        // deterministically (same ordered log => same state everywhere).
+
+        // Payload size guard (protect apply from huge JSON ops)
+        if(b4a.byteLength(jsonStringify(op)) > this.#protocolInstance.txMaxBytes()) return;
+        // Schema validation (required fields / types)
+        if(false === this.#check.tx(op)) return;
+        // Stall guard: don't allow a writer to pin apply waiting on an absurd MSB height
+        if (op.value.msbsl > this.#maxMsbSignedLength) return;
+        if (!this.#msbClient.isReady()) return;
+        const msbCore = this.#msb.state.base.view.core;
+        // Wait for local MSB view to reach the referenced signed length
+        while (msbCore.signedLength < op.value.msbsl) {
+            await new Promise((resolve) => msbCore.once('append', resolve));
+        }
+        // Fetch MSB apply-op at msbsl by tx key (op.key = tx hash)
+        const msbViewSession = this.#msb.state.base.view.checkout(op.value.msbsl);
+        const msbTxEntry = await msbViewSession.get(op.key);
+        await msbViewSession.close();
+        // MSB entry shape/size guards (protect protobuf decode + keep apply bounded)
+        if (null === msbTxEntry || false === b4a.isBuffer(msbTxEntry.value)) return;
+        if (msbTxEntry.value.byteLength > this.#maxMsbApplyOperationBytes) return;
+        // Decode MSB operation and ensure it's a TX (type 12) with required fields
+        const decoded = safeDecodeApplyOperation(msbTxEntry.value);
+        if (null === decoded || decoded.txo === undefined) return;
+        if (decoded.type !== 12) return;
+        // Cross-check: tx hash matches op.key
+        if (null === decoded.txo.tx || decoded.txo.tx.toString('hex') !== op.key) return;
+        // Cross-check: MSB tx targets this subnet + this MSB network
+        const subnetBootstrapHex = (b4a.isBuffer(this.#bootstrap) ? this.#bootstrap.toString('hex') : `${this.#bootstrap}`).toLowerCase();
+        if (null === decoded.txo.bs || decoded.txo.bs.toString('hex') !== subnetBootstrapHex) return;
+        if (null === decoded.txo.mbs || decoded.txo.mbs.toString('hex') !== this.#msbClient.bootstrapHex) return;
+        // Cross-check: content hash matches the subnet dispatch payload (blake3)
+        const contentHash = await createHash(jsonStringify(op.value.dispatch));
+        if (null === decoded.txo.ch || decoded.txo.ch.toString('hex') !== contentHash) return;
+        // Cross-check: requester identity matches ipk
+        const invokerAddress = decoded.address ? decoded.address.toString('ascii') : null;
+        const invokerPubKeyHex = invokerAddress ? this.#msbClient.addressToPubKeyHex(invokerAddress) : null;
+        if (null === invokerPubKeyHex || invokerPubKeyHex !== `${op.value.ipk}`.toLowerCase()) return;
+        // Cross-check: validator identity matches wp
+        const validatorAddress = decoded.txo.va ? decoded.txo.va.toString('ascii') : null;
+        const validatorPubKeyHex = validatorAddress ? this.#msbClient.addressToPubKeyHex(validatorAddress) : null;
+        if (null === validatorPubKeyHex || validatorPubKeyHex !== `${op.value.wp}`.toLowerCase()) return;
+        // Transactions enabled gate (default: enabled if missing)
+        const enabled = await batch.get('txen');
+        if (!(enabled === null || enabled.value === true)) return;
+        // Replay protection: ignore already-indexed TXs
+        if (null !== await batch.get(`tx/${op.key}`)) return;
+        // Execute contract and index deterministic result into subnet state
+        const err = this.#protocolInstance.getError(
+            await this.#contractInstance.execute(op, batch)
+        );
+        let errValue = null;
+        if(null !== err) {
+            if(err.constructor.name === 'UnknownContractOperationType') return;
+            const errMsg = parseInt(err.message);
+            errValue = isNaN(errMsg) ? `${err.message}` : errMsg;
+        }
+        let len = await batch.get('txl');
+        if(null === len) {
+            len = 0;
+        } else {
+            len = len.value;
+        }
+        const dta = {};
+        dta['val'] = safeClone(op.value.dispatch);
+        dta['err'] = errValue;
+        dta['tx'] = op.key;
+        dta['ipk'] = op.value.ipk;
+        dta['wp'] = op.value.wp;
+        await batch.put(`txi/${len}`, dta);
+        await batch.put('txl', len + 1);
+        await batch.put(`tx/${op.key}`, len);
+        let ulen = await batch.get(`utxl/${op.value.ipk}`);
+        if(null === ulen) {
+            ulen = 0;
+        } else {
+            ulen = ulen.value;
+        }
+        await batch.put(`utxi/${op.value.ipk}/${ulen}`, len);
+        await batch.put(`utxl/${op.value.ipk}`, ulen + 1);
+        if(true === this.#enableTxLogs){
+            console.log(`${op.key} appended. Signed length: ${base.view.core.signedLength}, tx length: ${len + 1}`);
+        }
+    }
+}

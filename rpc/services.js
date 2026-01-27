@@ -1,5 +1,6 @@
 import b4a from "b4a";
 import { fastestToJsonSchema } from "./utils/schemaToJson.js";
+import { createHash } from "../src/functions.js";
 
 const asHex32 = (value, field) => {
   const hex = String(value ?? "").trim().toLowerCase();
@@ -132,7 +133,7 @@ export async function contractPrepareTx(peer, { prepared_command, address, nonce
   const json = peer.protocol_instance.safeJsonStringify(prepared_command);
   if (json == null) throw new Error("Failed to stringify prepared_command.");
 
-  const command_hash = await peer.createHash("blake3", json);
+  const command_hash = await createHash(json);
   const tx = await api.generateTx(addr, command_hash, n);
   return { tx, command_hash };
 }

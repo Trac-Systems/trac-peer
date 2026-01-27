@@ -1,4 +1,4 @@
-import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone } from "./functions.js";
+import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone, createHash } from "./functions.js";
 import {ProtocolApi} from './api.js';
 import Wallet from 'trac-wallet';
 import b4a from 'b4a';
@@ -172,7 +172,7 @@ class Protocol{
     async simulateTransaction(validator_pub_key, obj, surrogate = null){
         const storage = new SimStorage(this.peer);
         let nonce = this.generateNonce();
-        const content_hash = await this.peer.createHash('blake3', this.safeJsonStringify(obj));
+        const content_hash = await createHash(this.safeJsonStringify(obj));
         const txvHex = await this.peer.msbClient.getTxvHex();
         const msbBootstrapHex = this.peer.msbClient.bootstrapHex;
         const subnetBootstrapHex = (b4a.isBuffer(this.peer.bootstrap) ? this.peer.bootstrap.toString('hex') : (''+this.peer.bootstrap)).toLowerCase();
@@ -227,7 +227,7 @@ class Protocol{
         const txvHex = await this.peer.msbClient.getTxvHex();
         const msbBootstrapHex = this.peer.msbClient.bootstrapHex;
         const subnetBootstrapHex = (b4a.isBuffer(this.peer.bootstrap) ? this.peer.bootstrap.toString('hex') : (''+this.peer.bootstrap)).toLowerCase();
-        const content_hash = await this.peer.createHash('blake3', this.safeJsonStringify(obj));
+        const content_hash = await createHash(this.safeJsonStringify(obj));
 
         let nonceHex, txHex, signatureHex, pubKeyHex;
         if(surrogate !== null) {

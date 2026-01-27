@@ -1,5 +1,5 @@
 import b4a from "b4a";
-import {jsonStringify} from "./functions.js";
+import { jsonStringify, createHash } from "./functions.js";
 
 export class ProtocolApi{
 
@@ -221,7 +221,7 @@ export class ProtocolApi{
         if(b4a.toString(b4a.from(nonce, 'hex'), 'hex') !== nonce) throw new Error('Invalid nonce.');
         const verified = this.peer.wallet.verify(signature, b4a.from(tx, 'hex'), address);
         if(false === verified) throw new Error('Invalid signature.');
-        const content_hash = await this.peer.createHash('blake3', this.peer.protocol_instance.safeJsonStringify(prepared_command));
+        const content_hash = await createHash(this.peer.protocol_instance.safeJsonStringify(prepared_command));
         let _tx = await this.generateTx(address, content_hash, nonce);
         if(tx !== _tx) throw new Error('Invalid TX.');
         const surrogate = { tx : _tx, nonce : ''+nonce, signature : ''+signature, address : ''+address };
