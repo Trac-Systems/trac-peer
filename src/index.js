@@ -132,7 +132,6 @@ export class Peer extends ReadyResource {
                     protocolInstance: this.protocol_instance,
                     contractInstance: this.contract_instance,
                     msbClient: this.msbClient,
-                    msb: this.msb,
                     config: {
                         bootstrap: this.bootstrap,
                         maxMsbApplyOperationBytes: this.max_msb_apply_operation_bytes,

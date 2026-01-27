@@ -8,7 +8,6 @@ export class TxOperation {
     #protocolInstance
     #contractInstance
     #msbClient
-    #msb
     #config
 
     constructor({
@@ -17,7 +16,6 @@ export class TxOperation {
         protocolInstance,
         contractInstance,
         msbClient,
-        msb,
         config
     }) {
         this.#check = check
@@ -25,7 +23,6 @@ export class TxOperation {
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
         this.#msbClient = msbClient
-        this.#msb = msb
         this.#config = config
     }
 
@@ -40,13 +37,14 @@ export class TxOperation {
         // Stall guard: don't allow a writer to pin apply waiting on an absurd MSB height
         if (op.value.msbsl > this.#config.maxMsbSignedLength) return;
         if (!this.#msbClient.isReady()) return;
-        const msbCore = this.#msb.state.base.view.core;
+        const msb = this.#msbClient.msb;
+        const msbCore = msb.state.base.view.core;
         // Wait for local MSB view to reach the referenced signed length
         while (msbCore.signedLength < op.value.msbsl) {
             await new Promise((resolve) => msbCore.once('append', resolve));
         }
         // Fetch MSB apply-op at msbsl by tx key (op.key = tx hash)
-        const msbViewSession = this.#msb.state.base.view.checkout(op.value.msbsl);
+        const msbViewSession = msb.state.base.view.checkout(op.value.msbsl);
         const msbTxEntry = await msbViewSession.get(op.key);
         await msbViewSession.close();
         // MSB entry shape/size guards (protect protobuf decode + keep apply bounded)
