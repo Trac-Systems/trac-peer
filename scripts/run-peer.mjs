@@ -102,6 +102,11 @@ const apiTxExposed =
   process.env.PEER_API_TX_EXPOSED === "true" ||
   process.env.PEER_API_TX_EXPOSED === "1";
 
+const apiTxExposedEffective = rpcEnabled ? apiTxExposed : false;
+if (!rpcEnabled && apiTxExposed) {
+  console.warn("Ignoring --api-tx-exposed because RPC is not enabled (use --rpc).");
+}
+
 const msbStoresDirectory =
   (args["msb-stores-directory"] && String(args["msb-stores-directory"])) ||
   process.env.MSB_STORES_DIRECTORY ||
@@ -212,7 +217,7 @@ const peer = new Peer({
   bootstrap: subnetBootstrap ? b4a.from(subnetBootstrap, "hex") : null,
   channel: subnetChannel,
   enable_interactive_mode: true,
-  api_tx_exposed: apiTxExposed,
+  api_tx_exposed: apiTxExposedEffective,
 });
 await peer.ready();
 
