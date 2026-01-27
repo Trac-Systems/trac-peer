@@ -74,7 +74,7 @@ npm run peer:run -- --msb-bootstrap=<hex32> --msb-channel=<channel>
 /deploy_subnet
 /add_admin --address <your-peer-publicKey-hex>
 /tx --command "ping hello"
-/get --key app/ping/<tx-hash>
+/get --key app/ping/<tx-hash> --confirmed false
 ```
 
 ---
@@ -422,10 +422,8 @@ npm run peer:pear-rpc -- \
   - `POST /v1/contract/tx` body: `{ "tx": "<hex32>", "prepared_command": { ... }, "address": "<pubkey-hex32>", "signature": "<hex64>", "nonce": "<hex32>", "sim": true|false }`
 
 Notes:
-- To allow wallet tx submission, start the peer with `--api-tx-exposed` (or env `PEER_API_TX_EXPOSED=1`).
+- To allow wallet tx submission, start the peer with `--rpc` and `--api-tx-exposed` (or env `PEER_API_TX_EXPOSED=1` + `PEER_RPC=1`).
 - The peer must be subnet-writable (writer) to broadcast a tx.
-
----
 
 ## Building your own app (Protocol + Contract)
 

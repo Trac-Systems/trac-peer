@@ -4,4 +4,5 @@ import test from 'brittle';
 test.pause();
 await import('./applyGuards.test.js');
 await import('./baseContractProtocol.test.js');
+await import('./cliTx.test.js');
 test.resume();

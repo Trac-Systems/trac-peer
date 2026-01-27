@@ -68,7 +68,7 @@ npm run peer:run -- \
 The runner prints the Peer MSB address. Fund that address on MSB (so the node entry exists and fee checks pass), then in the peer console run:
 - `/deploy_subnet`
 - `/tx --command "ping hello"` (dev protocol)
-- If you want to use admin-only commands (writer/indexer management, chat moderation), run `/add_admin --address "<peer-publicKey-hex>"` and verify with `/get --key admin`.
+- If you want to use admin-only commands (writer/indexer management, chat moderation), run `/add_admin --address "<peer-publicKey-hex>"` and verify with `/get --key admin --confirmed false`.
 
 Notes:
 - The subnet bootstrap key is auto-generated the first time and persisted to `stores/<peer-store>/subnet-bootstrap.hex`.
@@ -115,5 +115,5 @@ Endpoints (all JSON):
 - `POST /v1/contract/tx` body: `{ "tx": "<hex32>", "prepared_command": { ... }, "address": "<pubkey-hex32>", "signature": "<hex64>", "nonce": "<hex32>", "sim": true|false }`
 
 Notes:
-- To allow wallet tx submission, start the peer with `--api-tx-exposed` (or env `PEER_API_TX_EXPOSED=1`).
+- To allow wallet tx submission, start the peer with `--rpc` and `--api-tx-exposed` (or env `PEER_API_TX_EXPOSED=1` + `PEER_RPC=1`).
 - RPC request bodies are limited to `1_000_000` bytes by default (override with `--rpc-max-body-bytes`).
