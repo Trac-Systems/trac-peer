@@ -9,8 +9,8 @@ export class UnpinMessageOperation {
         this.#validator = validator
         this.#wallet = wallet
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Chat moderation apply: admin/mod-signed unpin.
         if(false === this.#validator.validate(op)) return;
         const strValue = jsonStringify(op.value);

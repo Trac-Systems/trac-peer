@@ -13,8 +13,8 @@ export class SetAutoAddWritersOperation {
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Membership config apply: admin-signed toggle for auto-adding writers.
         if(false === this.#validator.validate(op)) return;
         const strMsg = jsonStringify(op.value.msg);

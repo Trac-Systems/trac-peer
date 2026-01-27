@@ -1,5 +1,4 @@
 class Feature {
-
     constructor(peer, options = {}) {
         this.peer = peer;
         this.key = '';

@@ -14,8 +14,8 @@ export class FeatureOperation {
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Feature apply: admin-signed feature/contract op (replay-protected by sh/<hash>).
         if(b4a.byteLength(jsonStringify(op)) > this.#protocolInstance.featMaxBytes()) return;
         if(false === this.#validator.validate(op)) return;

@@ -9,8 +9,8 @@ export class SetModOperation {
         this.#validator = validator
         this.#wallet = wallet
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Chat moderation apply: admin-signed set/unset mod role.
         if(false === this.#validator.validate(op)) return;
         const admin = await batch.get('admin');

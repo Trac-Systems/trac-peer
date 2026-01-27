@@ -13,8 +13,8 @@ export class UpdateAdminOperation {
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Admin apply: current admin transfers admin rights (replay-protected by sh/<hash>).
         if(false === this.#validator.validate(op)) return;
         const admin = await batch.get('admin');

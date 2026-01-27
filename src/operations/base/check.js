@@ -3,6 +3,8 @@ import WAValidator from 'multicoin-address-validator';
 import b4a from 'b4a';
 
 export class BaseCheck {
+    #validateNode
+
     constructor() {
         this.validator = new Validator({
             useNewCustomCheckerFunction: true,
@@ -88,5 +90,26 @@ export class BaseCheck {
                 `
             };
         });
+
+        this.#validateNode = this.#compileNode();
+    }
+
+    #compileNode() {
+        const schema = {
+            /*from : {
+                $$type: "object",
+                key : { type : 'string', hex : null, instanceof: Buffer }
+            },*/
+            value: {
+                $$type: "object",
+                type: { type : "string", min : 1, max : 256 }
+            }
+        };
+        return this.validator.compile(schema);
+    }
+
+    validateNode(node) {
+        const res = this.#validateNode(node);
+        return res === true;
     }
 }

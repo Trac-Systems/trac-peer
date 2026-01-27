@@ -14,8 +14,8 @@ export class MsgOperation {
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Chat apply: user-signed message + whitelist/mute checks + replay protection.
         if (b4a.byteLength(jsonStringify(op)) > this.#protocolInstance.msgMaxBytes()) return;
         if (false === this.#validator.validate(op)) return;

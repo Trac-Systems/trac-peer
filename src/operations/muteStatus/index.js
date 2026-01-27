@@ -13,8 +13,8 @@ export class MuteStatusOperation {
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Chat moderation apply: admin/mod-signed mute/unmute (stored under mtd/<user>).
         if(false === this.#validator.validate(op)) return;
         const admin = await batch.get('admin');

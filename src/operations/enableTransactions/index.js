@@ -9,8 +9,8 @@ export class EnableTransactionsOperation {
         this.#validator = validator
         this.#wallet = wallet
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         if(false === this.#validator.validate(op)) return;
         const admin = await batch.get('admin');
         const strValue = jsonStringify(op.value);

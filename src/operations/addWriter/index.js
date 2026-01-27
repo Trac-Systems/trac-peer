@@ -14,8 +14,8 @@ export class AddWriterOperation {
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Membership apply: admin-signed add writer (Autobase writer with isIndexer: false).
         if(false === this.#validator.validate(op)) return;
         const strMsg = jsonStringify(op.value.msg);

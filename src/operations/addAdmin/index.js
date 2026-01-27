@@ -9,8 +9,8 @@ export class AddAdminOperation {
         this.#validator = validator
         this.#config = config
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Admin apply: bootstrap node can set the initial admin once.
         if(false === this.#validator.validate(op)) return;
         const bootstrapWriterKeyHex = b4a.toString(node.from.key, 'hex');

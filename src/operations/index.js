@@ -43,7 +43,9 @@ const handlers = [
 ]
 
 export const handlerFor = (node, context) => {
-    const handler = handlers.find(({ operation }) => operation === node.value.type)
+    const type = node?.value?.type
+    if (!type) return
+    const handler = handlers.find(({ operation }) => operation === type)
     if (handler) {
         return new handler.Class(handler.validator, context)
     }

@@ -9,8 +9,8 @@ export class SetWhitelistStatusOperation {
         this.#validator = validator
         this.#wallet = wallet
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Chat whitelist apply: admin-signed add/remove address from whitelist.
         if(false === this.#validator.validate(op)) return;
         const admin = await batch.get('admin');

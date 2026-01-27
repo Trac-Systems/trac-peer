@@ -25,8 +25,8 @@ export class TxOperation {
         this.#msbClient = msbClient
         this.#config = config
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // TX apply: only accept subnet TXs that are confirmed on MSB, then execute contract logic
         // deterministically (same ordered log => same state everywhere).
 

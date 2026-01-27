@@ -9,8 +9,8 @@ export class EnableWhitelistOperation {
         this.#validator = validator
         this.#wallet = wallet
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Chat whitelist config apply: admin-signed enable/disable whitelist enforcement.
         if(false === this.#validator.validate(op)) return;
         const admin = await batch.get('admin');

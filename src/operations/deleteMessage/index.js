@@ -9,8 +9,8 @@ export class DeleteMessageOperation {
         this.#validator = validator
         this.#wallet = wallet
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Chat moderation apply: admin/mod/user-signed message deletion (replay-protected by sh/<hash>).
         if(false === this.#validator.validate(op)) return;
         const strValue = jsonStringify(op.value);

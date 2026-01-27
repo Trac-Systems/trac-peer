@@ -14,8 +14,8 @@ export class RemoveWriterOperation {
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Membership apply: admin-signed remove writer/indexer.
         if(false === this.#validator.validate(op)) return;
         const strMsg = jsonStringify(op.value.msg);

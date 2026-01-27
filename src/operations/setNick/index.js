@@ -14,8 +14,8 @@ export class SetNickOperation {
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Chat apply: nickname changes (user/mod/admin-signed, uniqueness-enforced).
         if(false === this.#validator.validate(op)) return;
         const taken = await batch.get(`kcin/${op.value.dispatch.nick}`);

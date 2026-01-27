@@ -13,8 +13,8 @@ export class SetChatStatusOperation {
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         // Chat config apply: admin-signed chat on/off toggle.
         if(false === this.#validator.validate(op)) return;
         const strMsg = jsonStringify(op.value.msg);

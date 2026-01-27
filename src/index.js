@@ -107,7 +107,6 @@ export class Peer extends ReadyResource {
                 if(this.contract_instance === null) await this.initContract();
                 const batch = view.batch();
                 const context = {
-                    check: this.check,
                     wallet: this.wallet,
                     protocolInstance: this.protocol_instance,
                     contractInstance: this.contract_instance,
@@ -120,8 +119,6 @@ export class Peer extends ReadyResource {
                     }
                 }
                 for (const node of nodes) {
-                    // Basic node shape validation (prevents apply crashes on malformed entries)
-                    if(false === this.check.node(node)) continue;
                     const op = node.value;
                     const handler = handlerFor(node, context)
                     if (handler) {
@@ -388,7 +385,5 @@ export class Peer extends ReadyResource {
         }
     }
 }
-
-function noop() { }
 
 export default Peer;

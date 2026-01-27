@@ -13,8 +13,8 @@ export class AutoAddWritersOperation {
         this.#protocolInstance = protocolInstance
         this.#contractInstance = contractInstance
     }
-
     async handle(op, batch, base, node) {
+        if(false === this.#validator.validateNode(node)) return;
         if(false === this.#validator.validate(op)) return;
         const autoAddWriters = await batch.get('auto_add_writers');
         const banned = await batch.get(`bnd/${op.key}`);
