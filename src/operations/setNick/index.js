@@ -1,4 +1,4 @@
-import { BaseCheck } from '../base/check.js';
+import { BaseCheck } from '../../base/check.js';
 import b4a from 'b4a';
 import { jsonStringify, visibleLength } from '../../functions.js';
 

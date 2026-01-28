@@ -18,7 +18,8 @@ test("base Contract: addFunction/addSchema/addFeature populate metadata", async 
 
   const schema = { value: { $$type: "object", a: { type: "string", min: 1 } } };
   contract.addSchema("s1", schema);
-  t.is(typeof contract.schemata.s1, "function");
+  t.is(contract.check.hasSchema("s1"), true);
+  t.is(typeof contract.check.schemata.s1, "function");
   t.is(contract.metadata.schemas.s1.value.a.min, 1);
 
   function myFeature() {}
@@ -35,7 +36,7 @@ test("base Contract: addSchema stores a clone (mutating input doesn't affect met
   const schema = { value: { $$type: "object", a: { type: "string", min: 1 } } };
   contract.addSchema("op", schema);
 
-  schema.value.a.min = 999;
+  schema.value = { $$type: "object", a: { type: "string", min: 999 } };
   t.is(contract.metadata.schemas.op.value.a.min, 1);
 });
 

@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { safeClone } from './functions.js';
-import Check from './check.js';
+import Check from './contractCheck.js';
 
 class Contract {
     constructor(protocol, options = {}) {
@@ -10,7 +10,6 @@ class Contract {
         this.is_feature = false;
         this.is_message = false;
         this.features = {};
-        this.schemata = {};
         this.funcs = {};
         this.metadata = { schemas: {}, functions: {}, features: {} };
         this.message_handler = null;
@@ -22,43 +21,6 @@ class Contract {
         this.assert = assert;
         this.check = new Check();
 
-        this.enter_execute_schema = this.check.validator.compile({
-            value : {
-                $$type: "object",
-                dispatch : {
-                    $$type : "object",
-                    type : { type : "string", min : 1, max : 256 }
-                }
-            }
-        });
-
-        this.tx_schema = this.check.validator.compile({
-            key : { type : "is_hex" },
-            value : {
-                $$type: "object",
-                dispatch : {
-                    $$type : "object",
-                    type : { type : "string", min : 1, max : 256 },
-                    value : { type : "any", nullable : true }
-                },
-                ipk : { type : "is_hex" },
-                wp : { type : "is_hex" }
-            }
-        });
-
-        this.address_schema = this.check.validator.compile({
-            value : {
-                $$type: "object",
-                dispatch : {
-                    $$type : "object",
-                    address : { type : "is_hex" }
-                }
-            }
-        });
-
-        this.textkey_schema = this.check.validator.compile({
-            key : { type : "string", min : 1, max : 256 }
-        });
     }
 
     async execute(op, storage){
@@ -72,15 +34,15 @@ class Contract {
         this.value = null;
         this.storage = null;
 
-        if(true !== this.enter_execute_schema(op)) return false;
+        if(false === this.check.validateEnterExecute(op)) return false;
 
         if(op.type !== 'feature' && op.type !== 'msg'){
-            if(false === this.tx_schema(op)) return false;
+            if(false === this.check.validateTx(op)) return false;
             this.address = op.value.ipk;
             this.validator_address = op.value.wp;
         } else {
-            if(true !== this.address_schema(op)) return false;
-            if(op.type === 'feature' && true !== this.textkey_schema(op)) return false;
+            if(false === this.check.validateAddress(op)) return false;
+            if(op.type === 'feature' && false === this.check.validateTextKey(op)) return false;
             if(op.type === 'feature') this.is_feature = true;
             if(op.type === 'msg') this.is_message = true;
             this.address = op.value.dispatch.address;
@@ -111,8 +73,8 @@ class Contract {
             }
         } else if(this[this.op.type] !== undefined) {
             try {
-                if(this.schemata[this.op.type] !== undefined){
-                    if(true === this.validateSchema(this.op.type, this.op)) {
+                if(this.check.hasSchema(this.op.type)){
+                    if(true === this.check.validateSchema(this.op.type, this.op)) {
                         _return = await this[this.op.type]();
                     } else {
                         _return = new UnknownContractOperationType('Invalid schema.');
@@ -144,13 +106,8 @@ class Contract {
         return _return;
     }
 
-    validateSchema(type, op) {
-        const result = this.schemata[type](op);
-        return result === true;
-    }
-
     addFunction(type){
-        if(this.features[type] !== undefined || this.schemata[type] !== undefined) throw new Error('addFunction(type): The type has been registered already.');
+        if(this.features[type] !== undefined || this.check.hasSchema(type)) throw new Error('addFunction(type): The type has been registered already.');
         this.funcs[type] = true;
         this.metadata.functions[type] = { type };
     }
@@ -159,11 +116,11 @@ class Contract {
         if(this.funcs[type] !== undefined || this.features[type] !== undefined) throw new Error('addSchema(type, schema): The type has been registered already.');
         const cloned = safeClone(schema);
         this.metadata.schemas[type] = cloned ?? schema;
-        this.schemata[type] = this.check.validator.compile(schema);
+        this.check.addSchema(type, schema);
     }
 
     addFeature(type, func) {
-        if(this.funcs[type] !== undefined || this.schemata[type] !== undefined) throw new Error('addFeature(type, func): The type has been registered already.');
+        if(this.funcs[type] !== undefined || this.check.hasSchema(type)) throw new Error('addFeature(type, func): The type has been registered already.');
         this.features[type] = func;
         this.metadata.features[type] = { type, name: func?.name ?? null };
     }

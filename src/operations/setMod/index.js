@@ -1,4 +1,4 @@
-import { BaseCheck } from '../base/check.js';
+import { BaseCheck } from '../../base/check.js';
 import { jsonStringify } from '../../functions.js';
 
 export class SetModOperation {

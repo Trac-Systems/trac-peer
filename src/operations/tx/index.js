@@ -1,4 +1,4 @@
-import { BaseCheck } from '../base/check.js';
+import { BaseCheck } from '../../base/check.js';
 import b4a from 'b4a';
 import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
 import { jsonStringify, safeClone, createHash } from '../../functions.js';
