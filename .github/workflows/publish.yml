@@ -22,7 +22,16 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
-      - run: npm run test:all
+      - name: Install bare
+        run: npm i -g bare
+      - name: Verify bare install
+        run: |
+          which bare
+          bare --version
+      - name: Unit tests (node + bare)
+        run: npm run test:unit:all
+      - name: Acceptance tests (node + bare)
+        run: npm run test:acceptance:all
   release:
     needs: test
     if: startsWith(github.ref, 'refs/tags/')

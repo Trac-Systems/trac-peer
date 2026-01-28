@@ -24,9 +24,13 @@
     "peer:smoke": "node scripts/smoke-msb-sync.mjs",
     "peer:pear": "pear run -d scripts/run-peer.mjs",
     "peer:pear-rpc": "pear run -d scripts/run-peer.mjs --rpc",
-    "test:unit:node": "node tests/unit/unit.test.js",
-    "test:acceptance:node": "node tests/acceptance/acceptance.test.js",
-    "test:all": "npm run test:unit:node && npm run test:acceptance:node"
+    "test:unit:node": "brittle-node -t 60000 tests/unit/unit.test.js",
+    "test:unit:bare": "brittle-bare -t 60000 tests/unit/unit.test.js",
+    "test:unit:all": "(npm run test:unit:node && npm run test:unit:bare) || exit 1",
+    "test:acceptance:node": "brittle-node -t 120000 tests/acceptance/acceptance.test.js",
+    "test:acceptance:bare": "brittle-bare -t 120000 tests/acceptance/acceptance.test.js",
+    "test:acceptance:all": "(npm run test:acceptance:node && npm run test:acceptance:bare) || exit 1",
+    "test:all": "npm run test:unit:all && npm run test:acceptance:all"
   },
   "dependencies": {
     "@tracsystems/blake3": "^0.0.15",

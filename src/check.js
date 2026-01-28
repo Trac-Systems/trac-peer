@@ -3,7 +3,6 @@ import WAValidator from 'multicoin-address-validator';
 import b4a from "b4a";
 
 class Check {
-
     constructor() {
         this.validator = new Validator({
             useNewCustomCheckerFunction: true,

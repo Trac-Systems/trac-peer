@@ -11,14 +11,15 @@ import PokemonProtocol from "../../src/dev/pokemonProtocol.js";
 import HyperMallContract from "../../src/dev/HyperMallConctract.js";
 import HyperMallProtocol from "../../src/dev/HyperMallProtocol.js";
 import Wallet from "../../src/wallet.js";
+import { mkdtempPortable, rmrfPortable } from "../helpers/tmpdir.js";
 
 async function withTempDir(fn) {
-  const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "trac-peer-acceptance-"));
+  const tmpRoot = await mkdtempPortable(path.join(os.tmpdir(), "trac-peer-acceptance-"));
   const storesDirectory = tmpRoot.endsWith(path.sep) ? tmpRoot : tmpRoot + path.sep;
   try {
     return await fn({ tmpRoot, storesDirectory });
   } finally {
-    await fs.rm(tmpRoot, { recursive: true, force: true });
+    await rmrfPortable(tmpRoot);
   }
 }
 

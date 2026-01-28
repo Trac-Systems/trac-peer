@@ -1,4 +1,4 @@
-import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone } from "./functions.js";
+import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone, createHash } from "./functions.js";
 import {ProtocolApi} from './api.js';
 import Wallet from 'trac-wallet';
 import b4a from 'b4a';
@@ -146,9 +146,6 @@ class Protocol{
     }
 
     async addFeature(key, feature){
-        //const pk1 = this.peer.wallet.publicKey;
-        //const pk2 = await this.base.view.get('admin');
-        //if(null === pk2 || pk1 !== pk2.value) throw new Error('addFeature(key, feature): Features only allowed for admin.');
         feature.key = key;
         if(typeof this.features[key] !== "undefined") key = Math.random();
         this.features[key] = feature;
@@ -172,7 +169,7 @@ class Protocol{
     async simulateTransaction(validator_pub_key, obj, surrogate = null){
         const storage = new SimStorage(this.peer);
         let nonce = this.generateNonce();
-        const content_hash = await this.peer.createHash('blake3', this.safeJsonStringify(obj));
+        const content_hash = await createHash(this.safeJsonStringify(obj));
         const txvHex = await this.peer.msbClient.getTxvHex();
         const msbBootstrapHex = this.peer.msbClient.bootstrapHex;
         const subnetBootstrapHex = (b4a.isBuffer(this.peer.bootstrap) ? this.peer.bootstrap.toString('hex') : (''+this.peer.bootstrap)).toLowerCase();
@@ -197,19 +194,6 @@ class Protocol{
         return await this.peer.contract_instance.execute(op, storage);
     }
 
-    // async broadcastTransaction(validator_pub_key, obj, sim = false, surrogate = null){
-    //     const tx_enabled = await this.peer.base.view.get('txen');
-    //     if( (null === tx_enabled || true === tx_enabled.value ) &&
-    //         this.peer.msb.getNetwork().validator_stream !== null &&
-    //         this.peer.wallet.publicKey !== null &&
-    //         this.peer.wallet.secretKey !== null &&
-    //         this.base.localWriter !== null &&
-    //         obj.type !== undefined &&
-    //         obj.value !== undefined)
-    //     {
-    //         if(true === sim) {
-    //             return await this.simulateTransaction(validator_pub_key, obj, surrogate);
-    //         }
     async broadcastTransaction(obj, sim = false, surrogate = null){
         if(!this.peer.msbClient.isReady()) throw new Error('MSB is not ready.');
         const tx_enabled = await this.peer.base.view.get('txen');
@@ -227,7 +211,7 @@ class Protocol{
         const txvHex = await this.peer.msbClient.getTxvHex();
         const msbBootstrapHex = this.peer.msbClient.bootstrapHex;
         const subnetBootstrapHex = (b4a.isBuffer(this.peer.bootstrap) ? this.peer.bootstrap.toString('hex') : (''+this.peer.bootstrap)).toLowerCase();
-        const content_hash = await this.peer.createHash('blake3', this.safeJsonStringify(obj));
+        const content_hash = await createHash(this.safeJsonStringify(obj));
 
         let nonceHex, txHex, signatureHex, pubKeyHex;
         if(surrogate !== null) {
