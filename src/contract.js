@@ -1,8 +1,8 @@
 import assert from 'assert';
 import { safeClone } from './functions.js';
+import Check from './check.js';
 
 class Contract {
-
     constructor(protocol, options = {}) {
         this.protocol = protocol;
         this.storage = null;
@@ -20,8 +20,9 @@ class Contract {
         this.op = null;
         this.value = null;
         this.assert = assert;
+        this.check = new Check();
 
-        this.enter_execute_schema = this.protocol.peer.check.validator.compile({
+        this.enter_execute_schema = this.check.validator.compile({
             value : {
                 $$type: "object",
                 dispatch : {
@@ -31,7 +32,7 @@ class Contract {
             }
         });
 
-        this.tx_schema = this.protocol.peer.check.validator.compile({
+        this.tx_schema = this.check.validator.compile({
             key : { type : "is_hex" },
             value : {
                 $$type: "object",
@@ -45,7 +46,7 @@ class Contract {
             }
         });
 
-        this.address_schema = this.protocol.peer.check.validator.compile({
+        this.address_schema = this.check.validator.compile({
             value : {
                 $$type: "object",
                 dispatch : {
@@ -55,7 +56,7 @@ class Contract {
             }
         });
 
-        this.textkey_schema = this.protocol.peer.check.validator.compile({
+        this.textkey_schema = this.check.validator.compile({
             key : { type : "string", min : 1, max : 256 }
         });
     }
@@ -158,7 +159,7 @@ class Contract {
         if(this.funcs[type] !== undefined || this.features[type] !== undefined) throw new Error('addSchema(type, schema): The type has been registered already.');
         const cloned = safeClone(schema);
         this.metadata.schemas[type] = cloned ?? schema;
-        this.schemata[type] = this.protocol.peer.check.validator.compile(schema);
+        this.schemata[type] = this.check.validator.compile(schema);
     }
 
     addFeature(type, func) {

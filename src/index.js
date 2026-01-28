@@ -12,7 +12,6 @@ import c from 'compact-encoding'
 import { MsbClient } from './msbClient.js';
 import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
 import { safeClone } from "./functions.js";
-import Check from "./check.js";
 import { handlerFor } from './operations/index.js';
 import TransactionPool from './transaction/transactionPool.js';
 export {default as Protocol} from "./protocol.js";
@@ -67,10 +66,8 @@ export class Peer extends ReadyResource {
         // In bare runtime, Buffer#fill(undefined) throws; default to 0 when channel not provided.
         this.bee = null;
         this.connectedNodes = 1;
-        this.isStreaming = false;
         this.connectedPeers = new Set();
         this.options = options;
-        this.check = new Check();
         this.readline_instance = options.readline_instance || null;
     }
 
@@ -78,7 +75,6 @@ export class Peer extends ReadyResource {
         await this.msbClient.ready()
         if (this.config.enableBackgroundTasks) {
             this.tx_observer();
-            this.nodeListener();
         }
         this._boot();
         await this.base.ready();
@@ -278,23 +274,11 @@ export class Peer extends ReadyResource {
                 });
 
                 connection.on('error', (error) => { });
-
-                if (!this.isStreaming) {
-                    this.emit('readyNode');
-                }
             });
 
             this.swarm.join(this.config.channel, { server: true, client: true });
             await this.swarm.flush();
         }
-    }
-
-    nodeListener() {
-        this.on('readyNode', async () => {
-            if (!this.isStreaming) {
-                this.isStreaming = true;
-            }
-        });
     }
 
     async verifyDag() {
