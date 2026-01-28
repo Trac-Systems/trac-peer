@@ -19,6 +19,46 @@ export {default as Contract} from "./contract.js";
 export {default as Feature} from "./feature.js";
 export {default as Wallet} from "./wallet.js";
 
+class TransactionPool {
+    #config
+    #pool
+    constructor(config) {
+        this.#config = config
+        this.#pool = {}
+    }
+
+    *[Symbol.iterator]() {
+        for (const tx of this.#pool) {
+            yield tx
+        }
+    }
+
+    get(tx) {
+        return this.#pool[tx]
+    }
+
+    add(msg) {
+        msg['ts'] = Math.floor(Date.now() / 1000);
+        this.#pool[msg.tx] = msg
+    }
+
+    delete(tx) {
+        delete this.#pool[tx]
+    }
+
+    contains(tx) {
+        return !!this.#pool[msg.tx]
+    }
+
+    size() {
+        return Object.keys(this.#pool).length
+    }
+
+    isNotFull() {
+        return this.#pool.size() <= this.#config.txPoolMaxSize
+    }
+}
+
 class Config {
     constructor(options = {}) {
         this.storesDirectory = options.storesDirectory;
@@ -53,7 +93,7 @@ export class Peer extends ReadyResource {
         this.swarm = null;
         this.base = null;
         this.key = null;
-        this.tx_pool = {};
+        this.tx_pool = new TransactionPool(config);
         this.writerLocalKey = null;
         this.wallet = options.wallet || null;
         
@@ -91,9 +131,8 @@ export class Peer extends ReadyResource {
 
         if (this.config.replicate) await this._replicate();
         this.on('tx', async (msg) => {
-            if(Object.keys(this.tx_pool).length <= this.config.txPoolMaxSize && !this.tx_pool[msg.tx]){
-                msg['ts'] = Math.floor(Date.now() / 1000);
-                this.tx_pool[msg.tx] = msg;
+            if(this.tx_pool.isNotFull() && !this.tx_pool.contains(msg.tx)){
+                this.tx_pool.add(msg);
             }
         });
         if (this.config.enableUpdater) this.updater();
@@ -169,10 +208,10 @@ export class Peer extends ReadyResource {
     async tx_observer(){
         while(true){
             const ts = Math.floor(Date.now() / 1000);
-            for(let tx in this.tx_pool){
+            for(let tx of this.tx_pool){
                 if(ts - this.tx_pool[tx].ts > this.config.maxTxDelay){
                     console.log('Dropping TX', tx);
-                    delete this.tx_pool[tx];
+                    this.tx_pool.delete(tx);
                     delete this.protocol_instance.prepared_transactions_content[tx];
                     continue;
                 }
@@ -197,7 +236,7 @@ export class Peer extends ReadyResource {
                         ipk: ipk,
                         wp: wp,
                     };
-                    delete this.tx_pool[tx];
+                    delete this.tx_pool.delete(tx);
                     delete this.protocol_instance.prepared_transactions_content[tx];
                     await this.base.append({ type: 'tx', key: tx, value: subnet_tx });
                 }
