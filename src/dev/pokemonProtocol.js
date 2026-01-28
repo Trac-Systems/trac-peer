@@ -30,6 +30,7 @@ class PokemonProtocol extends BaseProtocol {
 
   async customCommand(input) {
     if (typeof input !== "string") return;
+
     if (input.startsWith("/get")) {
       const m = input.match(/(?:^|\s)--key(?:=|\s+)(\"[^\"]+\"|'[^']+'|\S+)/);
       const raw = m ? m[1].trim() : null;
@@ -45,11 +46,12 @@ class PokemonProtocol extends BaseProtocol {
       console.log(v);
       return;
     }
+
     if (input.startsWith("/msb")) {
       const txv = await this.peer.msbClient.getTxvHex();
       const peerMsbAddress = this.peer.wallet.address
       const entry = await this.peer.msbClient.msb.state.getNodeEntryUnsigned(peerMsbAddress)
-      const balance = entry?.balance ? bigIntToDecimalString(bufferToBigInt(entry.balance)) : null;
+      const balance = entry?.balance ? bigIntToDecimalString(bufferToBigInt(entry.balance)) : 0;
       const fee = bigIntToDecimalString(bufferToBigInt(this.peer.msbClient.msb.state.getFee()));
       const validators = this.peer.msbClient.msb.network.validatorConnectionManager.connectionCount?.() ?? 0;
       console.log({
