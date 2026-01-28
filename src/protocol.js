@@ -172,7 +172,7 @@ class Protocol{
         const content_hash = await createHash(this.safeJsonStringify(obj));
         const txvHex = await this.peer.msbClient.getTxvHex();
         const msbBootstrapHex = this.peer.msbClient.bootstrapHex;
-        const subnetBootstrapHex = (b4a.isBuffer(this.peer.bootstrap) ? this.peer.bootstrap.toString('hex') : (''+this.peer.bootstrap)).toLowerCase();
+        const subnetBootstrapHex = (b4a.isBuffer(this.peer.config.bootstrap) ? this.peer.config.bootstrap.toString('hex') : (''+this.peer.config.bootstrap)).toLowerCase();
         const tx = await this.generateTx(
             this.peer.msbClient.networkId,
             txvHex,
@@ -209,7 +209,7 @@ class Protocol{
 
         const txvHex = await this.peer.msbClient.getTxvHex();
         const msbBootstrapHex = this.peer.msbClient.bootstrapHex;
-        const subnetBootstrapHex = (b4a.isBuffer(this.peer.bootstrap) ? this.peer.bootstrap.toString('hex') : (''+this.peer.bootstrap)).toLowerCase();
+        const subnetBootstrapHex = (b4a.isBuffer(this.peer.config.bootstrap) ? this.peer.config.bootstrap.toString('hex') : (''+this.peer.config.bootstrap)).toLowerCase();
         const content_hash = await createHash(this.safeJsonStringify(obj));
 
         let nonceHex, txHex, signatureHex, pubKeyHex;

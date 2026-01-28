@@ -227,7 +227,7 @@ if (rpcEnabled) {
 }
 
 const peerMsbAddress = peer.msbClient.pubKeyHexToAddress(peer.wallet.publicKey);
-const effectiveSubnetBootstrapHex = peer.base?.key ? b4a.toString(peer.base.key, "hex") : (b4a.isBuffer(peer.bootstrap) ? b4a.toString(peer.bootstrap, "hex") : String(peer.bootstrap));
+const effectiveSubnetBootstrapHex = peer.base?.key ? b4a.toString(peer.base.key, "hex") : (b4a.isBuffer(peer.config.bootstrap) ? b4a.toString(peer.config.bootstrap, "hex") : String(peer.config.bootstrap));
 if (!subnetBootstrap) {
   fs.mkdirSync(path.dirname(subnetBootstrapFile), { recursive: true });
   fs.writeFileSync(subnetBootstrapFile, `${effectiveSubnetBootstrapHex}\n`);

@@ -449,8 +449,8 @@ export async function deploySubnet(input, peer){
 
     const txvHex = await peer.msbClient.getTxvHex();
     const nonceHex = peer.protocol_instance.generateNonce();
-    const subnetBootstrapHex = (b4a.isBuffer(peer.bootstrap) ? peer.bootstrap.toString('hex') : (''+peer.bootstrap)).toLowerCase();
-    const channelHex = b4a.isBuffer(peer.channel) ? peer.channel.toString('hex') : null;
+    const subnetBootstrapHex = (b4a.isBuffer(peer.config.bootstrap) ? peer.config.bootstrap.toString('hex') : (''+peer.config.bootstrap)).toLowerCase();
+    const channelHex = b4a.isBuffer(peer.config.channel) ? peer.config.channel.toString('hex') : null;
     if(channelHex === null) throw new Error('Peer channel is not initialized.');
 
     const address = peer.msbClient.pubKeyHexToAddress(peer.wallet.publicKey);

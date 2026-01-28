@@ -210,7 +210,7 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
             await peer.ready();
 
             // Bind an MSB operation that matches this specific peer's subnet bootstrap.
-            const subnetBootstrapBuf = peer.bootstrap;
+            const subnetBootstrapBuf = peer.config.bootstrap;
             msbOperation = safeEncodeApplyOperation({
                 type: 12,
                 address: b4a.from(invokerAddress, 'ascii'),
@@ -240,7 +240,7 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
 
         const peerBlocked = await makePeer(1, 'peer-maxbytes-blocked');
         try {
-            const maxBytes = peerBlocked.maxMsbApplyOperationBytes;
+            const maxBytes = peerBlocked.config.maxMsbApplyOperationBytes;
             const msbLen = (await peerBlocked.msb.state.base.view.checkout(1).get(txHashHex))?.value?.byteLength ?? null;
             t.ok(msbLen !== null && msbLen > maxBytes, 'fixture MSB payload is larger than max bytes');
             await peerBlocked.base.append(op);

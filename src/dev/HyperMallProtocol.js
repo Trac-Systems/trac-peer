@@ -511,7 +511,7 @@ class HyperMallProtocol extends BaseProtocol {
         if (this.input.startsWith('/test')) {
             const _this = this;
             async function runTest(){
-                if(Object.keys(_this.peer.tx_pool).length < _this.peer.txPoolMaxSize)
+                if(Object.keys(_this.peer.tx_pool).length < _this.peer.config.txPoolMaxSize)
                 {
                     const deployment = JSON.parse('{"op":"deploy","tick":"'+Math.random()+'","max":"21000000","lim":"1000","dec":18}');
                     try{

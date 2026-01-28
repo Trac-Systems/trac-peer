@@ -19,15 +19,11 @@ export {default as Contract} from "./contract.js";
 export {default as Feature} from "./feature.js";
 export {default as Wallet} from "./wallet.js";
 
-export class Peer extends ReadyResource {
-
+class Config {
     constructor(options = {}) {
-        super();
-
-        // begin config
         this.storesDirectory = options.storesDirectory;
-        this.storeName = options.storeName
-        this.fullStoresDirectory = `${this.storesDirectory}${this.storeName}`
+        this.storeName = options.storeName;
+        this.fullStoresDirectory = `${this.storesDirectory}${this.storeName}`;
         this.keyPairPath = `${this.fullStoresDirectory}/db/keypair.json`;
         this.txPoolMaxSize = options.txPoolMaxSize || 1_000;
         this.maxTxDelay = options.maxTxDelay || 60;
@@ -39,13 +35,22 @@ export class Peer extends ReadyResource {
         this.replicate = options.replicate !== false;
         this.channel = b4a.alloc(32).fill(options.channel ?? 0);
         this.dhtBootstrap = ['116.202.214.149:10001', '157.180.12.214:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
-        this.enableTxlogs = options.enableTxlogs
+        this.enableTxlogs = options.enableTxlogs;
+    }
+}
+
+export class Peer extends ReadyResource {
+    constructor(options = {}) {
+        super();
+
+        // begin config
+        this.config = new Config(options);
         // end config
 
         this.keyPair = null;
-        this.store = new Corestore(this.fullStoresDirectory);
+        this.store = new Corestore(this.config.fullStoresDirectory);
         this.msb = options.msb || null;
-        this.msbClient = new MsbClient(this.msb);
+        this.msbClient = new MsbClient(options.msb);
         this.swarm = null;
         this.base = null;
         this.key = null;
@@ -71,33 +76,33 @@ export class Peer extends ReadyResource {
 
     async _open() {
         await this.msbClient.ready()
-        if (this.enableBackgroundTasks) {
+        if (this.config.enableBackgroundTasks) {
             this.tx_observer();
             this.nodeListener();
         }
         this._boot();
         await this.base.ready();
-        if (this.bootstrap === null) {
-            this.bootstrap = this.base.key;
+        if (this.config.bootstrap === null) {
+            this.config.bootstrap = this.base.key;
         }
-        await this.wallet.initKeyPair(this.keyPairPath, this.readline_instance);
+        await this.wallet.initKeyPair(this.config.keyPairPath, this.readline_instance);
         this.writerLocalKey = b4a.toString(this.base.local.key, 'hex');
 
         await this.initContract();
 
-        if (this.replicate) await this._replicate();
+        if (this.config.replicate) await this._replicate();
         this.on('tx', async (msg) => {
-            if(Object.keys(this.tx_pool).length <= this.txPoolMaxSize && !this.tx_pool[msg.tx]){
+            if(Object.keys(this.tx_pool).length <= this.config.txPoolMaxSize && !this.tx_pool[msg.tx]){
                 msg['ts'] = Math.floor(Date.now() / 1000);
                 this.tx_pool[msg.tx] = msg;
             }
         });
-        if (this.enableUpdater) this.updater();
+        if (this.config.enableUpdater) this.updater();
     }
 
     async _boot() {
         const _this = this;
-        this.base = new Autobase(this.store, this.bootstrap, {
+        this.base = new Autobase(this.store, this.config.bootstrap, {
             ackInterval : 1000,
             valueEncoding: 'json',
             open(store) {
@@ -115,12 +120,7 @@ export class Peer extends ReadyResource {
                     protocolInstance: this.protocol_instance,
                     contractInstance: this.contract_instance,
                     msbClient: this.msbClient,
-                    config: {
-                        bootstrap: this.bootstrap,
-                        maxMsbApplyOperationBytes: this.maxMsbApplyOperationBytes,
-                        maxMsbSignedLength: this.maxMsbSignedLength,
-                        enableTxlogs: this.enableTxlogs
-                    }
+                    config: this.config
                 }
                 for (const node of nodes) {
                     const op = node.value;
@@ -171,7 +171,7 @@ export class Peer extends ReadyResource {
         while(true){
             const ts = Math.floor(Date.now() / 1000);
             for(let tx in this.tx_pool){
-                if(ts - this.tx_pool[tx].ts > this.maxTxDelay){
+                if(ts - this.tx_pool[tx].ts > this.config.maxTxDelay){
                     console.log('Dropping TX', tx);
                     delete this.tx_pool[tx];
                     delete this.protocol_instance.prepared_transactions_content[tx];
@@ -222,7 +222,7 @@ export class Peer extends ReadyResource {
                 secretKey: b4a.from(this.wallet.secretKey, 'hex')
             };
 
-            this.swarm = new Hyperswarm({ keyPair, bootstrap: this.dhtBootstrap });
+            this.swarm = new Hyperswarm({ keyPair, bootstrap: this.config.dhtBootstrap });
             console.log('');
             console.log('######################################################################################');
             console.log('# Peer Address:    ', this.wallet.publicKey, '#');
@@ -238,7 +238,7 @@ export class Peer extends ReadyResource {
                 const mux = Protomux.from(connection)
                 connection.userData = mux
                 const message_channel = mux.createChannel({
-                    protocol: b4a.toString(this.channel, 'utf8'),
+                    protocol: b4a.toString(this.config.channel, 'utf8'),
                     onopen() {},
                     onclose() {}
                 })
@@ -248,7 +248,7 @@ export class Peer extends ReadyResource {
                     async onmessage(msg) {
                         try{
                             if(true === _this.base.writable && msg.inviteMyKey !== undefined &&
-                                msg.bootstrap === _this.bootstrap && b4a.toString(connection.publicKey, 'hex') === msg.to){
+                                msg.bootstrap === _this.config.bootstrap && b4a.toString(connection.publicKey, 'hex') === msg.to){
                                 const auto_add_writers = await _this.base.view.get('auto_add_writers');
                                 if(auto_add_writers !== null && auto_add_writers.value === 'on') {
                                     await _this.base.append({
@@ -265,7 +265,7 @@ export class Peer extends ReadyResource {
                     if(auto_add_writers !== null && auto_add_writers.value === 'on') {
                         message.send({
                             inviteMyKey : _this.writerLocalKey,
-                            bootstrap : _this.bootstrap,
+                            bootstrap : _this.config.bootstrap,
                             to : b4a.toString(connection.remotePublicKey, 'hex')
                         });
                     }
@@ -292,7 +292,7 @@ export class Peer extends ReadyResource {
                 }
             });
 
-            this.swarm.join(this.channel, { server: true, client: true });
+            this.swarm.join(this.config.channel, { server: true, client: true });
             await this.swarm.flush();
         }
     }

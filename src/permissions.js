@@ -35,7 +35,7 @@ export function isHex32(value) {
 }
 
 export function getSubnetBootstrapHex(peer) {
-    const b = peer?.bootstrap;
+    const b = peer.config.bootstrap;
     if (!b) return null;
     if (typeof b === 'string') return b.toLowerCase();
     if (b?.toString) return b.toString('hex').toLowerCase();
@@ -60,4 +60,3 @@ export async function requireBootstrapNodeForAdminSet(peer) {
     const admin = await getAdminKey(peer);
     if (admin !== null) throw new Error('Admin is already set.');
 }
-

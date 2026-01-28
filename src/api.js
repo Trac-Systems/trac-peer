@@ -29,7 +29,7 @@ export class ProtocolApi {
      * @returns {null|string}
      */
     getPeerBootstrap(){
-        return this.peer.bootstrap;
+        return this.peer.config.bootstrap;
     }
 
     /**
