@@ -410,13 +410,9 @@ export async function joinValidator(input, peer){
     console.log('Please wait...')
     const splitted = peer.protocol_instance.parseArgs(input)
     const address = ''+splitted.address;
-    if(peer.msbClient?.isReady()){
-        const pubKeyHex = peer.msbClient.addressToPubKeyHex(address);
-        if(pubKeyHex === null) throw new Error('Invalid validator address.');
-        await peer.msb.network.tryConnect(pubKeyHex, 'validator');
-        return;
-    }
-    throw new Error('MSB is not ready.');
+    const pubKeyHex = peer.msbClient.addressToPubKeyHex(address);
+    if(pubKeyHex === null) throw new Error('Invalid validator address.');
+    await peer.msb.network.tryConnect(pubKeyHex, 'validator');
 }
 
 export async function tx(input, peer){
@@ -449,7 +445,6 @@ export async function tx(input, peer){
 }
 
 export async function deploySubnet(input, peer){
-    if(!peer.msbClient?.isReady()) throw new Error('MSB is not ready.');
     if(peer.wallet.publicKey === null || peer.wallet.secretKey === null) throw new Error('Wallet is not initialized.');
 
     const txvHex = await peer.msbClient.getTxvHex();

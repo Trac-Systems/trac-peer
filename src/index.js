@@ -66,9 +66,9 @@ export class Peer extends ReadyResource {
     }
 
     async _open() {
+        await this.msbClient.ready()
         if (this.enable_background_tasks) {
             this.tx_observer();
-            this.validator_observer();
             this.nodeListener();
         }
         this._boot();
@@ -78,9 +78,9 @@ export class Peer extends ReadyResource {
         }
         await this.wallet.initKeyPair(this.KEY_PAIR_PATH, this.readline_instance);
         this.writerLocalKey = b4a.toString(this.base.local.key, 'hex');
-        if(!this.init_contract_starting){
-            await this.initContract();
-        }
+
+        await this.initContract();
+
         if (this.replicate) await this._replicate();
         this.on('tx', async (msg) => {
             if(Object.keys(this.tx_pool).length <= this.tx_pool_max_size && !this.tx_pool[msg.tx]){
@@ -105,7 +105,6 @@ export class Peer extends ReadyResource {
                 return _this.bee;
             },
             apply: async (nodes, view, base) => {
-                if(this.contract_instance === null) await this.initContract();
                 const batch = view.batch();
                 const context = {
                     wallet: this.wallet,
@@ -135,16 +134,9 @@ export class Peer extends ReadyResource {
     }
 
     async sendTx(msg){
-        if(this.msbClient.isReady()){
-            if(msg && typeof msg === 'object' && typeof msg.type === 'number') {
-                try { await this.msbClient.broadcastTransaction(msg); } catch(_e) { }
-            }
-            return;
+        if(msg?.type === 'number') {
+            try { await this.msbClient.broadcastTransaction(msg); } catch(_e) { }
         }
-        if(this.msb.getNetwork().validator_stream === null) return;
-        let _msg = safeClone(msg);
-        if(_msg['ts'] !== undefined) delete _msg['ts'];
-        try{ this.msb.getNetwork().validator_stream.messenger.send(_msg); } catch(e){ }
     }
 
     async updater() {
@@ -159,7 +151,6 @@ export class Peer extends ReadyResource {
     }
 
     async initContract(){
-        this.init_contract_starting = true;
         this.protocol_instance = new this.protocol(this, this.base, this.options);
         await this.protocol_instance.extendApi();
         this.contract_instance = new this.contract(this.protocol_instance);
@@ -172,54 +163,8 @@ export class Peer extends ReadyResource {
         await this.base.close();
     }
 
-    async validator_observer(){
-        if(this.msbClient.isReady()){
-            return;
-        }
-        while(true){
-            if(this.msb.getSwarm() !== null && this.msb.getNetwork().validator_stream === null) {
-                console.log('Looking for available validators, please wait...');
-                const _this = this;
-                let length = await this.msb.base.view.get('wrl');
-                if (null === length) {
-                    length = 0;
-                } else {
-                    length = length.value;
-                }
-                if(this.custom_validators.length !== 0){
-                    length = this.custom_validators.length;
-                }
-                async function findSome(){
-                    if(_this.msb.getNetwork().validator_stream !== null) return;
-                    const rnd_index = Math.floor(Math.random() * length);
-                    let validator = await _this.msb.base.view.get('wri/' + rnd_index);
-                    if(_this.custom_validators.length !== 0){
-                        validator = { value : _this.custom_validators[rnd_index] };
-                        console.log('Trying custom validator', validator.value);
-                    }
-                    if(_this.msb.getNetwork().validator_stream !== null) return;
-                    if (null !== validator) {
-                        validator = await _this.msb.base.view.get(validator.value);
-                        if(_this.msb.getNetwork().validator_stream !== null) return;
-                        if(null !== validator && false !== validator.value.isWriter && false === validator.value.isIndexer) {
-                            await _this.msb.tryConnection(validator.value.pub, 'validator');
-                        }
-                    }
-                }
-                const promises = [];
-                for(let i = 0; i < 2; i++){
-                    promises.push(findSome());
-                    await this.sleep(500);
-                }
-                await Promise.all(promises);
-            }
-            await this.sleep(1_000);
-        }
-    }
-
     async tx_observer(){
         while(true){
-            let backoff = 1;
             const ts = Math.floor(Date.now() / 1000);
             for(let tx in this.tx_pool){
                 if(ts - this.tx_pool[tx].ts > this.max_tx_delay){
@@ -228,12 +173,11 @@ export class Peer extends ReadyResource {
                     delete this.protocol_instance.prepared_transactions_content[tx];
                     continue;
                 }
-                if(!this.msbClient.isReady()) continue;
+
                 const msbsl = this.msbClient.getSignedLength();
-                const view_session = this.msb.state.base.view.checkout(msbsl);
-                const msb_tx = await view_session.get(tx);
-                await view_session.close();
-                if (null !== msb_tx && b4a.isBuffer(msb_tx.value)) {
+                const msb_tx = this.msbClient.getSignedAtLength(tx)
+
+                if (b4a.isBuffer(msb_tx?.value)) {
                     const decoded = safeDecodeApplyOperation(msb_tx.value);
                     if (decoded?.type !== 12 || decoded?.txo === undefined) continue;
                     if (decoded.txo.tx === undefined || decoded.txo.tx.toString('hex') !== tx) continue;

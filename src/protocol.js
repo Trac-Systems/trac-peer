@@ -195,7 +195,6 @@ class Protocol{
     }
 
     async broadcastTransaction(obj, sim = false, surrogate = null){
-        if(!this.peer.msbClient.isReady()) throw new Error('MSB is not ready.');
         const tx_enabled = await this.peer.base.view.get('txen');
         // Default to enabled if missing, consistent with apply() gating.
         if (null !== tx_enabled && true !== tx_enabled.value ) throw new Error('Tx is not enabled.');

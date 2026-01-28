@@ -36,7 +36,6 @@ export class TxOperation {
         if(false === this.#validator.validate(op)) return;
         // Stall guard: don't allow a writer to pin apply waiting on an absurd MSB height
         if (op.value.msbsl > this.#config.maxMsbSignedLength) return;
-        if (!this.#msbClient.isReady()) return;
         const msb = this.#msbClient.msb;
         const msbCore = msb.state.base.view.core;
         // Wait for local MSB view to reach the referenced signed length

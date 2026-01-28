@@ -23,7 +23,7 @@ export async function getStatus(peer) {
       ? String(peer.bootstrap)
       : null;
 
-  const peerMsbAddress = peer.msbClient?.isReady() ? peer.msbClient.pubKeyHexToAddress(peer.wallet.publicKey) : null;
+  const peerMsbAddress = peer.msbClient.pubKeyHexToAddress(peer.wallet.publicKey);
 
   const admin = peer.base?.view ? await peer.base.view.get("admin") : null;
   const chatStatus = peer.base?.view ? await peer.base.view.get("chat_status") : null;
@@ -44,10 +44,10 @@ export async function getStatus(peer) {
       chatStatus: chatStatus?.value ?? null,
     },
     msb: {
-      ready: peer.msbClient?.isReady?.() ?? false,
-      bootstrapHex: peer.msbClient?.bootstrapHex ?? null,
-      networkId: peer.msbClient?.networkId ?? null,
-      signedLength: peer.msbClient?.isReady?.() ? peer.msbClient.getSignedLength() : null,
+      ready: true,
+      bootstrapHex: peer.msbClient.bootstrapHex,
+      networkId: peer.msbClient.networkId,
+      signedLength: peer.msbClient.getSignedLength()
     },
   };
 }

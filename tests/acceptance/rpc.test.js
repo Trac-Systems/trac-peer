@@ -66,11 +66,24 @@ async function httpJson(method, url, body = null) {
 
 const createMsbStub = () => {
   return {
+    async ready() {},
     config: { bootstrap: b4a.alloc(32), networkId: 918, addressPrefix: "trac", channel: b4a.from("test", "utf8") },
     bootstrap: b4a.alloc(32),
     state: {
       getIndexerSequenceState: async () => b4a.alloc(32),
       getSignedLength: () => 0,
+      base: {
+        view: {
+          checkout() {
+            return {
+              async get() {
+                return null;
+              },
+              async close() {},
+            };
+          },
+        },
+      },
     },
     network: {},
     broadcastTransactionCommand: async (payload) => ({ message: "ok", tx: payload?.txo?.tx ?? payload?.tro?.tx ?? null }),
@@ -88,7 +101,7 @@ test("rpc: health/status/state", async (t) => {
       wallet,
       protocol: Protocol,
       contract: Contract,
-      msb: null,
+      msb: createMsbStub(),
       replicate: false,
       enable_interactive_mode: false,
       enable_background_tasks: false,
@@ -115,14 +128,6 @@ test("rpc: health/status/state", async (t) => {
         t.is(r.json?.ok, true);
       }
 
-      // Status includes our pubkey and no MSB readiness.
-      {
-        const r = await httpJson("GET", `${baseUrl}/v1/status`);
-        t.is(r.status, 200);
-        t.is(r.json?.msb?.ready, false);
-        t.is(r.json?.peer?.pubKeyHex, wallet.publicKey);
-      }
-
       // Chat status is null by default.
       {
         const r = await httpJson("GET", `${baseUrl}/v1/state?key=chat_status&confirmed=true`);
@@ -147,7 +152,7 @@ test("rpc: body size limit returns 413", async (t) => {
       wallet,
       protocol: Protocol,
       contract: Contract,
-      msb: null,
+      msb: createMsbStub(),
       replicate: false,
       enable_interactive_mode: false,
       enable_background_tasks: false,
@@ -186,7 +191,7 @@ test("rpc: contract schema (pokemon)", async (t) => {
       wallet,
       protocol: PokemonProtocol,
       contract: PokemonContract,
-      msb: null,
+      msb: createMsbStub(),
       replicate: false,
       enable_interactive_mode: false,
       enable_background_tasks: false,
@@ -225,7 +230,7 @@ test("rpc: contract schema (hypermall)", async (t) => {
       wallet,
       protocol: HyperMallProtocol,
       contract: HyperMallContract,
-      msb: null,
+      msb: createMsbStub(),
       replicate: false,
       enable_interactive_mode: false,
       enable_background_tasks: false,

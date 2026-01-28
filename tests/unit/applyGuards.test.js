@@ -78,6 +78,7 @@ function makeMsbStub({ msbBootstrapBuf, signedLength, getEntry }) {
     };
 
     return {
+        async ready() {},
         config: {
             bootstrap: msbBootstrapBuf,
             addressPrefix: 'trac',
