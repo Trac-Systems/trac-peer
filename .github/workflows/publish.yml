@@ -24,7 +24,14 @@ jobs:
       - run: npm ci
       - name: Install bare
         run: npm i -g bare
-      - run: npm run test:all
+      - name: Verify bare install
+        run: |
+          which bare
+          bare --version
+      - name: Unit tests (node + bare)
+        run: npm run test:unit:all
+      - name: Acceptance tests (node + bare)
+        run: npm run test:acceptance:all
   release:
     needs: test
     if: startsWith(github.ref, 'refs/tags/')
