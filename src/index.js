@@ -23,12 +23,27 @@ export class Peer extends ReadyResource {
 
     constructor(options = {}) {
         super();
-        this.enable_background_tasks = options.enable_background_tasks !== false;
-        this.enable_updater = options.enable_updater !== false;
-        this.STORES_DIRECTORY = options.stores_directory;
-        this.KEY_PAIR_PATH = `${this.STORES_DIRECTORY}${options.store_name}/db/keypair.json`;
+
+        // begin config
+        this.storesDirectory = options.storesDirectory;
+        this.storeName = options.storeName
+        this.fullStoresDirectory = `${this.storesDirectory}${this.storeName}`
+        this.keyPairPath = `${this.fullStoresDirectory}/db/keypair.json`;
+        this.txPoolMaxSize = options.txPoolMaxSize || 1_000;
+        this.maxTxDelay = options.maxTxDelay || 60;
+        this.maxMsbSignedLength = Number.isSafeInteger(options.maxMsbSignedLength) ? options.maxMsbSignedLength : 1_000_000_000;
+        this.maxMsbApplyOperationBytes = Number.isSafeInteger(options.maxMsbApplyOperationBytes) ? options.maxMsbApplyOperationBytes : 1024 * 1024;
+        this.bootstrap = options.bootstrap || null;
+        this.enableBackgroundTasks = options.enableBackgroundTasks !== false;
+        this.enableUpdater = options.enableUpdater !== false;
+        this.replicate = options.replicate !== false;
+        this.channel = b4a.alloc(32).fill(options.channel ?? 0);
+        this.dhtBootstrap = ['116.202.214.149:10001', '157.180.12.214:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
+        this.enableTxlogs = options.enableTxlogs
+        // end config
+
         this.keyPair = null;
-        this.store = new Corestore(this.STORES_DIRECTORY + options.store_name);
+        this.store = new Corestore(this.fullStoresDirectory);
         this.msb = options.msb || null;
         this.msbClient = new MsbClient(this.msb);
         this.swarm = null;
@@ -36,38 +51,27 @@ export class Peer extends ReadyResource {
         this.key = null;
         this.tx_pool = {};
         this.writerLocalKey = null;
-        this.tx_pool_max_size = options.tx_pool_max_size || 1_000;
-        this.max_tx_delay = options.max_tx_delay || 60;
-        this.max_msb_signed_length = Number.isSafeInteger(options.max_msb_signed_length) ? options.max_msb_signed_length : 1_000_000_000;
-        this.max_msb_apply_operation_bytes = Number.isSafeInteger(options.max_msb_apply_operation_bytes)
-            ? options.max_msb_apply_operation_bytes
-            : 1024 * 1024;
-        this.bootstrap = options.bootstrap || null;
-
+        this.wallet = options.wallet || null;
+        
         this.protocol = options.protocol || null;
         this.contract = options.contract || null;
         this.protocol_instance = null;
         this.contract_instance = null;
         this.features = options.features || [];
-
-        this.wallet = options.wallet || null;
-        this.custom_validators = options.custom_validators || [];
+        
         // In bare runtime, Buffer#fill(undefined) throws; default to 0 when channel not provided.
-        this.channel = b4a.alloc(32).fill(options.channel ?? 0);
         this.bee = null;
-        this.replicate = options.replicate !== false;
         this.connectedNodes = 1;
         this.isStreaming = false;
         this.connectedPeers = new Set();
         this.options = options;
         this.check = new Check();
-        this.dhtBootstrap = ['116.202.214.149:10001', '157.180.12.214:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
         this.readline_instance = options.readline_instance || null;
     }
 
     async _open() {
         await this.msbClient.ready()
-        if (this.enable_background_tasks) {
+        if (this.enableBackgroundTasks) {
             this.tx_observer();
             this.nodeListener();
         }
@@ -76,19 +80,19 @@ export class Peer extends ReadyResource {
         if (this.bootstrap === null) {
             this.bootstrap = this.base.key;
         }
-        await this.wallet.initKeyPair(this.KEY_PAIR_PATH, this.readline_instance);
+        await this.wallet.initKeyPair(this.keyPairPath, this.readline_instance);
         this.writerLocalKey = b4a.toString(this.base.local.key, 'hex');
 
         await this.initContract();
 
         if (this.replicate) await this._replicate();
         this.on('tx', async (msg) => {
-            if(Object.keys(this.tx_pool).length <= this.tx_pool_max_size && !this.tx_pool[msg.tx]){
+            if(Object.keys(this.tx_pool).length <= this.txPoolMaxSize && !this.tx_pool[msg.tx]){
                 msg['ts'] = Math.floor(Date.now() / 1000);
                 this.tx_pool[msg.tx] = msg;
             }
         });
-        if (this.enable_updater) this.updater();
+        if (this.enableUpdater) this.updater();
     }
 
     async _boot() {
@@ -113,9 +117,9 @@ export class Peer extends ReadyResource {
                     msbClient: this.msbClient,
                     config: {
                         bootstrap: this.bootstrap,
-                        maxMsbApplyOperationBytes: this.max_msb_apply_operation_bytes,
-                        maxMsbSignedLength: this.max_msb_signed_length,
-                        enableTxlogs: this.options.enable_txlogs
+                        maxMsbApplyOperationBytes: this.maxMsbApplyOperationBytes,
+                        maxMsbSignedLength: this.maxMsbSignedLength,
+                        enableTxlogs: this.enableTxlogs
                     }
                 }
                 for (const node of nodes) {
@@ -167,7 +171,7 @@ export class Peer extends ReadyResource {
         while(true){
             const ts = Math.floor(Date.now() / 1000);
             for(let tx in this.tx_pool){
-                if(ts - this.tx_pool[tx].ts > this.max_tx_delay){
+                if(ts - this.tx_pool[tx].ts > this.maxTxDelay){
                     console.log('Dropping TX', tx);
                     delete this.tx_pool[tx];
                     delete this.protocol_instance.prepared_transactions_content[tx];

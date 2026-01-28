@@ -208,8 +208,8 @@ await msb.ready();
 // DevProtocol and DevContract moved to shared src files
 
 const peer = new Peer({
-  stores_directory: ensureTrailingSlash(peerStoresDirectory),
-  store_name: peerStoreName,
+  storesDirectory: ensureTrailingSlash(peerStoresDirectory),
+  storeName: peerStoreName,
   msb,
   wallet: new Wallet(),
   protocol: PokemonProtocol,

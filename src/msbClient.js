@@ -1,5 +1,4 @@
 import b4a from 'b4a';
-import { TRAC_NETWORK_MSB_MAINNET_PREFIX } from 'trac-wallet/constants.js';
 import PeerWallet from 'trac-wallet';
 import ReadyResource from 'ready-resource';
 

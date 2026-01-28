@@ -96,16 +96,16 @@ test("rpc: health/status/state", async (t) => {
     const wallet = await prepareWallet(storesDirectory, storeName);
 
     const peer = new Peer({
-      stores_directory: storesDirectory,
-      store_name: storeName,
+      storesDirectory,
+      storeName,
       wallet,
       protocol: Protocol,
       contract: Contract,
       msb: createMsbStub(),
       replicate: false,
       enable_interactive_mode: false,
-      enable_background_tasks: false,
-      enable_updater: false,
+      enableBackgroundTasks: false,
+      enableUpdater: false,
     });
 
     let server = null;
@@ -147,16 +147,16 @@ test("rpc: body size limit returns 413", async (t) => {
     const wallet = await prepareWallet(storesDirectory, storeName);
 
     const peer = new Peer({
-      stores_directory: storesDirectory,
-      store_name: storeName,
+      storesDirectory,
+      storeName,
       wallet,
       protocol: Protocol,
       contract: Contract,
       msb: createMsbStub(),
       replicate: false,
       enable_interactive_mode: false,
-      enable_background_tasks: false,
-      enable_updater: false,
+      enableBackgroundTasks: false,
+      enableUpdater: false,
     });
 
     let server = null;
@@ -186,16 +186,16 @@ test("rpc: contract schema (pokemon)", async (t) => {
     const wallet = await prepareWallet(storesDirectory, storeName);
 
     const peer = new Peer({
-      stores_directory: storesDirectory,
-      store_name: storeName,
+      storesDirectory,
+      storeName,
       wallet,
       protocol: PokemonProtocol,
       contract: PokemonContract,
       msb: createMsbStub(),
       replicate: false,
       enable_interactive_mode: false,
-      enable_background_tasks: false,
-      enable_updater: false,
+      enableBackgroundTasks: false,
+      enableUpdater: false,
     });
 
     let server = null;
@@ -225,16 +225,16 @@ test("rpc: contract schema (hypermall)", async (t) => {
     const wallet = await prepareWallet(storesDirectory, storeName);
 
     const peer = new Peer({
-      stores_directory: storesDirectory,
-      store_name: storeName,
+      storesDirectory,
+      storeName,
       wallet,
       protocol: HyperMallProtocol,
       contract: HyperMallContract,
       msb: createMsbStub(),
       replicate: false,
       enable_interactive_mode: false,
-      enable_background_tasks: false,
-      enable_updater: false,
+      enableBackgroundTasks: false,
+      enableUpdater: false,
     });
 
     let server = null;
@@ -266,16 +266,16 @@ test("rpc: wallet-signed tx simulate via prepare+sign+broadcast", async (t) => {
     await externalWallet.generateKeyPair();
 
     const peer = new Peer({
-      stores_directory: storesDirectory,
-      store_name: storeName,
+      storesDirectory,
+      storeName,
       wallet: peerWallet,
       protocol: PokemonProtocol,
       contract: PokemonContract,
       msb: createMsbStub(),
       replicate: false,
       enable_interactive_mode: false,
-      enable_background_tasks: false,
-      enable_updater: false,
+      enableBackgroundTasks: false,
+      enableUpdater: false,
       api_tx_exposed: true,
     });
 

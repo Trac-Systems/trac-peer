@@ -90,8 +90,8 @@ test("cli tx: /tx --command JSON can simulate catch", async (t) => {
   const wallet = await prepareWallet(storesDirectory, "peer");
 
   const peer = new Peer({
-    stores_directory: storesDirectory,
-    store_name: "peer",
+    storesDirectory,
+    storeName: "peer",
     msb,
     wallet,
     protocol: JsonProtocol,
@@ -99,9 +99,9 @@ test("cli tx: /tx --command JSON can simulate catch", async (t) => {
     bootstrap: b4a.alloc(32).fill(9),
     channel: "test",
     replicate: false,
-    enable_background_tasks: false,
-    enable_updater: false,
-    enable_txlogs: false,
+    enableBackgroundTasks: false,
+    enableUpdater: false,
+    enableTxlogs: false,
   });
 
   try {
@@ -113,4 +113,3 @@ test("cli tx: /tx --command JSON can simulate catch", async (t) => {
     await rmrfPortable(tmpRoot);
   }
 });
-

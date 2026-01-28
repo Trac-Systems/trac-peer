@@ -1,7 +1,7 @@
 import b4a from "b4a";
 import { jsonStringify, createHash } from "./functions.js";
 
-export class ProtocolApi{
+export class ProtocolApi {
 
     /**
      * Exposes read and write functions.
@@ -14,7 +14,6 @@ export class ProtocolApi{
         this.peer = peer;
         this.api_tx_exposed = options.api_tx_exposed === true;
         this.api_msg_exposed = options.api_msg_exposed === true;
-        this.options = options;
     }
 
     /**

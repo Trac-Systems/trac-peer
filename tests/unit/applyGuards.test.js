@@ -125,8 +125,8 @@ test('apply: tx msbsl stall guard skips waiting', async (t) => {
         const storeName = 'peer-stall-guard';
         const wallet = await prepareWallet(storesDirectory, storeName);
         const peer = new Peer({
-            stores_directory: storesDirectory,
-            store_name: storeName,
+            storesDirectory,
+            storeName,
             channel: 'unit-test',
             msb,
             protocol: TestProtocol,
@@ -134,9 +134,9 @@ test('apply: tx msbsl stall guard skips waiting', async (t) => {
             wallet,
             replicate: false,
             enable_interactive_mode: false,
-            enable_background_tasks: false,
-            enable_updater: false,
-            max_msb_signed_length: 10,
+            enableBackgroundTasks: false,
+            enableUpdater: false,
+            maxMsbSignedLength: 10,
         });
 
         try {
@@ -148,7 +148,7 @@ test('apply: tx msbsl stall guard skips waiting', async (t) => {
                 key: txHashHex,
                 value: {
                     dispatch: { type: 'ping', value: { msg: 'hi' } },
-                    msbsl: 100, // above max_msb_signed_length => should be skipped before any waiting
+                    msbsl: 100, // above maxMsbSignedLength => should be skipped before any waiting
                     ipk: makeHex32(2),
                     wp: makeHex32(3),
                 },
@@ -160,7 +160,7 @@ test('apply: tx msbsl stall guard skips waiting', async (t) => {
             await Promise.race([peer.base.append(op), timeout]);
 
             const txl = await peer.bee.get('txl');
-            t.is(txl, null, 'tx should not be indexed when msbsl exceeds max_msb_signed_length');
+            t.is(txl, null, 'tx should not be indexed when msbsl exceeds maxMsbSignedLength');
         } finally {
             await closePeer(peer);
         }
@@ -194,8 +194,8 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
 
             const wallet = await prepareWallet(storesDirectory, storeName);
             const peer = new Peer({
-                stores_directory: storesDirectory,
-                store_name: storeName,
+                storesDirectory,
+                storeName,
                 channel: 'unit-test',
                 msb,
                 protocol: TestProtocol,
@@ -203,9 +203,9 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
                 wallet,
                 replicate: false,
                 enable_interactive_mode: false,
-                enable_background_tasks: false,
-                enable_updater: false,
-                max_msb_apply_operation_bytes: maxBytes,
+                enableBackgroundTasks: false,
+                enableUpdater: false,
+                maxMsbApplyOperationBytes: maxBytes,
             });
             await peer.ready();
 
@@ -240,7 +240,7 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
 
         const peerBlocked = await makePeer(1, 'peer-maxbytes-blocked');
         try {
-            const maxBytes = peerBlocked.max_msb_apply_operation_bytes;
+            const maxBytes = peerBlocked.maxMsbApplyOperationBytes;
             const msbLen = (await peerBlocked.msb.state.base.view.checkout(1).get(txHashHex))?.value?.byteLength ?? null;
             t.ok(msbLen !== null && msbLen > maxBytes, 'fixture MSB payload is larger than max bytes');
             await peerBlocked.base.append(op);
