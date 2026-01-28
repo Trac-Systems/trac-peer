@@ -30,6 +30,7 @@ class Wallet extends PeerWallet{
         const pkBuf = b4a.isBuffer(publicKey) ? publicKey : b4a.from(String(publicKey), "hex");
         return PeerWallet.verify(sigBuf, msgBuf, pkBuf);
     }
+    
 }
 
 export default Wallet;

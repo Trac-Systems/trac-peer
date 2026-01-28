@@ -412,7 +412,7 @@ export async function joinValidator(input, peer){
     const address = ''+splitted.address;
     const pubKeyHex = peer.msbClient.addressToPubKeyHex(address);
     if(pubKeyHex === null) throw new Error('Invalid validator address.');
-    await peer.msb.network.tryConnect(pubKeyHex, 'validator');
+    await peer.msbClient.msb.network.tryConnect(pubKeyHex, 'validator');
 }
 
 export async function tx(input, peer){

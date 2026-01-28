@@ -49,7 +49,6 @@ export class Peer extends ReadyResource {
 
         this.keyPair = null;
         this.store = new Corestore(this.config.fullStoresDirectory);
-        this.msb = options.msb || null;
         this.msbClient = new MsbClient(options.msb);
         this.swarm = null;
         this.base = null;

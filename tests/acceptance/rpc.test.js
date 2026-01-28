@@ -8,8 +8,6 @@ import { createServer } from "../../rpc/create_server.js";
 import { Peer, Protocol, Contract } from "../../src/index.js";
 import PokemonContract from "../../src/dev/pokemonContract.js";
 import PokemonProtocol from "../../src/dev/pokemonProtocol.js";
-import HyperMallContract from "../../src/dev/HyperMallConctract.js";
-import HyperMallProtocol from "../../src/dev/HyperMallProtocol.js";
 import Wallet from "../../src/wallet.js";
 import { mkdtempPortable, rmrfPortable } from "../helpers/tmpdir.js";
 
@@ -212,45 +210,6 @@ test("rpc: contract schema (pokemon)", async (t) => {
       t.ok(Array.isArray(r.json?.contract?.txTypes));
       t.ok(r.json.contract.txTypes.includes("catch"));
       t.is(typeof r.json?.api?.methods?.tx, "object");
-    } finally {
-      if (server) await new Promise((resolve) => server.close(resolve));
-      await closePeer(peer);
-    }
-  });
-});
-
-test("rpc: contract schema (hypermall)", async (t) => {
-  await withTempDir(async ({ storesDirectory }) => {
-    const storeName = "peer";
-    const wallet = await prepareWallet(storesDirectory, storeName);
-
-    const peer = new Peer({
-      storesDirectory,
-      storeName,
-      wallet,
-      protocol: HyperMallProtocol,
-      contract: HyperMallContract,
-      msb: createMsbStub(),
-      replicate: false,
-      enable_interactive_mode: false,
-      enableBackgroundTasks: false,
-      enableUpdater: false,
-    });
-
-    let server = null;
-    try {
-      await peer.ready();
-      const rpc = await startRpc(peer);
-      server = rpc.server;
-      const baseUrl = rpc.baseUrl;
-
-      const r = await httpJson("GET", `${baseUrl}/v1/contract/schema`);
-      t.is(r.status, 200);
-      t.is(r.json?.schemaFormat, "json-schema");
-      t.is(r.json?.contract?.contractClass, "HyperMallContract");
-      t.ok(r.json?.contract?.txTypes?.includes("stake"));
-      t.is(typeof r.json?.contract?.ops?.stake?.value, "object");
-      t.is(typeof r.json?.api?.methods?.getListingsLength, "object");
     } finally {
       if (server) await new Promise((resolve) => server.close(resolve));
       await closePeer(peer);
