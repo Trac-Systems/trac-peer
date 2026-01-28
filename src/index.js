@@ -52,7 +52,8 @@ export class Peer extends ReadyResource {
 
         this.wallet = options.wallet || null;
         this.custom_validators = options.custom_validators || [];
-        this.channel = b4a.alloc(32).fill(options.channel) || null;
+        // In bare runtime, Buffer#fill(undefined) throws; default to 0 when channel not provided.
+        this.channel = b4a.alloc(32).fill(options.channel ?? 0);
         this.bee = null;
         this.replicate = options.replicate !== false;
         this.connectedNodes = 1;

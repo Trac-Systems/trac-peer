@@ -8,6 +8,7 @@ import { safeEncodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationH
 import { blake3 } from '@tracsystems/blake3'
 import { Peer } from '../../src/index.js';
 import Wallet from '../../src/wallet.js';
+import { mkdtempPortable, rmrfPortable } from '../helpers/tmpdir.js';
 
 class TestProtocol {
     constructor(peer, base, options) {
@@ -36,12 +37,12 @@ class TestContract {
 }
 
 async function withTempDir(fn) {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'trac-peer-tests-'));
+    const tmpRoot = await mkdtempPortable(path.join(os.tmpdir(), 'trac-peer-tests-'));
     const storesDirectory = tmpRoot.endsWith(path.sep) ? tmpRoot : tmpRoot + path.sep;
     try {
         return await fn({ tmpRoot, storesDirectory });
     } finally {
-        await fs.rm(tmpRoot, { recursive: true, force: true });
+        await rmrfPortable(tmpRoot);
     }
 }
 
