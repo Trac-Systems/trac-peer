@@ -253,7 +253,9 @@ class Protocol{
 
         await this.peer.msbClient.broadcastTransaction(payload);
         this.prepared_transactions_content[txHex] = { dispatch : obj, ipk : pubKeyHex, address : address };
-        this.peer.emit('tx', { tx : txHex });
+        if(this.peer.txPool.isNotFull() && !this.peer.txPool.contains(txHex)){
+            this.peer.txPool.add(txHex);
+        }
         return payload;
     }
 

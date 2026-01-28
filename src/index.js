@@ -28,7 +28,7 @@ class TransactionPool {
     }
 
     *[Symbol.iterator]() {
-        for (const tx of this.#pool) {
+        for (const tx in this.#pool) {
             yield tx
         }
     }
@@ -37,9 +37,8 @@ class TransactionPool {
         return this.#pool[tx]
     }
 
-    add(msg) {
-        msg['ts'] = Math.floor(Date.now() / 1000);
-        this.#pool[msg.tx] = msg
+    add(tx) {
+        this.#pool[tx] = { tx, ts: Math.floor(Date.now() / 1000) }
     }
 
     delete(tx) {
@@ -47,7 +46,7 @@ class TransactionPool {
     }
 
     contains(tx) {
-        return !!this.#pool[msg.tx]
+        return !!this.#pool[tx]
     }
 
     size() {
@@ -55,7 +54,7 @@ class TransactionPool {
     }
 
     isNotFull() {
-        return this.#pool.size() <= this.#config.txPoolMaxSize
+        return this.size() <= this.#config.txPoolMaxSize
     }
 }
 
@@ -93,7 +92,7 @@ export class Peer extends ReadyResource {
         this.swarm = null;
         this.base = null;
         this.key = null;
-        this.tx_pool = new TransactionPool(config);
+        this.txPool = new TransactionPool(this.config);
         this.writerLocalKey = null;
         this.wallet = options.wallet || null;
         
@@ -130,11 +129,6 @@ export class Peer extends ReadyResource {
         await this.initContract();
 
         if (this.config.replicate) await this._replicate();
-        this.on('tx', async (msg) => {
-            if(this.tx_pool.isNotFull() && !this.tx_pool.contains(msg.tx)){
-                this.tx_pool.add(msg);
-            }
-        });
         if (this.config.enableUpdater) this.updater();
     }
 
@@ -208,16 +202,17 @@ export class Peer extends ReadyResource {
     async tx_observer(){
         while(true){
             const ts = Math.floor(Date.now() / 1000);
-            for(let tx of this.tx_pool){
-                if(ts - this.tx_pool[tx].ts > this.config.maxTxDelay){
+            for(let tx of this.txPool){
+                const entry = this.txPool.get(tx);
+                if(entry && ts - entry.ts > this.config.maxTxDelay){
                     console.log('Dropping TX', tx);
-                    this.tx_pool.delete(tx);
+                    this.txPool.delete(tx);
                     delete this.protocol_instance.prepared_transactions_content[tx];
                     continue;
                 }
 
                 const msbsl = this.msbClient.getSignedLength();
-                const msb_tx = this.msbClient.getSignedAtLength(tx)
+                const msb_tx = this.msbClient.getSignedAtLength(tx, msbsl)
 
                 if (b4a.isBuffer(msb_tx?.value)) {
                     const decoded = safeDecodeApplyOperation(msb_tx.value);
@@ -236,7 +231,7 @@ export class Peer extends ReadyResource {
                         ipk: ipk,
                         wp: wp,
                     };
-                    delete this.tx_pool.delete(tx);
+                    this.txPool.delete(tx);
                     delete this.protocol_instance.prepared_transactions_content[tx];
                     await this.base.append({ type: 'tx', key: tx, value: subnet_tx });
                 }
