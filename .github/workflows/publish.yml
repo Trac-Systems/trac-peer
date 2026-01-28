@@ -22,6 +22,8 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
+      - name: Install bare
+        run: npm i -g bare
       - run: npm run test:all
   release:
     needs: test
