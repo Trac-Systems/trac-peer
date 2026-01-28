@@ -19,7 +19,6 @@ class Protocol{
         this.safeJsonStringify = jsonStringify;
         this.safeJsonParse = jsonParse;
         this.safeClone = safeClone;
-        this.prepared_transactions_content = {};
         this.features = {};
     }
 
@@ -252,9 +251,8 @@ class Protocol{
         };
 
         await this.peer.msbClient.broadcastTransaction(payload);
-        this.prepared_transactions_content[txHex] = { dispatch : obj, ipk : pubKeyHex, address : address };
         if(this.peer.txPool.isNotFull() && !this.peer.txPool.contains(txHex)){
-            this.peer.txPool.add(txHex);
+            this.peer.txPool.add(txHex, { dispatch : obj, ipk : pubKeyHex, address : address });
         }
         return payload;
     }

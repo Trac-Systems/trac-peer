@@ -12,7 +12,6 @@ import { mkdtempPortable, rmrfPortable } from '../helpers/tmpdir.js';
 
 class TestProtocol {
     constructor(peer, base, options) {
-        this.prepared_transactions_content = {};
     }
     async extendApi() {}
     getError(value) {

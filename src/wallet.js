@@ -1,7 +1,7 @@
 import PeerWallet from "trac-wallet"
 import b4a from "b4a";
 
-class Wallet extends PeerWallet{
+class Wallet extends PeerWallet {
     constructor() {
         super();
     }

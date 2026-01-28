@@ -14,49 +14,11 @@ import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationH
 import { safeClone } from "./functions.js";
 import Check from "./check.js";
 import { handlerFor } from './operations/index.js';
+import TransactionPool from './transaction/transactionPool.js';
 export {default as Protocol} from "./protocol.js";
 export {default as Contract} from "./contract.js";
 export {default as Feature} from "./feature.js";
 export {default as Wallet} from "./wallet.js";
-
-class TransactionPool {
-    #config
-    #pool
-    constructor(config) {
-        this.#config = config
-        this.#pool = {}
-    }
-
-    *[Symbol.iterator]() {
-        for (const tx in this.#pool) {
-            yield tx
-        }
-    }
-
-    get(tx) {
-        return this.#pool[tx]
-    }
-
-    add(tx) {
-        this.#pool[tx] = { tx, ts: Math.floor(Date.now() / 1000) }
-    }
-
-    delete(tx) {
-        delete this.#pool[tx]
-    }
-
-    contains(tx) {
-        return !!this.#pool[tx]
-    }
-
-    size() {
-        return Object.keys(this.#pool).length
-    }
-
-    isNotFull() {
-        return this.size() <= this.#config.txPoolMaxSize
-    }
-}
 
 class Config {
     constructor(options = {}) {
@@ -207,7 +169,6 @@ export class Peer extends ReadyResource {
                 if(entry && ts - entry.ts > this.config.maxTxDelay){
                     console.log('Dropping TX', tx);
                     this.txPool.delete(tx);
-                    delete this.protocol_instance.prepared_transactions_content[tx];
                     continue;
                 }
 
@@ -223,16 +184,14 @@ export class Peer extends ReadyResource {
                     const ipk = invokerAddress ? this.msbClient.addressToPubKeyHex(invokerAddress) : null;
                     const wp = validatorAddress ? this.msbClient.addressToPubKeyHex(validatorAddress) : null;
                     if (null === ipk || null === wp) continue;
-                    const prepared = this.protocol_instance.prepared_transactions_content[tx];
-                    if (prepared === undefined) continue;
+                    if (entry?.prepared === undefined) continue;
                     const subnet_tx = {
                         msbsl: msbsl,
-                        dispatch: prepared.dispatch,
+                        dispatch: entry.prepared.dispatch,
                         ipk: ipk,
                         wp: wp,
                     };
                     this.txPool.delete(tx);
-                    delete this.protocol_instance.prepared_transactions_content[tx];
                     await this.base.append({ type: 'tx', key: tx, value: subnet_tx });
                 }
                 await this.sleep(5);
