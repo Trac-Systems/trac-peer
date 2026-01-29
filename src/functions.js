@@ -223,7 +223,7 @@ export async function addAdmin(input, peer){
     await addAdminKey(publicKey, peer);
 }
 
-export async function addAdminKey(publicKeyHex, peer){
+async function addAdminKey(publicKeyHex, peer){
     await requireBootstrapNodeForAdminSet(peer);
     const publicKey = (publicKeyHex != null ? String(publicKeyHex) : '').trim().toLowerCase();
     if (!/^[0-9a-f]{64}$/.test(publicKey)) {
@@ -256,11 +256,11 @@ async function appendAddWriter(peer, keyHex, isIndexer){
     });
 }
 
-export async function addWriterKey(keyHex, peer){
+async function addWriterKey(keyHex, peer){
     return appendAddWriter(peer, keyHex, false);
 }
 
-export async function addIndexerKey(keyHex, peer){
+async function addIndexerKey(keyHex, peer){
     return appendAddWriter(peer, keyHex, true);
 }
 
@@ -290,11 +290,11 @@ async function appendRemoveWriter(peer, keyHex){
     await peer.base.append({ op : 'remove_writer', type: 'removeWriter', key: wk, value: signature, hash: hash, nonce : nonce });
 }
 
-export async function removeWriterKey(keyHex, peer){
+async function removeWriterKey(keyHex, peer){
     return appendRemoveWriter(peer, keyHex);
 }
 
-export async function removeIndexerKey(keyHex, peer){
+async function removeIndexerKey(keyHex, peer){
     // Current apply operation is `removeWriter` and it removes either writer or indexer.
     // This keeps the exact on-chain / on-log operation type unchanged.
     return appendRemoveWriter(peer, keyHex);
@@ -319,6 +319,35 @@ export async function joinValidator(input, peer){
     const pubKeyHex = peer.msbClient.addressToPubKeyHex(address);
     if(pubKeyHex === null) throw new Error('Invalid validator address.');
     await peer.msbClient.msb.network.tryConnect(pubKeyHex, 'validator');
+}
+
+export async function verifyDag(_input, peer) {
+    try {
+        console.log('--- Stats ---');
+        const dagView = await peer.base.view.core.treeHash();
+        const lengthdagView = peer.base.view.core.length;
+        const dagSystem = await peer.base.system.core.treeHash();
+        const lengthdagSystem = peer.base.system.core.length;
+        console.log('wallet.address:', peer.wallet !== null ? peer.wallet.publicKey : 'unset');
+        console.log('hypermall.writerKey:', peer.writerLocalKey);
+        const admin = await peer.base.view.get('admin')
+        console.log(`admin: ${admin !== null ? admin.value : 'unset'}`);
+        console.log(`isIndexer: ${peer.base.isIndexer}`);
+        console.log(`isWriter: ${peer.base.writable}`);
+        console.log('swarm.connections.size:', peer.swarm.connections.size);
+        console.log('base.view.core.signedLength:', peer.base.view.core.signedLength);
+        console.log("base.signedLength", peer.base.signedLength);
+        console.log("base.indexedLength", peer.base.indexedLength);
+        console.log("base.linearizer.indexers.length", peer.base.linearizer.indexers.length);
+        console.log(`base.key: ${peer.base.key.toString('hex')}`);
+        console.log('discoveryKey:', b4a.toString(peer.base.discoveryKey, 'hex'));
+        console.log(`VIEW Dag: ${dagView.toString('hex')} (length: ${lengthdagView})`);
+        console.log(`SYSTEM Dag: ${dagSystem.toString('hex')} (length: ${lengthdagSystem})`);
+        const wl = await peer.base.view.get('wrl');
+        console.log('Total Registered Writers:', wl !== null ? wl.value : 0);
+    } catch (error) {
+        console.error('Error during DAG monitoring:', error.message);
+    }
 }
 
 export async function tx(input, peer){
@@ -393,9 +422,4 @@ export async function deploySubnet(input, peer){
     console.log('Subnet channel (hex):', channelHex);
     console.log('Subnet deployment tx:', payload.bdo.tx);
     return payload;
-}
-
-export async function createHash(message) {
-    const out = await blake3(message);
-    return b4a.toString(out, 'hex');
 }

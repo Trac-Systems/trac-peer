@@ -1,8 +1,7 @@
 import { BaseCheck } from '../../base/check.js';
 import b4a from 'b4a';
 import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
-import { createHash } from '../../functions.js';
-import { jsonStringify, safeClone } from '../../utils/types.js';
+import { jsonStringify, safeClone, createHash } from '../../utils/types.js';
 
 export class TxOperation {
     #validator

@@ -23,7 +23,8 @@ import {
     removeIndexer,
     unpinMessage,
     deploySubnet,
-    enableTransactions
+    enableTransactions,
+    verifyDag
 } from "./functions.js";
 
 
@@ -201,7 +202,7 @@ export async function startInteractiveCli(peer, { readlineInstance = null } = {}
     rl.on('line', async (input) => {
         switch (input) {
             case '/stats':
-                await peer.verifyDag();
+                await verifyDag(input, peer);
                 break;
             case '/help':
                 await printHelp(peer);

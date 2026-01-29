@@ -1,5 +1,4 @@
-import { createHash } from "./functions.js";
-import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone } from "./utils/types.js";
+import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone, createHash } from "./utils/types.js";
 import {ProtocolApi} from './api.js';
 import Wallet from 'trac-wallet';
 import b4a from 'b4a';

@@ -1,6 +1,5 @@
 import b4a from "b4a";
-import { createHash } from "./functions.js";
-import { jsonStringify } from "./utils/types.js";
+import { jsonStringify, createHash } from "./utils/types.js";
 
 export class ProtocolApi {
 
@@ -140,6 +139,7 @@ export class ProtocolApi {
         if(prepared_message.dispatch.reply_to !== null && isNaN(parseInt(prepared_message.dispatch.reply_to))) throw new Error('Reply to not a number.');
         if(prepared_message.dispatch.pinned !== false) throw new Error('pinned must be false');
         if(prepared_message.dispatch.pin_id !== null) throw new Error('pin_id must be null');
+
         const verified = this.peer.wallet.verify(signature, JSON.stringify(prepared_message) + nonce, prepared_message.dispatch.address);
         if(false === verified) throw new Error('Invalid signature. Please sign your prepared message.');
         await this.peer.base.append({type: 'msg', value: prepared_message, hash : signature, nonce: nonce });

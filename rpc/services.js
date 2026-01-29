@@ -1,6 +1,6 @@
 import b4a from "b4a";
 import { fastestToJsonSchema } from "./utils/schemaToJson.js";
-import { createHash } from "../src/functions.js";
+import { createHash } from "../src/utils/types.js";
 
 const asHex32 = (value, field) => {
   const hex = String(value ?? "").trim().toLowerCase();

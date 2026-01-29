@@ -1,4 +1,5 @@
 import b4a from "b4a";
+import { blake3 } from '@tracsystems/blake3';
 import { bigIntToDecimalString, decimalStringToBigInt } from 'trac-msb/src/utils/amountSerialization.js';
 
 export function resolveNumberString(number, decimals){
@@ -72,4 +73,9 @@ export function safeClone(obj){
     const obj2 = jsonParse(str);
     if(obj2 === undefined) return null;
     return obj2;
+}
+
+export async function createHash(message) {
+    const out = await blake3(message);
+    return b4a.toString(out, 'hex');
 }

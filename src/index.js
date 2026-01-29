@@ -11,7 +11,6 @@ import Protomux from 'protomux'
 import c from 'compact-encoding'
 import { MsbClient } from './msbClient.js';
 import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
-import { safeClone } from "./utils/types.js";
 import { handlerFor } from './operations/index.js';
 import TransactionPool from './transaction/transactionPool.js';
 export {default as Protocol} from "./protocol.js";
@@ -278,35 +277,6 @@ export class Peer extends ReadyResource {
 
             this.swarm.join(this.config.channel, { server: true, client: true });
             await this.swarm.flush();
-        }
-    }
-
-    async verifyDag() {
-        try {
-            console.log('--- Stats ---');
-            const dagView = await this.base.view.core.treeHash();
-            const lengthdagView = this.base.view.core.length;
-            const dagSystem = await this.base.system.core.treeHash();
-            const lengthdagSystem = this.base.system.core.length;
-            console.log('wallet.address:', this.wallet !== null ? this.wallet.publicKey : 'unset');
-            console.log('hypermall.writerKey:', this.writerLocalKey);
-            const admin = await this.base.view.get('admin')
-            console.log(`admin: ${admin !== null ? admin.value : 'unset'}`);
-            console.log(`isIndexer: ${this.base.isIndexer}`);
-            console.log(`isWriter: ${this.base.writable}`);
-            console.log('swarm.connections.size:', this.swarm.connections.size);
-            console.log('base.view.core.signedLength:', this.base.view.core.signedLength);
-            console.log("base.signedLength", this.base.signedLength);
-            console.log("base.indexedLength", this.base.indexedLength);
-            console.log("base.linearizer.indexers.length", this.base.linearizer.indexers.length);
-            console.log(`base.key: ${this.base.key.toString('hex')}`);
-            console.log('discoveryKey:', b4a.toString(this.base.discoveryKey, 'hex'));
-            console.log(`VIEW Dag: ${dagView.toString('hex')} (length: ${lengthdagView})`);
-            console.log(`SYSTEM Dag: ${dagSystem.toString('hex')} (length: ${lengthdagSystem})`);
-            const wl = await this.base.view.get('wrl');
-            console.log('Total Registered Writers:', wl !== null ? wl.value : 0);
-        } catch (error) {
-            console.error('Error during DAG monitoring:', error.message);
         }
     }
 }
