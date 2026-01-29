@@ -96,6 +96,7 @@ test("rpc: health/status/state", async (t) => {
     const peer = new Peer({
       storesDirectory,
       storeName,
+      channel: "unit-test",
       wallet,
       protocol: Protocol,
       contract: Contract,
@@ -147,6 +148,7 @@ test("rpc: body size limit returns 413", async (t) => {
     const peer = new Peer({
       storesDirectory,
       storeName,
+      channel: "unit-test",
       wallet,
       protocol: Protocol,
       contract: Contract,
@@ -186,6 +188,7 @@ test("rpc: contract schema (pokemon)", async (t) => {
     const peer = new Peer({
       storesDirectory,
       storeName,
+      channel: "unit-test",
       wallet,
       protocol: PokemonProtocol,
       contract: PokemonContract,
@@ -227,6 +230,7 @@ test("rpc: wallet-signed tx simulate via prepare+sign+broadcast", async (t) => {
     const peer = new Peer({
       storesDirectory,
       storeName,
+      channel: "unit-test",
       wallet: peerWallet,
       protocol: PokemonProtocol,
       contract: PokemonContract,

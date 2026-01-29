@@ -221,6 +221,10 @@ export class Peer extends ReadyResource {
             console.log(`isWriter: ${this.base.writable}`);
             console.log('');
 
+            const subnetBootstrapHex = b4a.isBuffer(this.config.bootstrap)
+                ? b4a.toString(this.config.bootstrap, 'hex')
+                : String(this.config.bootstrap ?? '').toLowerCase();
+
             this.swarm.on('connection', async (connection, peerInfo) => {
                 const mux = Protomux.from(connection)
                 connection.userData = mux
@@ -235,7 +239,10 @@ export class Peer extends ReadyResource {
                     async onmessage(msg) {
                         try{
                             if(true === _this.base.writable && msg.inviteMyKey !== undefined &&
-                                msg.bootstrap === _this.config.bootstrap && b4a.toString(connection.publicKey, 'hex') === msg.to){
+                                typeof msg.bootstrap === 'string' &&
+                                msg.bootstrap.toLowerCase() === subnetBootstrapHex &&
+                                typeof msg.to === 'string' &&
+                                msg.to.toLowerCase() === String(_this.wallet?.publicKey ?? '').toLowerCase()){
                                 const auto_add_writers = await _this.base.view.get('auto_add_writers');
                                 if(auto_add_writers !== null && auto_add_writers.value === 'on') {
                                     await _this.base.append({
@@ -248,14 +255,38 @@ export class Peer extends ReadyResource {
                     }});
 
                 if(false === _this.base.writable){
-                    const auto_add_writers = await _this.base.view.get('auto_add_writers');
-                    if(auto_add_writers !== null && auto_add_writers.value === 'on') {
-                        message.send({
-                            inviteMyKey : _this.writerLocalKey,
-                            bootstrap : _this.config.bootstrap,
-                            to : b4a.toString(connection.remotePublicKey, 'hex')
-                        });
-                    }
+                    // Only request writer access when this subnet has auto_add_writers enabled (after replication).
+                    const tryInvite = async () => {
+                        const shouldInvite = async () => {
+                            const auto_add_writers = await _this.base.view.get('auto_add_writers');
+                            return auto_add_writers !== null && auto_add_writers.value === 'on';
+                        };
+
+                        if (await shouldInvite()) {
+                            message.send({
+                                inviteMyKey : _this.writerLocalKey,
+                                bootstrap : subnetBootstrapHex,
+                                to : b4a.toString(connection.remotePublicKey, 'hex')
+                            });
+                            return;
+                        }
+
+                        // Wait for replication to catch up (bounded), then re-check.
+                        const deadline = Date.now() + 15_000;
+                        while (Date.now() < deadline) {
+                            await new Promise((resolve) => _this.base.view.core.once('append', resolve));
+                            if (await shouldInvite()) {
+                                message.send({
+                                    inviteMyKey : _this.writerLocalKey,
+                                    bootstrap : subnetBootstrapHex,
+                                    to : b4a.toString(connection.remotePublicKey, 'hex')
+                                });
+                                return;
+                            }
+                        }
+                    };
+
+                    tryInvite().catch(() => {});
                 }
 
                 const remotePublicKey = b4a.toString(connection.remotePublicKey, 'hex');
