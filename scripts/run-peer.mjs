@@ -7,7 +7,7 @@ import { MainSettlementBus } from "trac-msb/src/index.js";
 import { createConfig, ENV } from "trac-msb/src/config/env.js"
 import { startRpcServer } from "../rpc/rpc_server.js";
 import { DEFAULT_RPC_HOST, DEFAULT_RPC_PORT, DEFAULT_MAX_BODY_BYTES } from "../rpc/constants.js";
-import { startInteractiveCli } from "../src/cli.js";
+import { Terminal } from "../src/cli.js";
 import { ensureTextCodecs } from "../src/textCodec.js";
 import PokemonProtocol from "../src/dev/pokemonProtocol.js";
 import PokemonContract from "../src/dev/pokemonContract.js";
@@ -261,7 +261,8 @@ console.log('  - /get --key "txl"');
 console.log("==========================================================");
 console.log("");
 
-await startInteractiveCli(peer);
+const terminal = new Terminal(peer);
+await terminal.start();
 
 process.on("SIGINT", async () => {
   if (rpcServer) await new Promise((resolve) => rpcServer.close(resolve));
