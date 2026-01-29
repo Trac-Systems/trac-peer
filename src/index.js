@@ -9,6 +9,7 @@ import w from 'protomux-wakeup';
 const wakeup = new w();
 import Protomux from 'protomux'
 import c from 'compact-encoding'
+import path from 'path';
 import { MsbClient } from './msbClient.js';
 import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
 import { handlerFor } from './operations/index.js';
@@ -20,20 +21,66 @@ export {default as Wallet} from "./wallet.js";
 
 class Config {
     constructor(options = {}) {
-        this.storesDirectory = options.storesDirectory;
-        this.storeName = options.storeName;
-        this.fullStoresDirectory = `${this.storesDirectory}${this.storeName}`;
-        this.keyPairPath = `${this.fullStoresDirectory}/db/keypair.json`;
-        this.txPoolMaxSize = options.txPoolMaxSize || 1_000;
-        this.maxTxDelay = options.maxTxDelay || 60;
-        this.maxMsbSignedLength = Number.isSafeInteger(options.maxMsbSignedLength) ? options.maxMsbSignedLength : 1_000_000_000;
-        this.maxMsbApplyOperationBytes = Number.isSafeInteger(options.maxMsbApplyOperationBytes) ? options.maxMsbApplyOperationBytes : 1024 * 1024;
-        this.bootstrap = options.bootstrap || null;
+        const storesDirectoryRaw = options.storesDirectory ?? 'stores/';
+        if (typeof storesDirectoryRaw !== 'string' || storesDirectoryRaw.length === 0) {
+            throw new Error('Peer: storesDirectory is required.');
+        }
+        this.storesDirectory = storesDirectoryRaw.endsWith('/') ? storesDirectoryRaw : `${storesDirectoryRaw}/`;
+
+        const storeNameRaw = options.storeName ?? 'peer';
+        if (typeof storeNameRaw !== 'string' || storeNameRaw.length === 0) {
+            throw new Error('Peer: storeName is required.');
+        }
+        this.storeName = storeNameRaw.replace(/^\/+|\/+$/g, '');
+
+        // Keep path assembly stable (avoid double slashes like "stores//peer/db/...").
+        this.fullStoresDirectory = path.join(this.storesDirectory, this.storeName);
+        this.keyPairPath = path.join(this.fullStoresDirectory, 'db', 'keypair.json');
+
+        this.txPoolMaxSize = Number.isSafeInteger(options.txPoolMaxSize)
+            ? options.txPoolMaxSize
+            : 1_000;
+
+        this.maxTxDelay = Number.isSafeInteger(options.maxTxDelay)
+            ? options.maxTxDelay
+            : 60;
+
+        this.maxMsbSignedLength = Number.isSafeInteger(options.maxMsbSignedLength)
+            ? options.maxMsbSignedLength
+            : 1_000_000_000;
+
+        this.maxMsbApplyOperationBytes = Number.isSafeInteger(options.maxMsbApplyOperationBytes)
+            ? options.maxMsbApplyOperationBytes
+            : 1024 * 1024;
+
+        const bootstrapRaw = options.bootstrap ?? null;
+        if (typeof bootstrapRaw === 'string' && bootstrapRaw.length > 0) {
+            if (!/^[0-9a-fA-F]{64}$/.test(bootstrapRaw)) throw new Error('Peer: bootstrap must be 32-byte hex.');
+            this.bootstrap = b4a.from(bootstrapRaw, 'hex');
+        } else {
+            this.bootstrap = bootstrapRaw;
+        }
+
+        // Interactive mode defaults to enabled unless explicitly disabled.
+        if (Object.prototype.hasOwnProperty.call(options, 'enableInteractiveMode')) {
+            this.enableInteractiveMode = options.enableInteractiveMode !== false;
+        } else {
+            this.enableInteractiveMode = true;
+        }
+
         this.enableBackgroundTasks = options.enableBackgroundTasks !== false;
         this.enableUpdater = options.enableUpdater !== false;
         this.replicate = options.replicate !== false;
-        this.channel = b4a.alloc(32).fill(options.channel ?? 0);
-        this.dhtBootstrap = ['116.202.214.149:10001', '157.180.12.214:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
+
+        const channelRaw = options.channel ?? null;
+        if (channelRaw === null || channelRaw === undefined || channelRaw === '') {
+            throw new Error('Peer: channel is required.');
+        }
+        this.channel = b4a.alloc(32).fill(channelRaw);
+
+        const defaultDhtBootstrap = ['116.202.214.149:10001', '157.180.12.214:10001', 'node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737'];
+        this.dhtBootstrap = options.dhtBootstrap ?? defaultDhtBootstrap;
+
         this.enableTxlogs = options.enableTxlogs;
     }
 }
@@ -67,7 +114,7 @@ export class Peer extends ReadyResource {
         this.connectedNodes = 1;
         this.connectedPeers = new Set();
         this.options = options;
-        this.readline_instance = options.readline_instance || null;
+        this.readlineInstance = options.readlineInstance || null;
     }
 
     async _open() {
@@ -80,7 +127,7 @@ export class Peer extends ReadyResource {
         if (this.config.bootstrap === null) {
             this.config.bootstrap = this.base.key;
         }
-        await this.wallet.initKeyPair(this.config.keyPairPath, this.readline_instance);
+        await this.wallet.initKeyPair(this.config.keyPairPath, this.readlineInstance);
         this.writerLocalKey = b4a.toString(this.base.local.key, 'hex');
 
         await this.initContract();

@@ -102,7 +102,6 @@ test("rpc: health/status/state", async (t) => {
       contract: Contract,
       msb: createMsbStub(),
       replicate: false,
-      enable_interactive_mode: false,
       enableBackgroundTasks: false,
       enableUpdater: false,
     });
@@ -154,7 +153,6 @@ test("rpc: body size limit returns 413", async (t) => {
       contract: Contract,
       msb: createMsbStub(),
       replicate: false,
-      enable_interactive_mode: false,
       enableBackgroundTasks: false,
       enableUpdater: false,
     });
@@ -194,7 +192,6 @@ test("rpc: contract schema (pokemon)", async (t) => {
       contract: PokemonContract,
       msb: createMsbStub(),
       replicate: false,
-      enable_interactive_mode: false,
       enableBackgroundTasks: false,
       enableUpdater: false,
     });
@@ -236,10 +233,9 @@ test("rpc: wallet-signed tx simulate via prepare+sign+broadcast", async (t) => {
       contract: PokemonContract,
       msb: createMsbStub(),
       replicate: false,
-      enable_interactive_mode: false,
       enableBackgroundTasks: false,
       enableUpdater: false,
-      api_tx_exposed: true,
+      apiTxExposed: true,
     });
 
     let server = null;

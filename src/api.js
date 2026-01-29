@@ -12,8 +12,8 @@ export class ProtocolApi {
      */
     constructor(peer, options = {}) {
         this.peer = peer;
-        this.api_tx_exposed = options.api_tx_exposed === true;
-        this.api_msg_exposed = options.api_msg_exposed === true;
+        this.apiTxExposed = options.apiTxExposed === true;
+        this.apiMsgExposed = options.apiMsgExposed === true;
     }
 
     /**
@@ -93,7 +93,7 @@ export class ProtocolApi {
      * @returns {boolean}
      */
     msgExposed(){
-        return true === this.api_msg_exposed;
+        return true === this.apiMsgExposed;
     }
 
     /**
@@ -116,7 +116,7 @@ export class ProtocolApi {
      * @returns {Promise<void>}
      */
     async post(prepared_message, signature, nonce){
-        if(true !== this.api_msg_exposed) throw new Error('Posting messages not exposed in API.');
+        if(true !== this.apiMsgExposed) throw new Error('Posting messages not exposed in API.');
         if(this.peer.base.writable === false) throw new Error('Peer is not writable.');
         if(b4a.byteLength(jsonStringify(prepared_message)) > this.peer.protocol_instance.msgMaxBytes()) throw new Error('Prepared message too large.');
         if(typeof prepared_message !== 'object') throw new Error('Prepared message must be an object generated with api.prepareMessage().');
@@ -180,7 +180,7 @@ export class ProtocolApi {
      * @returns {boolean}
      */
     txExposed(){
-        return true === this.api_tx_exposed;
+        return true === this.apiTxExposed;
     }
 
     /**
@@ -207,7 +207,7 @@ export class ProtocolApi {
      * @returns {Promise<boolean|object>}
      */
     async tx(tx, prepared_command, address, signature, nonce, sim = false ){
-        if(true !== this.api_tx_exposed) throw new Error('Transactions not exposed in API.');
+        if(true !== this.apiTxExposed) throw new Error('Transactions not exposed in API.');
         if(this.peer.base.writable === false) throw new Error('Peer is not writable.');
         if(typeof prepared_command !== 'object') throw new Error('prepared_command must be an object.');
         if(typeof prepared_command.type !== 'string') throw new Error('prepared_command.type must exist and be a string.');
