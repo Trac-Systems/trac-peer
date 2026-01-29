@@ -1,5 +1,5 @@
 import { BaseCheck } from '../../base/check.js';
-import { jsonStringify } from '../../functions.js';
+import { jsonStringify } from '../../utils/types.js';
 
 export class SetChatStatusOperation {
     #validator

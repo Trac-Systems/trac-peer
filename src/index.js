@@ -11,7 +11,7 @@ import Protomux from 'protomux'
 import c from 'compact-encoding'
 import { MsbClient } from './msbClient.js';
 import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
-import { safeClone } from "./functions.js";
+import { safeClone } from "./utils/types.js";
 import { handlerFor } from './operations/index.js';
 import TransactionPool from './transaction/transactionPool.js';
 export {default as Protocol} from "./protocol.js";
@@ -74,7 +74,7 @@ export class Peer extends ReadyResource {
     async _open() {
         await this.msbClient.ready()
         if (this.config.enableBackgroundTasks) {
-            this.tx_observer();
+            this.txObserver();
         }
         this._boot();
         await this.base.ready();
@@ -157,7 +157,7 @@ export class Peer extends ReadyResource {
         await this.base.close();
     }
 
-    async tx_observer(){
+    async txObserver(){
         while(true){
             const ts = Math.floor(Date.now() / 1000);
             for(let tx of this.txPool){

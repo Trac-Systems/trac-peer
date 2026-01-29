@@ -1,5 +1,6 @@
 import b4a from "b4a";
-import { jsonStringify, createHash } from "./functions.js";
+import { createHash } from "./functions.js";
+import { jsonStringify } from "./utils/types.js";
 
 export class ProtocolApi {
 

@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { safeClone } from './functions.js';
+import { safeClone } from './utils/types.js';
 import Check from './contractCheck.js';
 
 class Contract {
@@ -20,11 +20,9 @@ class Contract {
         this.value = null;
         this.assert = assert;
         this.check = new Check();
-
     }
 
     async execute(op, storage){
-
         this.address = null;
         this.validator_address = null;
         this.is_message = false;
