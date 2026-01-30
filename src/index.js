@@ -10,9 +10,9 @@ const wakeup = new w();
 import Protomux from 'protomux'
 import c from 'compact-encoding'
 import { MsbClient } from './msbClient.js';
-import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
 import { handlerFor } from './operations/index.js';
 import TransactionPool from './transaction/transactionPool.js';
+import { TransactionObserver } from './tasks/transactionObserver.js';
 export {default as Protocol} from "./protocol.js";
 export {default as Contract} from "./contract.js";
 export {default as Feature} from "./feature.js";
@@ -35,6 +35,7 @@ export class Peer extends ReadyResource {
         this.base = null;
         this.key = null;
         this.txPool = new TransactionPool(this.config);
+        this.txObserverTask = null;
         this.writerLocalKey = null;
 
         this.wallet = wallet        
@@ -53,11 +54,11 @@ export class Peer extends ReadyResource {
 
     async _open() {
         await this.msbClient.ready()
-        if (this.config.enableBackgroundTasks) {
-            this.txObserver();
-        }
         this._boot();
         await this.base.ready();
+
+        if (this.config.enableBackgroundTasks) this.txObserver();
+
         if (this.config.bootstrap === null) {
             this.config.bootstrap = this.base.key;
         }
@@ -137,43 +138,14 @@ export class Peer extends ReadyResource {
         await this.base.close();
     }
 
-    async txObserver(){
-        while(true){
-            const ts = Math.floor(Date.now() / 1000);
-            for(let tx of this.txPool){
-                const entry = this.txPool.get(tx);
-                if(entry && ts - entry.ts > this.config.maxTxDelay){
-                    console.log('Dropping TX', tx);
-                    this.txPool.delete(tx);
-                    continue;
-                }
-
-                const msbsl = this.msbClient.getSignedLength();
-                const msb_tx = this.msbClient.getSignedAtLength(tx, msbsl)
-
-                if (b4a.isBuffer(msb_tx?.value)) {
-                    const decoded = safeDecodeApplyOperation(msb_tx.value);
-                    if (decoded?.type !== 12 || decoded?.txo === undefined) continue;
-                    if (decoded.txo.tx === undefined || decoded.txo.tx.toString('hex') !== tx) continue;
-                    const invokerAddress = decoded?.address ? decoded.address.toString('ascii') : null;
-                    const validatorAddress = decoded?.txo?.va ? decoded.txo.va.toString('ascii') : null;
-                    const ipk = invokerAddress ? this.msbClient.addressToPubKeyHex(invokerAddress) : null;
-                    const wp = validatorAddress ? this.msbClient.addressToPubKeyHex(validatorAddress) : null;
-                    if (null === ipk || null === wp) continue;
-                    if (entry?.prepared === undefined) continue;
-                    const subnet_tx = {
-                        msbsl: msbsl,
-                        dispatch: entry.prepared.dispatch,
-                        ipk: ipk,
-                        wp: wp,
-                    };
-                    this.txPool.delete(tx);
-                    await this.base.append({ type: 'tx', key: tx, value: subnet_tx });
-                }
-                await this.sleep(5);
-            }
-            await this.sleep(10);
+    async txObserver() {
+        if (!this.txObserverTask) {
+            this.txObserverTask = new TransactionObserver(
+                { base: this.base, msbClient: this.msbClient, txPool: this.txPool },
+                this.config
+            );
         }
+        this.txObserverTask.start();
     }
 
     async sleep(ms) {
