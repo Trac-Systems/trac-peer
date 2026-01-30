@@ -10,6 +10,7 @@ class TransactionObserver {
     #scheduler
     #msbClient
     #txPool
+    #isInterrupted
 
     constructor({ base, msbClient, txPool }, config) {
         this.#base = base
@@ -21,7 +22,7 @@ class TransactionObserver {
 
     async start() {
         if (this.#scheduler?.isRunning) {
-            console.info('TransactionPoolService is already started');
+            console.info('TransactionObserver is already started');
             return;
         }
 
@@ -37,6 +38,8 @@ class TransactionObserver {
     }
 
     async #processTransactions() {
+        if (!this.#shouldRun()) return
+
         const ts = Math.floor(Date.now() / 1000)
         for (const tx of this.#txPool) {
             const entry = this.#txPool.get(tx);
@@ -72,6 +75,16 @@ class TransactionObserver {
 
     #sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    #shouldRun() {
+        return !this.#isInterrupted
+    }
+
+    async stop(waitForCurrent = true) {
+        this.#isInterrupted = true;
+        await this.#scheduler.stop(waitForCurrent);
+        console.info('TransactionObserver: closing gracefully...');
     }
 }
 

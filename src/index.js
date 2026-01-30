@@ -132,6 +132,7 @@ export class Peer extends ReadyResource {
     }
 
     async close() {
+        if (this.txObserverTask) this.txObserverTask.stop()
         if (this.swarm) {
             await this.swarm.destroy();
         }
@@ -145,7 +146,7 @@ export class Peer extends ReadyResource {
                 this.config
             );
         }
-        this.txObserverTask.start();
+        this.txObserverTask.start()
     }
 
     async sleep(ms) {
