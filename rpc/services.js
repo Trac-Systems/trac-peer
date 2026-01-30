@@ -79,7 +79,7 @@ const convertContractOpSchema = (fv) => {
 };
 
 export async function getContractSchema(peer) {
-  const contract = peer?.contract_instance;
+  const contract = peer?.contract?.instance;
   if (!contract) throw new Error("Contract instance not initialized.");
 
   const registrations = contract.metadata ?? {};

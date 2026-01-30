@@ -39,12 +39,8 @@ export class Peer extends ReadyResource {
         this.writerLocalKey = null;
 
         this.wallet = wallet        
-        this.protocol = {
-            Class: protocol,
-            instance: null
-        }
-        this.contract = contract
-        this.contract_instance = null;
+        this.protocol = { Class: protocol, instance: null }
+        this.contract = { Class: contract, instance: null }
         this.features = features || [];
         
         // In bare runtime, Buffer#fill(undefined) throws; default to 0 when channel not provided.
@@ -91,7 +87,7 @@ export class Peer extends ReadyResource {
                 const context = {
                     wallet: this.wallet,
                     protocolInstance: this.protocol.instance,
-                    contractInstance: this.contract_instance,
+                    contractInstance: this.contract.instance,
                     msbClient: this.msbClient,
                     config: this.config
                 }
@@ -130,7 +126,7 @@ export class Peer extends ReadyResource {
     async initContract(){
         this.protocol.instance = new this.protocol.Class(this, this.base, this.config);
         await this.protocol.instance.extendApi();
-        this.contract_instance = new this.contract(this.protocol.instance, this.config);
+        this.contract.instance = new this.contract.Class(this.protocol.instance, this.config);
     }
 
     async close() {

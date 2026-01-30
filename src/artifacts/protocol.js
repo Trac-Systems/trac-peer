@@ -190,7 +190,7 @@ class Protocol{
                 wp : validator_pub_key
             }
         }
-        return await this.peer.contract_instance.execute(op, storage);
+        return await this.peer.contract.instance.execute(op, storage);
     }
 
     async broadcastTransaction(obj, sim = false, surrogate = null){
@@ -330,9 +330,9 @@ class SimStorage{
     }
 
     async del(key){
-        if(this.peer.contract_instance.isReservedKey(key)) throw new Error('del(key): ' + key + 'is reserved');
+        if(this.peer.contract.instance.isReservedKey(key)) throw new Error('del(key): ' + key + 'is reserved');
         delete this.values[key];
-        return this.peer.contract_instance.emptyPromise();
+        return this.peer.contract.instance.emptyPromise();
     }
 
     async get(key){
@@ -343,9 +343,9 @@ class SimStorage{
     }
 
     async put(key, value){
-        if(this.peer.contract_instance.isReservedKey(key)) throw new Error('put(key,value): ' + key + 'is reserved');
+        if(this.peer.contract.instance.isReservedKey(key)) throw new Error('put(key,value): ' + key + 'is reserved');
         this.values[key] = value;
-        return this.peer.contract_instance.emptyPromise();
+        return this.peer.contract.instance.emptyPromise();
     }
 }
 
