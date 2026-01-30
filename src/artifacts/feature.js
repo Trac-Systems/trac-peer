@@ -21,7 +21,7 @@ class Feature {
 
     async append(key, value){
         if(this.peer.base.writable){
-            const nonce = this.peer.protocol_instance.generateNonce();
+            const nonce = this.peer.protocol.instance.generateNonce();
             const hash = this.peer.wallet.sign(JSON.stringify(value) + nonce);
             await this.peer.base.append({ type: 'feature', key: this.key + '_' + key, value : {
                     dispatch : {

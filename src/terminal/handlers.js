@@ -67,10 +67,10 @@ class TerminalHandlers {
 
     async setWhitelistStatus(input){
         await this.#requireAdmin();
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         const value = ''+splitted.user;
         const status = parseInt(splitted.status) === 1;
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         const signature = { dispatch : {
                 type : 'setWhitelistStatus',
                 user: value,
@@ -82,9 +82,9 @@ class TerminalHandlers {
     }
 
     async enableTransactions(input){
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         const value = parseInt(splitted.enabled) === 1;
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         const signature = { dispatch : {
                 type : 'enableTransactions',
                 enabled: value,
@@ -96,9 +96,9 @@ class TerminalHandlers {
 
     async enableWhitelist(input){
         await this.#requireAdmin();
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         const value = parseInt(splitted.enabled) === 1;
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         const signature = { dispatch : {
                 type : 'enableWhitelist',
                 enabled: value,
@@ -110,9 +110,9 @@ class TerminalHandlers {
 
     async unpinMessage(input){
         await this.#requireAdminOrMod();
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         const value = parseInt(splitted.pin_id);
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         const signature = { dispatch : {
                 type : 'unpinMessage',
                 id: value,
@@ -124,10 +124,10 @@ class TerminalHandlers {
 
     async pinMessage(input){
         await this.#requireAdminOrMod();
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         const value = parseInt(splitted.id);
         const pinned = parseInt(splitted.pin) === 1;
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         const signature = { dispatch : {
                 type : 'pinMessage',
                 id: value,
@@ -140,9 +140,9 @@ class TerminalHandlers {
 
     async deleteMessage(input){
         await this.#requireAdminOrMod();
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         const value = parseInt(splitted.id);
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         const signature = { dispatch : {
                 type : 'deleteMessage',
                 id: value,
@@ -154,9 +154,9 @@ class TerminalHandlers {
 
     async updateAdmin(input){
         await this.#requireAdmin();
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         const value = ''+splitted.address === 'null' ? null : ''+splitted.address;
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         const signature = { dispatch : {
                 type : 'updateAdmin',
                 admin: value,
@@ -168,10 +168,10 @@ class TerminalHandlers {
 
     async setMod(input){
         await this.#requireAdmin();
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         const value = ''+splitted.user;
         const mod = parseInt(splitted.mod) === 1;
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         const signature = { dispatch : {
                 type : 'setMod',
                 user: value,
@@ -184,10 +184,10 @@ class TerminalHandlers {
 
     async muteStatus(input){
         await this.#requireAdminOrMod();
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         const value = ''+splitted.user;
         const muted = parseInt(splitted.muted) === 1;
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         const signature = { dispatch : {
                 type : 'muteStatus',
                 user: value,
@@ -199,7 +199,7 @@ class TerminalHandlers {
     }
 
     async setNick(input){
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         const value = ''+splitted.nick;
         let user = null;
         if(splitted.user !== undefined){
@@ -208,7 +208,7 @@ class TerminalHandlers {
         if (user !== null && user !== this.#peer.wallet.publicKey) {
             await this.#requireAdminOrMod();
         }
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         const signature = { dispatch : {
                 type : 'setNick',
                 nick: value,
@@ -220,13 +220,13 @@ class TerminalHandlers {
     }
 
     async postMessage(input){
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         if(typeof splitted.message === "boolean" || splitted.message === undefined) throw new Error('Empty message not allowed');
         const chat_status = await this.#peer.base.view.get('chat_status');
         if (chat_status === null || chat_status.value !== 'on') throw new Error('Chat is disabled.');
         const reply_to = splitted.reply_to !== undefined ? parseInt(splitted.reply_to) : null;
         const value = '' + splitted.message;
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         const signature = { dispatch : {
                 type : 'msg',
                 msg: value,
@@ -243,9 +243,9 @@ class TerminalHandlers {
 
     async setChatStatus(input){
         await this.#requireAdmin();
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         const value = parseInt(splitted.enabled) === 1 ? 'on' : 'off';
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         if(value !== 'on' && value !== 'off') throw new Error('setChatStatus: use on and off values.');
         const msg = { type: 'setChatStatus', key: value }
         const signature = {
@@ -257,9 +257,9 @@ class TerminalHandlers {
 
     async setAutoAddWriters(input){
         await this.#requireAdmin();
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         const value = parseInt(splitted.enabled) === 1 ? 'on' : 'off';
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         if(value !== 'on' && value !== 'off') throw new Error('setAutoAddWriters: use on and off values.');
         const msg = { type: 'setAutoAddWriters', key: value }
         const signature = {
@@ -271,7 +271,7 @@ class TerminalHandlers {
 
     async addAdmin(input){
         await this.#requireBootstrapNodeForAdminSet();
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
+        const splitted = this.#peer.protocol.instance.parseArgs(input)
         const publicKey = (splitted.address != null ? String(splitted.address) : '').trim().toLowerCase();
         if (!/^[0-9a-f]{64}$/.test(publicKey)) {
             throw new Error(
@@ -297,7 +297,7 @@ class TerminalHandlers {
         await this.#requireAdmin();
         const wk = (keyHex != null ? String(keyHex) : '').trim().toLowerCase();
         if (!/^[0-9a-f]{64}$/.test(wk)) throw new Error('Invalid --key. Expected 32-byte hex (64 chars).');
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         const msg = { type: isIndexer ? 'addIndexer' : 'addWriter', key: wk };
         const signature = { msg: msg };
         const hash = this.#peer.wallet.sign(JSON.stringify(msg) + nonce);
@@ -324,13 +324,13 @@ class TerminalHandlers {
 
     async addWriter(input){
         await this.#requireAdmin();
-        const parsed = this.#peer.protocol_instance.parseArgs(input);
+        const parsed = this.#peer.protocol.instance.parseArgs(input);
         return this.#addWriterKey(parsed.key);
     }
 
     async addIndexer(input){
         await this.#requireAdmin();
-        const parsed = this.#peer.protocol_instance.parseArgs(input);
+        const parsed = this.#peer.protocol.instance.parseArgs(input);
         return this.#addIndexerKey(parsed.key);
     }
 
@@ -338,7 +338,7 @@ class TerminalHandlers {
         await this.#requireAdmin();
         const wk = (keyHex != null ? String(keyHex) : '').trim().toLowerCase();
         if (!/^[0-9a-f]{64}$/.test(wk)) throw new Error('Invalid --key. Expected 32-byte hex (64 chars).');
-        const nonce = this.#peer.protocol_instance.generateNonce();
+        const nonce = this.#peer.protocol.instance.generateNonce();
         const msg = { type: 'removeWriter', key: wk };
         const signature = { msg: msg };
         const hash = this.#peer.wallet.sign(JSON.stringify(msg) + nonce);
@@ -360,13 +360,13 @@ class TerminalHandlers {
 
     async removeWriter(input){
         await this.#requireAdmin();
-        const parsed = this.#peer.protocol_instance.parseArgs(input);
+        const parsed = this.#peer.protocol.instance.parseArgs(input);
         return this.#removeWriterKey(parsed.key);
     }
 
     async removeIndexer(input){
         await this.#requireAdmin();
-        const parsed = this.#peer.protocol_instance.parseArgs(input);
+        const parsed = this.#peer.protocol.instance.parseArgs(input);
         return this.#removeIndexerKey(parsed.key);
     }
 
@@ -404,7 +404,7 @@ class TerminalHandlers {
 
     async tx(input){
         if(this.#peer.base?.writable === false) throw new Error('Peer is not writable.');
-        const splitted = this.#peer.protocol_instance.parseArgs(input);
+        const splitted = this.#peer.protocol.instance.parseArgs(input);
         let res = false;
         if(splitted.command === undefined){
             res = new Error('Missing option. Please use the --command flag.');
@@ -414,10 +414,10 @@ class TerminalHandlers {
             if(splitted.sim !== undefined && parseInt(splitted.sim) === 1){
                 sim = true;
             }
-            res = await this.#peer.protocol_instance.tx(splitted, sim);
+            res = await this.#peer.protocol.instance.tx(splitted, sim);
         } catch(e){ console.log(e) }
         if(res !== false){
-            const err = this.#peer.protocol_instance.getError(res);
+            const err = this.#peer.protocol.instance.getError(res);
             if(null !== err){
                 console.log(err.message);
             } else if(res && typeof res === 'object') {
@@ -435,7 +435,7 @@ class TerminalHandlers {
         if(this.#peer.wallet.publicKey === null || this.#peer.wallet.secretKey === null) throw new Error('Wallet is not initialized.');
 
         const txvHex = await this.#peer.msbClient.getTxvHex();
-        const nonceHex = this.#peer.protocol_instance.generateNonce();
+        const nonceHex = this.#peer.protocol.instance.generateNonce();
         const subnetBootstrapHex = (b4a.isBuffer(this.#peer.config.bootstrap) ? this.#peer.config.bootstrap.toString('hex') : (''+this.#peer.config.bootstrap)).toLowerCase();
         const channelHex = b4a.isBuffer(this.#peer.config.channel) ? this.#peer.config.channel.toString('hex') : null;
         if(channelHex === null) throw new Error('Peer channel is not initialized.');

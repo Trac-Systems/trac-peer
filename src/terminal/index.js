@@ -45,7 +45,7 @@ class Terminal {
         console.log('- /exit | Exit the program');
         console.log('- /help | This help text');
     
-        this.#peer.protocol_instance.printOptions();
+        this.#peer.protocol.instance.printOptions();
     }
 
     async start({ readlineInstance = null } = {}) {
@@ -96,7 +96,7 @@ class Terminal {
             { rule: (line) => line.startsWith('/enable_whitelist'), handler: (line) => this.#handlers.enableWhitelist(line) },
             { rule: (line) => line.startsWith('/set_whitelist_status'), handler: (line) => this.#handlers.setWhitelistStatus(line) },
             { rule: (line) => line.startsWith('/deploy_subnet'), handler: (line) => this.#handlers.deploySubnet(line) },
-            { rule: () => true, handler: (line) => peer.protocol_instance.customCommand(line) }
+            { rule: () => true, handler: (line) => peer.protocol.instance.customCommand(line) }
         ];
 
         rl.on('line', async (input) => {

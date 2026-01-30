@@ -39,9 +39,11 @@ export class Peer extends ReadyResource {
         this.writerLocalKey = null;
 
         this.wallet = wallet        
-        this.protocol = protocol
+        this.protocol = {
+            Class: protocol,
+            instance: null
+        }
         this.contract = contract
-        this.protocol_instance = null;
         this.contract_instance = null;
         this.features = features || [];
         
@@ -88,7 +90,7 @@ export class Peer extends ReadyResource {
                 const batch = view.batch();
                 const context = {
                     wallet: this.wallet,
-                    protocolInstance: this.protocol_instance,
+                    protocolInstance: this.protocol.instance,
                     contractInstance: this.contract_instance,
                     msbClient: this.msbClient,
                     config: this.config
@@ -126,9 +128,9 @@ export class Peer extends ReadyResource {
     }
 
     async initContract(){
-        this.protocol_instance = new this.protocol(this, this.base, this.config);
-        await this.protocol_instance.extendApi();
-        this.contract_instance = new this.contract(this.protocol_instance, this.config);
+        this.protocol.instance = new this.protocol.Class(this, this.base, this.config);
+        await this.protocol.instance.extendApi();
+        this.contract_instance = new this.contract(this.protocol.instance, this.config);
     }
 
     async close() {

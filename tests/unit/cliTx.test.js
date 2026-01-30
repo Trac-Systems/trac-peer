@@ -104,7 +104,7 @@ test("cli tx: /tx --command JSON can simulate catch", async (t) => {
 
   try {
     await peer.ready();
-    const res = await peer.protocol_instance.tx({ command: '{"type":"catch","value":{}}' }, true);
+    const res = await peer.protocol.instance.tx({ command: '{"type":"catch","value":{}}' }, true);
     t.is(res, "ok");
   } finally {
     await closePeer(peer);
