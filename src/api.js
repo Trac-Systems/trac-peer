@@ -8,12 +8,12 @@ export class ProtocolApi {
      * May be extended by contract protocol instances.
      *
      * @param peer
-     * @param options
+     * @param config
      */
-    constructor(peer, options = {}) {
+    constructor(peer, config) {
         this.peer = peer;
-        this.apiTxExposed = options.apiTxExposed === true;
-        this.apiMsgExposed = options.apiMsgExposed === true;
+        this.apiTxExposed = config.apiTxExposed === true;
+        this.apiMsgExposed = config.apiMsgExposed === true;
     }
 
     /**

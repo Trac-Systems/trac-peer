@@ -10,7 +10,7 @@ const makeProtocolStubForContract = () => {
 
 test("base Contract: addFunction/addSchema/addFeature populate metadata", async (t) => {
   const protocol = makeProtocolStubForContract();
-  const contract = new Contract(protocol);
+  const contract = new Contract(protocol, {});
 
   contract.addFunction("f1");
   t.is(contract.funcs.f1, true);
@@ -31,7 +31,7 @@ test("base Contract: addFunction/addSchema/addFeature populate metadata", async 
 
 test("base Contract: addSchema stores a clone (mutating input doesn't affect metadata)", async (t) => {
   const protocol = makeProtocolStubForContract();
-  const contract = new Contract(protocol);
+  const contract = new Contract(protocol, {});
 
   const schema = { value: { $$type: "object", a: { type: "string", min: 1 } } };
   contract.addSchema("op", schema);
@@ -42,7 +42,7 @@ test("base Contract: addSchema stores a clone (mutating input doesn't affect met
 
 test("base Protocol: getApiSchema exposes tx + extendApi methods", async (t) => {
   const peer = {};
-  const protocol = new Protocol(peer, null);
+  const protocol = new Protocol(peer, null, {});
 
   const baseSchema = protocol.getApiSchema();
   t.is(typeof baseSchema?.methods?.tx, "object");
@@ -59,7 +59,7 @@ test("base Protocol: getApiSchema exposes tx + extendApi methods", async (t) => 
     }
   }
 
-  const extended = new ExtendedProtocol(peer, null);
+  const extended = new ExtendedProtocol(peer, null, {});
   await extended.extendApi();
   const extendedSchema = extended.getApiSchema();
   t.is(typeof extendedSchema?.methods?.getListingsLength, "object");
@@ -68,6 +68,6 @@ test("base Protocol: getApiSchema exposes tx + extendApi methods", async (t) => 
 
 test("base Protocol: tx throws if mapTxCommand returns null", async (t) => {
   const peer = {};
-  const protocol = new Protocol(peer, null);
+  const protocol = new Protocol(peer, null, {});
   await t.exception(() => protocol.tx({ command: "unknown command" }, true), /command not found/i);
 });

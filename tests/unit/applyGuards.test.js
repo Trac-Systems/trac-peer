@@ -11,7 +11,7 @@ import Wallet from '../../src/wallet.js';
 import { mkdtempPortable, rmrfPortable } from '../helpers/tmpdir.js';
 
 class TestProtocol {
-    constructor(peer, base, options) {
+    constructor(peer, base, config) {
     }
     async extendApi() {}
     getError(value) {

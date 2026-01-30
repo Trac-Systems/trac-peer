@@ -7,11 +7,11 @@ import { blake3 } from '@tracsystems/blake3'
 import { MSB_OPERATION_TYPE } from './msbClient.js';
 
 class Protocol{
-    constructor(peer, base, options = {}) {
-        this.api = new ProtocolApi(peer, options);
+    constructor(peer, base, config) {
+        this.api = new ProtocolApi(peer, config);
         this.base = base;
         this.peer = peer;
-        this.options = options;
+        this.config = config;
         this.input = null;
         this.tokenized_input = null;
         this.fromBigIntString = formatNumberString;

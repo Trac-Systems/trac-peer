@@ -82,6 +82,10 @@ class Config {
         this.dhtBootstrap = options.dhtBootstrap ?? defaultDhtBootstrap;
 
         this.enableTxlogs = options.enableTxlogs;
+
+        // Protocol API exposure flags.
+        this.apiTxExposed = options.apiTxExposed === true;
+        this.apiMsgExposed = options.apiMsgExposed === true;
     }
 }
 
@@ -101,10 +105,10 @@ export class Peer extends ReadyResource {
         this.key = null;
         this.txPool = new TransactionPool(this.config);
         this.writerLocalKey = null;
-        this.wallet = options.wallet || null;
-        
-        this.protocol = options.protocol || null;
-        this.contract = options.contract || null;
+
+        this.wallet = options.wallet        
+        this.protocol = options.protocol
+        this.contract = options.contract
         this.protocol_instance = null;
         this.contract_instance = null;
         this.features = options.features || [];
@@ -113,7 +117,6 @@ export class Peer extends ReadyResource {
         this.bee = null;
         this.connectedNodes = 1;
         this.connectedPeers = new Set();
-        this.options = options;
         this.readlineInstance = options.readlineInstance || null;
     }
 
@@ -191,9 +194,9 @@ export class Peer extends ReadyResource {
     }
 
     async initContract(){
-        this.protocol_instance = new this.protocol(this, this.base, this.options);
+        this.protocol_instance = new this.protocol(this, this.base, this.config);
         await this.protocol_instance.extendApi();
-        this.contract_instance = new this.contract(this.protocol_instance);
+        this.contract_instance = new this.contract(this.protocol_instance, this.config);
     }
 
     async close() {

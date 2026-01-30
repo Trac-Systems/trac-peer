@@ -1,8 +1,8 @@
 class Feature {
-    constructor(peer, options = {}) {
+    constructor(peer, config) {
         this.peer = peer;
         this.key = '';
-        this.options = options;
+        this.config = config;
     }
 
     async getSigned(key){

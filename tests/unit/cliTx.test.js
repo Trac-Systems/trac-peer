@@ -25,8 +25,8 @@ class JsonProtocol extends Protocol {
 }
 
 class CatchContract extends Contract {
-  constructor(protocol) {
-    super(protocol);
+  constructor(protocol, config) {
+    super(protocol, config);
     this.addFunction("catch");
   }
 

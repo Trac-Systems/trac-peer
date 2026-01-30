@@ -155,8 +155,8 @@ export const GEN1_POKEMON = [
 ];
 
 class PokemonContract extends BaseContract {
-  constructor(protocol) {
-    super(protocol);
+  constructor(protocol, config) {
+    super(protocol, config);
     this.addFunction("catch");
   }
 

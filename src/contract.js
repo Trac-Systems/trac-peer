@@ -3,10 +3,10 @@ import { safeClone } from './utils/types.js';
 import Check from './contractCheck.js';
 
 class Contract {
-    constructor(protocol, options = {}) {
+    constructor(protocol, config) {
         this.protocol = protocol;
         this.storage = null;
-        this.options = options;
+        this.config = config;
         this.is_feature = false;
         this.is_message = false;
         this.features = {};
