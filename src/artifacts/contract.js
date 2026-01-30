@@ -1,6 +1,6 @@
 import assert from 'assert';
-import { safeClone } from './utils/types.js';
-import Check from './contractCheck.js';
+import { safeClone } from '../utils/types.js';
+import Check from '../contractCheck.js';
 
 class Contract {
     constructor(protocol, config) {

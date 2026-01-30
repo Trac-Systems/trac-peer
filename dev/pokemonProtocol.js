@@ -1,4 +1,4 @@
-import BaseProtocol from "../protocol.js";
+import BaseProtocol from "../src/artifacts/protocol.js";
 import { bufferToBigInt, bigIntToDecimalString } from "trac-msb/src/utils/amountSerialization.js";
 
 class PokemonProtocol extends BaseProtocol {

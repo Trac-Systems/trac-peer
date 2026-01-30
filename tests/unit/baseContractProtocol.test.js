@@ -1,7 +1,7 @@
 import test from "brittle";
 
-import Contract from "../../src/contract.js";
-import Protocol from "../../src/protocol.js";
+import Contract from "../../src/artifacts/contract.js";
+import Protocol from "../../src/artifacts/protocol.js";
 
 const makeProtocolStubForContract = () => {
   const compile = (_schema) => () => true;

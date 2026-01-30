@@ -1,4 +1,4 @@
-import BaseContract from "../contract.js";
+import BaseContract from "../src/artifacts/contract.js";
 
 export const GEN1_POKEMON = [
   { id: 1, name: "Bulbasaur" },

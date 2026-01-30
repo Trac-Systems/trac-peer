@@ -1,10 +1,10 @@
-import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone, createHash } from "./utils/types.js";
-import {ProtocolApi} from './api.js';
+import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone, createHash } from "../utils/types.js";
+import {ProtocolApi} from '../api.js';
 import Wallet from 'trac-wallet';
 import b4a from 'b4a';
 import { createMessage } from 'trac-msb/src/utils/buffer.js';
 import { blake3 } from '@tracsystems/blake3'
-import { MSB_OPERATION_TYPE } from './msbClient.js';
+import { MSB_OPERATION_TYPE } from '../msbClient.js';
 
 class Protocol{
     constructor(peer, base, config) {

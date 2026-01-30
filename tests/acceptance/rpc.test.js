@@ -6,8 +6,8 @@ import b4a from "b4a";
 
 import { createServer } from "../../rpc/create_server.js";
 import { Peer, Protocol, Contract, createConfig, ENV } from "../../src/index.js";
-import PokemonContract from "../../src/dev/pokemonContract.js";
-import PokemonProtocol from "../../src/dev/pokemonProtocol.js";
+import PokemonContract from "../../dev/pokemonContract.js";
+import PokemonProtocol from "../../dev/pokemonProtocol.js";
 import Wallet from "../../src/wallet.js";
 import { mkdtempPortable, rmrfPortable } from "../helpers/tmpdir.js";
 
