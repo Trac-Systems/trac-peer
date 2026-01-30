@@ -6,7 +6,7 @@ import fs from 'fs/promises';
 import PeerWallet from 'trac-wallet';
 import { safeEncodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
 import { blake3 } from '@tracsystems/blake3'
-import { Peer } from '../../src/index.js';
+import { Peer, createConfig, ENV } from '../../src/index.js';
 import Wallet from '../../src/wallet.js';
 import { mkdtempPortable, rmrfPortable } from '../helpers/tmpdir.js';
 
@@ -123,18 +123,17 @@ test('apply: tx msbsl stall guard skips waiting', async (t) => {
 
         const storeName = 'peer-stall-guard';
         const wallet = await prepareWallet(storesDirectory, storeName);
-        const peer = new Peer({
+        const config = createConfig(ENV.DEVELOPMENT, {
             storesDirectory,
             storeName,
-            channel: 'unit-test',
+            maxMsbSignedLength: 10,
+        });
+        const peer = new Peer({
+            config,
             msb,
             protocol: TestProtocol,
             contract: TestContract,
             wallet,
-            replicate: false,
-            enableBackgroundTasks: false,
-            enableUpdater: false,
-            maxMsbSignedLength: 10,
         });
 
         try {
@@ -191,18 +190,17 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
             });
 
             const wallet = await prepareWallet(storesDirectory, storeName);
-            const peer = new Peer({
+            const config = createConfig(ENV.DEVELOPMENT, {
                 storesDirectory,
                 storeName,
-                channel: 'unit-test',
+                maxMsbApplyOperationBytes: maxBytes,
+            });
+            const peer = new Peer({
+                config,
                 msb,
                 protocol: TestProtocol,
                 contract: TestContract,
                 wallet,
-                replicate: false,
-                enableBackgroundTasks: false,
-                enableUpdater: false,
-                maxMsbApplyOperationBytes: maxBytes,
             });
             await peer.ready();
 

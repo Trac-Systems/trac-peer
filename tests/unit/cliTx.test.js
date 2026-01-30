@@ -4,7 +4,7 @@ import os from "os";
 import fs from "fs/promises";
 import b4a from "b4a";
 
-import { Peer, Contract, Protocol } from "../../src/index.js";
+import { Peer, Contract, Protocol, createConfig, ENV } from "../../src/index.js";
 import Wallet from "../../src/wallet.js";
 import { mkdtempPortable, rmrfPortable } from "../helpers/tmpdir.js";
 
@@ -89,19 +89,17 @@ test("cli tx: /tx --command JSON can simulate catch", async (t) => {
   const msb = makeMsbStub();
   const wallet = await prepareWallet(storesDirectory, "peer");
 
-  const peer = new Peer({
+  const config = createConfig(ENV.DEVELOPMENT, {
     storesDirectory,
     storeName: "peer",
+    bootstrap: b4a.alloc(32).fill(9),
+  });
+  const peer = new Peer({
+    config,
     msb,
     wallet,
     protocol: JsonProtocol,
     contract: CatchContract,
-    bootstrap: b4a.alloc(32).fill(9),
-    channel: "test",
-    replicate: false,
-    enableBackgroundTasks: false,
-    enableUpdater: false,
-    enableTxlogs: false,
   });
 
   try {

@@ -2,9 +2,9 @@ import b4a from "b4a";
 import path from "path";
 import fs from "fs";
 import PeerWallet from "trac-wallet";
-import { Peer, Wallet } from "../src/index.js";
+import { Peer, Wallet, createConfig as createPeerConfig, ENV as PEER_ENV } from "../src/index.js";
 import { MainSettlementBus } from "trac-msb/src/index.js";
-import { createConfig, ENV } from "trac-msb/src/config/env.js"
+import { createConfig as createMsbConfig, ENV as MSB_ENV } from "trac-msb/src/config/env.js"
 import { startRpcServer } from "../rpc/rpc_server.js";
 import { DEFAULT_RPC_HOST, DEFAULT_RPC_PORT, DEFAULT_MAX_BODY_BYTES } from "../rpc/constants.js";
 import { Terminal } from "../src/terminal/index.js";
@@ -24,7 +24,7 @@ const argv = pearApp?.args ?? runtimeArgs;
 const positionalStoreName = argv.find((a) => a !== undefined && !String(a).startsWith("--")) ?? null;
 
 const createMsb = (options) => {
-  const config = createConfig(ENV.MAINNET, options)
+  const config = createMsbConfig(MSB_ENV.MAINNET, options)
   return new MainSettlementBus(config);
 }
 
@@ -212,19 +212,22 @@ const msb = createMsb({ bootstrap: msbBootstrap, channel: msbChannel, storeName:
 await msb.ready();
 
 // DevProtocol and DevContract moved to shared src files
-
-const peer = new Peer({
+const peerConfig = createPeerConfig(PEER_ENV.MAINNET, {
   storesDirectory: ensureTrailingSlash(peerStoresDirectory),
   storeName: peerStoreNameRaw,
+  bootstrap: subnetBootstrap ? b4a.from(subnetBootstrap, "hex") : null,
+  channel: subnetChannel,
+  enableInteractiveMode: rpcEnabled ? false : true,
+  apiTxExposed: apiTxExposedEffective,
+});
+
+const peer = new Peer({
+  config: peerConfig,
   msb,
   wallet: new Wallet(),
   protocol: PokemonProtocol,
   contract: PokemonContract,
-  bootstrap: subnetBootstrap ? b4a.from(subnetBootstrap, "hex") : null,
-	  channel: subnetChannel,
-	  enableInteractiveMode: rpcEnabled ? false : true,
-	  apiTxExposed: apiTxExposedEffective,
-	});
+});
 await peer.ready();
 
 let rpcServer = null;
