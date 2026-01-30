@@ -370,15 +370,6 @@ class TerminalHandlers {
         return this.#removeIndexerKey(parsed.key);
     }
 
-    async joinValidator(input){
-        console.log('Please wait...')
-        const splitted = this.#peer.protocol_instance.parseArgs(input)
-        const address = ''+splitted.address;
-        const pubKeyHex = this.#peer.msbClient.addressToPubKeyHex(address);
-        if(pubKeyHex === null) throw new Error('Invalid validator address.');
-        await this.#peer.msbClient.msb.network.tryConnect(pubKeyHex, 'validator');
-    }
-
     async verifyDag(_input){
         if (this.#peer.verifyDag) {
             return this.#peer.verifyDag();

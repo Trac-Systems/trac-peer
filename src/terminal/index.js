@@ -39,7 +39,6 @@ class Terminal {
         console.log(' ');
         console.log('- System Commands:');
         console.log('- /tx | Perform a contract transaction. The command flag contains contract commands (format is protocol dependent): \'/tx --command "<string>"\'. To simulate a tx, additionally use \'--sim 1\'.');
-        console.log('- /join_validator | Try to connect to a specific validator with its MSB address: \'/join_validator --address "<address>"\'.');
         console.log('- /deploy_subnet | Register this subnet in the MSB (required before TX settlement): \'/deploy_subnet\'.');
         console.log('- /stats | check system properties such as writer key, DAG, etc.');
         console.log('- /get_keys | prints your public and private keys. Be careful and never share your private key!');
@@ -96,7 +95,6 @@ class Terminal {
             { rule: (line) => line.startsWith('/delete_message'), handler: (line) => this.#handlers.deleteMessage(line) },
             { rule: (line) => line.startsWith('/enable_whitelist'), handler: (line) => this.#handlers.enableWhitelist(line) },
             { rule: (line) => line.startsWith('/set_whitelist_status'), handler: (line) => this.#handlers.setWhitelistStatus(line) },
-            { rule: (line) => line.startsWith('/join_validator'), handler: (line) => this.#handlers.joinValidator(line) },
             { rule: (line) => line.startsWith('/deploy_subnet'), handler: (line) => this.#handlers.deploySubnet(line) },
             { rule: () => true, handler: (line) => peer.protocol_instance.customCommand(line) }
         ];
