@@ -13,6 +13,7 @@ import { MsbClient } from './msbClient.js';
 import { handlerFor } from './operations/index.js';
 import TransactionPool from './transaction/transactionPool.js';
 import { TransactionObserver } from './tasks/transactionObserver.js';
+import { Updater } from './tasks/updater.js';
 export {default as Protocol} from "./artifacts/protocol.js";
 export {default as Contract} from "./artifacts/contract.js";
 export {default as Feature} from "./artifacts/feature.js";
@@ -36,6 +37,7 @@ export class Peer extends ReadyResource {
         this.key = null;
         this.txPool = new TransactionPool(this.config);
         this.txObserverTask = null;
+        this.updaterTask = null;
         this.writerLocalKey = null;
 
         this.wallet = wallet        
@@ -66,24 +68,26 @@ export class Peer extends ReadyResource {
         await this.initContract();
 
         if (this.config.replicate) await this._replicate();
-        if (this.config.enableUpdater) this.updater();
+        if (this.config.enableUpdater) {
+            this.updaterTask = new Updater({ base: this.base }, this.config)
+            this.updaterTask.start()
+        }
     }
 
     async _boot() {
-        const _this = this;
         this.base = new Autobase(this.store, this.config.bootstrap, {
             ackInterval : 1000,
             valueEncoding: 'json',
-            open(store) {
-                _this.bee = new Hyperbee(store.get('view'), {
+            open: store => {
+                this.bee = new Hyperbee(store.get('view'), {
                     extension: false,
                     keyEncoding: 'utf-8',
                     valueEncoding: 'json'
                 })
-                return _this.bee;
+                return this.bee;
             },
             apply: async (nodes, view, base) => {
-                const batch = view.batch();
+                const batch = view.batch()
                 const context = {
                     wallet: this.wallet,
                     protocolInstance: this.protocol.instance,
@@ -91,8 +95,9 @@ export class Peer extends ReadyResource {
                     msbClient: this.msbClient,
                     config: this.config
                 }
+
                 for (const node of nodes) {
-                    const op = node.value;
+                    const op = node.value
                     const handler = handlerFor(node, context)
                     if (handler) {
                         await handler.handle(op, batch, base, node)
@@ -112,17 +117,6 @@ export class Peer extends ReadyResource {
         }
     }
 
-    async updater() {
-        while (true) {
-            if (this.base.isIndexer &&
-                this.base.view.core.length >
-                this.base.view.core.signedLength) {
-                await this.base.append(null);
-            }
-            await this.sleep(10_000);
-        }
-    }
-
     async initContract(){
         this.protocol.instance = new this.protocol.Class(this, this.base, this.config);
         await this.protocol.instance.extendApi();
@@ -131,6 +125,7 @@ export class Peer extends ReadyResource {
 
     async close() {
         if (this.txObserverTask) this.txObserverTask.stop()
+        if (this.updaterTask) this.updaterTask.stop()
         if (this.swarm) {
             await this.swarm.destroy();
         }
