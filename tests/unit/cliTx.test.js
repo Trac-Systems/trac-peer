@@ -4,7 +4,7 @@ import os from "os";
 import fs from "fs/promises";
 import b4a from "b4a";
 
-import { Peer, Contract, Protocol } from "../../src/index.js";
+import { Peer, Contract, Protocol, createConfig, ENV } from "../../src/index.js";
 import Wallet from "../../src/wallet.js";
 import { mkdtempPortable, rmrfPortable } from "../helpers/tmpdir.js";
 
@@ -25,8 +25,8 @@ class JsonProtocol extends Protocol {
 }
 
 class CatchContract extends Contract {
-  constructor(protocol) {
-    super(protocol);
+  constructor(protocol, config) {
+    super(protocol, config);
     this.addFunction("catch");
   }
 
@@ -89,28 +89,25 @@ test("cli tx: /tx --command JSON can simulate catch", async (t) => {
   const msb = makeMsbStub();
   const wallet = await prepareWallet(storesDirectory, "peer");
 
+  const config = createConfig(ENV.DEVELOPMENT, {
+    storesDirectory,
+    storeName: "peer",
+    bootstrap: b4a.alloc(32).fill(9),
+  });
   const peer = new Peer({
-    stores_directory: storesDirectory,
-    store_name: "peer",
+    config,
     msb,
     wallet,
     protocol: JsonProtocol,
     contract: CatchContract,
-    bootstrap: b4a.alloc(32).fill(9),
-    channel: "test",
-    replicate: false,
-    enable_background_tasks: false,
-    enable_updater: false,
-    enable_txlogs: false,
   });
 
   try {
     await peer.ready();
-    const res = await peer.protocol_instance.tx({ command: '{"type":"catch","value":{}}' }, true);
+    const res = await peer.protocol.instance.tx({ command: '{"type":"catch","value":{}}' }, true);
     t.is(res, "ok");
   } finally {
     await closePeer(peer);
     await rmrfPortable(tmpRoot);
   }
 });
-

@@ -1,7 +1,7 @@
 import test from "brittle";
 
-import Contract from "../../src/contract.js";
-import Protocol from "../../src/protocol.js";
+import Contract from "../../src/artifacts/contract.js";
+import Protocol from "../../src/artifacts/protocol.js";
 
 const makeProtocolStubForContract = () => {
   const compile = (_schema) => () => true;
@@ -10,7 +10,7 @@ const makeProtocolStubForContract = () => {
 
 test("base Contract: addFunction/addSchema/addFeature populate metadata", async (t) => {
   const protocol = makeProtocolStubForContract();
-  const contract = new Contract(protocol);
+  const contract = new Contract(protocol, {});
 
   contract.addFunction("f1");
   t.is(contract.funcs.f1, true);
@@ -18,7 +18,8 @@ test("base Contract: addFunction/addSchema/addFeature populate metadata", async 
 
   const schema = { value: { $$type: "object", a: { type: "string", min: 1 } } };
   contract.addSchema("s1", schema);
-  t.is(typeof contract.schemata.s1, "function");
+  t.is(contract.check.hasSchema("s1"), true);
+  t.is(typeof contract.check.schemata.s1, "function");
   t.is(contract.metadata.schemas.s1.value.a.min, 1);
 
   function myFeature() {}
@@ -30,18 +31,18 @@ test("base Contract: addFunction/addSchema/addFeature populate metadata", async 
 
 test("base Contract: addSchema stores a clone (mutating input doesn't affect metadata)", async (t) => {
   const protocol = makeProtocolStubForContract();
-  const contract = new Contract(protocol);
+  const contract = new Contract(protocol, {});
 
   const schema = { value: { $$type: "object", a: { type: "string", min: 1 } } };
   contract.addSchema("op", schema);
 
-  schema.value.a.min = 999;
+  schema.value = { $$type: "object", a: { type: "string", min: 999 } };
   t.is(contract.metadata.schemas.op.value.a.min, 1);
 });
 
 test("base Protocol: getApiSchema exposes tx + extendApi methods", async (t) => {
   const peer = {};
-  const protocol = new Protocol(peer, null);
+  const protocol = new Protocol(peer, null, {});
 
   const baseSchema = protocol.getApiSchema();
   t.is(typeof baseSchema?.methods?.tx, "object");
@@ -58,7 +59,7 @@ test("base Protocol: getApiSchema exposes tx + extendApi methods", async (t) => 
     }
   }
 
-  const extended = new ExtendedProtocol(peer, null);
+  const extended = new ExtendedProtocol(peer, null, {});
   await extended.extendApi();
   const extendedSchema = extended.getApiSchema();
   t.is(typeof extendedSchema?.methods?.getListingsLength, "object");
@@ -67,6 +68,6 @@ test("base Protocol: getApiSchema exposes tx + extendApi methods", async (t) => 
 
 test("base Protocol: tx throws if mapTxCommand returns null", async (t) => {
   const peer = {};
-  const protocol = new Protocol(peer, null);
+  const protocol = new Protocol(peer, null, {});
   await t.exception(() => protocol.tx({ command: "unknown command" }, true), /command not found/i);
 });

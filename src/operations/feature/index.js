@@ -1,6 +1,6 @@
-import { BaseCheck } from '../base/check.js';
+import { BaseCheck } from '../../base/check.js';
 import b4a from 'b4a';
-import { jsonStringify } from '../../functions.js';
+import { jsonStringify } from '../../utils/types.js';
 
 export class FeatureOperation {
     #validator

@@ -2,15 +2,15 @@ import b4a from "b4a";
 import path from "path";
 import fs from "fs";
 import PeerWallet from "trac-wallet";
-import { Peer, Wallet } from "../src/index.js";
+import { Peer, Wallet, createConfig as createPeerConfig, ENV as PEER_ENV } from "../src/index.js";
 import { MainSettlementBus } from "trac-msb/src/index.js";
-import { createConfig, ENV } from "trac-msb/src/config/env.js"
+import { createConfig as createMsbConfig, ENV as MSB_ENV } from "trac-msb/src/config/env.js"
 import { startRpcServer } from "../rpc/rpc_server.js";
 import { DEFAULT_RPC_HOST, DEFAULT_RPC_PORT, DEFAULT_MAX_BODY_BYTES } from "../rpc/constants.js";
-import { startInteractiveCli } from "../src/cli.js";
+import { Terminal } from "../src/terminal/index.js";
 import { ensureTextCodecs } from "../src/textCodec.js";
-import PokemonProtocol from "../src/dev/pokemonProtocol.js";
-import PokemonContract from "../src/dev/pokemonContract.js";
+import PokemonProtocol from "../dev/pokemonProtocol.js";
+import PokemonContract from "../dev/pokemonContract.js";
 
 let process = globalThis.process;
 if (globalThis.Pear !== undefined) {
@@ -18,8 +18,13 @@ if (globalThis.Pear !== undefined) {
   process = bareProcess;
 }
 
+const pearApp = typeof Pear !== "undefined" ? (Pear.app ?? Pear.config) : undefined;
+const runtimeArgs = typeof process !== "undefined" ? process.argv.slice(2) : [];
+const argv = pearApp?.args ?? runtimeArgs;
+const positionalStoreName = argv.find((a) => a !== undefined && !String(a).startsWith("--")) ?? null;
+
 const createMsb = (options) => {
-  const config = createConfig(ENV.MAINNET, options)
+  const config = createMsbConfig(MSB_ENV.MAINNET, options)
   return new MainSettlementBus(config);
 }
 
@@ -72,7 +77,7 @@ const readHexFile = (filePath, byteLength) => {
   return null;
 };
 
-const args = toArgMap(process.argv.slice(2));
+const args = toArgMap(argv);
 
 const rpcEnabled =
   args["rpc"] === true || args["rpc"] === "true" || process.env.PEER_RPC === "true" || process.env.PEER_RPC === "1";
@@ -115,7 +120,7 @@ const msbStoresDirectory =
 const msbStoreName =
   (args["msb-store-name"] && String(args["msb-store-name"])) ||
   process.env.MSB_STORE_NAME ||
-  "peer-msb";
+  null;
 
 const msbBootstrap =
   (args["msb-bootstrap"] && String(args["msb-bootstrap"])) ||
@@ -135,8 +140,8 @@ const peerStoresDirectory =
 const peerStoreNameRaw =
   (args["peer-store-name"] && String(args["peer-store-name"])) ||
   process.env.PEER_STORE_NAME ||
+  (positionalStoreName ? String(positionalStoreName) : null) ||
   "peer";
-const peerStoreName = ensureTrailingSlash(peerStoreNameRaw);
 
 const subnetBootstrapHex =
   (args["subnet-bootstrap"] && String(args["subnet-bootstrap"])) ||
@@ -166,13 +171,14 @@ if (!msbBootstrapHex || !msbChannel) {
 // Important: this starts a *local MSB node* (its own store) that joins your already-running MSB network.
 // trac-peer currently requires an MSB instance to broadcast and to observe confirmed state.
 
-const msbStoresFullPath = `${ensureTrailingSlash(msbStoresDirectory)}/${msbStoreName}`;
-const msbKeyPairPath = `${msbStoresFullPath}/db/keypair.json`;
+const effectiveMsbStoreName = msbStoreName ?? `${peerStoreNameRaw}-msb`;
+const msbStoresFullPath = path.join(ensureTrailingSlash(msbStoresDirectory), effectiveMsbStoreName);
+const msbKeyPairPath = path.join(msbStoresFullPath, "db", "keypair.json");
 await ensureKeypairFile(msbKeyPairPath);
 
 const peerKeyPairPath = path.join(
   peerStoresDirectory,
-  peerStoreName,
+  peerStoreNameRaw,
   "db",
   "keypair.json"
 );
@@ -202,22 +208,25 @@ if (subnetBootstrap) {
   }
 }
 
-const msb = createMsb({ bootstrap: msbBootstrap, channel: msbChannel, storeName: msbStoreName, storesDirectory: msbStoresDirectory})
+const msb = createMsb({ bootstrap: msbBootstrap, channel: msbChannel, storeName: effectiveMsbStoreName, storesDirectory: msbStoresDirectory})
 await msb.ready();
 
 // DevProtocol and DevContract moved to shared src files
+const peerConfig = createPeerConfig(PEER_ENV.MAINNET, {
+  storesDirectory: ensureTrailingSlash(peerStoresDirectory),
+  storeName: peerStoreNameRaw,
+  bootstrap: subnetBootstrap ? b4a.from(subnetBootstrap, "hex") : null,
+  channel: subnetChannel,
+  enableInteractiveMode: rpcEnabled ? false : true,
+  apiTxExposed: apiTxExposedEffective,
+});
 
 const peer = new Peer({
-  stores_directory: ensureTrailingSlash(peerStoresDirectory),
-  store_name: peerStoreName,
+  config: peerConfig,
   msb,
   wallet: new Wallet(),
   protocol: PokemonProtocol,
   contract: PokemonContract,
-  bootstrap: subnetBootstrap ? b4a.from(subnetBootstrap, "hex") : null,
-  channel: subnetChannel,
-  enable_interactive_mode: true,
-  api_tx_exposed: apiTxExposedEffective,
 });
 await peer.ready();
 
@@ -227,7 +236,7 @@ if (rpcEnabled) {
 }
 
 const peerMsbAddress = peer.msbClient.pubKeyHexToAddress(peer.wallet.publicKey);
-const effectiveSubnetBootstrapHex = peer.base?.key ? b4a.toString(peer.base.key, "hex") : (b4a.isBuffer(peer.bootstrap) ? b4a.toString(peer.bootstrap, "hex") : String(peer.bootstrap));
+const effectiveSubnetBootstrapHex = peer.base?.key ? b4a.toString(peer.base.key, "hex") : (b4a.isBuffer(peer.config.bootstrap) ? b4a.toString(peer.config.bootstrap, "hex") : String(peer.config.bootstrap));
 if (!subnetBootstrap) {
   fs.mkdirSync(path.dirname(subnetBootstrapFile), { recursive: true });
   fs.writeFileSync(subnetBootstrapFile, `${effectiveSubnetBootstrapHex}\n`);
@@ -261,7 +270,12 @@ console.log('  - /get --key "txl"');
 console.log("==========================================================");
 console.log("");
 
-await startInteractiveCli(peer);
+if (peer.config.enableInteractiveMode) {
+  const terminal = new Terminal(peer);
+  await terminal.start();
+} else {
+  console.log("Interactive CLI disabled.");
+}
 
 process.on("SIGINT", async () => {
   if (rpcServer) await new Promise((resolve) => rpcServer.close(resolve));

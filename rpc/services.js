@@ -1,6 +1,6 @@
 import b4a from "b4a";
 import { fastestToJsonSchema } from "./utils/schemaToJson.js";
-import { createHash } from "../src/functions.js";
+import { createHash } from "../src/utils/types.js";
 
 const asHex32 = (value, field) => {
   const hex = String(value ?? "").trim().toLowerCase();
@@ -11,7 +11,7 @@ const asHex32 = (value, field) => {
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
 const requireApi = (peer) => {
-  const api = peer?.protocol_instance?.api;
+  const api = peer?.protocol.instance?.api;
   if (!api) throw new Error("Protocol API not initialized.");
   return api;
 };
@@ -23,7 +23,7 @@ export async function getStatus(peer) {
       ? String(peer.bootstrap)
       : null;
 
-  const peerMsbAddress = peer.msbClient?.isReady() ? peer.msbClient.pubKeyHexToAddress(peer.wallet.publicKey) : null;
+  const peerMsbAddress = peer.msbClient.pubKeyHexToAddress(peer.wallet.publicKey);
 
   const admin = peer.base?.view ? await peer.base.view.get("admin") : null;
   const chatStatus = peer.base?.view ? await peer.base.view.get("chat_status") : null;
@@ -44,10 +44,10 @@ export async function getStatus(peer) {
       chatStatus: chatStatus?.value ?? null,
     },
     msb: {
-      ready: peer.msbClient?.isReady?.() ?? false,
-      bootstrapHex: peer.msbClient?.bootstrapHex ?? null,
-      networkId: peer.msbClient?.networkId ?? null,
-      signedLength: peer.msbClient?.isReady?.() ? peer.msbClient.getSignedLength() : null,
+      ready: true,
+      bootstrapHex: peer.msbClient.bootstrapHex,
+      networkId: peer.msbClient.networkId,
+      signedLength: peer.msbClient.getSignedLength()
     },
   };
 }
@@ -79,7 +79,7 @@ const convertContractOpSchema = (fv) => {
 };
 
 export async function getContractSchema(peer) {
-  const contract = peer?.contract_instance;
+  const contract = peer?.contract?.instance;
   if (!contract) throw new Error("Contract instance not initialized.");
 
   const registrations = contract.metadata ?? {};
@@ -107,11 +107,11 @@ export async function getContractSchema(peer) {
     schemaFormat: "json-schema",
     contract: {
       contractClass: contract.constructor?.name ?? null,
-      protocolClass: peer.protocol_instance?.constructor?.name ?? null,
+      protocolClass: peer.protocol.instance?.constructor?.name ?? null,
       txTypes,
       ops,
     },
-    api: peer.protocol_instance?.getApiSchema ? peer.protocol_instance.getApiSchema() : { methods: {} },
+    api: peer.protocol.instance?.getApiSchema ? peer.protocol.instance.getApiSchema() : { methods: {} },
   };
 }
 
@@ -126,11 +126,11 @@ export async function contractPrepareTx(peer, { prepared_command, address, nonce
   const addr = asHex32(address, "address");
   const n = asHex32(nonce, "nonce");
 
-  if (peer?.protocol_instance?.safeJsonStringify == null) {
+  if (peer?.protocol.instance?.safeJsonStringify == null) {
     throw new Error("safeJsonStringify is not available on protocol instance.");
   }
 
-  const json = peer.protocol_instance.safeJsonStringify(prepared_command);
+  const json = peer.protocol.instance.safeJsonStringify(prepared_command);
   if (json == null) throw new Error("Failed to stringify prepared_command.");
 
   const command_hash = await createHash(json);

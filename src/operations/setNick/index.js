@@ -1,6 +1,6 @@
-import { BaseCheck } from '../base/check.js';
+import { BaseCheck } from '../../base/check.js';
 import b4a from 'b4a';
-import { jsonStringify, visibleLength } from '../../functions.js';
+import { jsonStringify, visibleLength } from '../../utils/types.js';
 
 export class SetNickOperation {
     #validator
