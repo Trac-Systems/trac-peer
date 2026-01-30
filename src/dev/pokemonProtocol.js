@@ -49,17 +49,18 @@ class PokemonProtocol extends BaseProtocol {
 
     if (input.startsWith("/msb")) {
       const txv = await this.peer.msbClient.getTxvHex();
-      const peerMsbAddress = this.peer.wallet.address
-      const entry = await this.peer.msbClient.msb.state.getNodeEntryUnsigned(peerMsbAddress)
+      const peerMsbAddress = this.peer.msbClient.pubKeyHexToAddress(this.peer.wallet.publicKey);
+      const entry = await this.peer.msbClient.getNodeEntryUnsigned(peerMsbAddress);
       const balance = entry?.balance ? bigIntToDecimalString(bufferToBigInt(entry.balance)) : 0;
-      const fee = bigIntToDecimalString(bufferToBigInt(this.peer.msbClient.msb.state.getFee()));
-      const validators = this.peer.msbClient.msb.network.validatorConnectionManager.connectionCount?.() ?? 0;
+      const feeBuf = this.peer.msbClient.getFee();
+      const fee = feeBuf ? bigIntToDecimalString(bufferToBigInt(feeBuf)) : 0;
+      const validators = this.peer.msbClient.getConnectedValidatorsCount();
       console.log({
         networkId: this.peer.msbClient.networkId,
         msbBootstrap: this.peer.msbClient.bootstrapHex,
         txv,
-        msbSignedLength: this.peer.msbClient.msb.state.getSignedLength(),
-        msbUnsignedLength: this.peer.msbClient.msb.state.getUnsignedLength(),
+        msbSignedLength: this.peer.msbClient.getSignedLength(),
+        msbUnsignedLength: this.peer.msbClient.getUnsignedLength(),
         connectedValidators: validators,
         peerMsbAddress,
         peerMsbBalance: balance,

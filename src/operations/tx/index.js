@@ -36,16 +36,10 @@ export class TxOperation {
         if(false === this.#validator.validate(op)) return;
         // Stall guard: don't allow a writer to pin apply waiting on an absurd MSB height
         if (op.value.msbsl > this.#config.maxMsbSignedLength) return;
-        const msb = this.#msbClient.msb;
-        const msbCore = msb.state.base.view.core;
         // Wait for local MSB view to reach the referenced signed length
-        while (msbCore.signedLength < op.value.msbsl) {
-            await new Promise((resolve) => msbCore.once('append', resolve));
-        }
+        await this.#msbClient.waitForSignedLengthAtLeast(op.value.msbsl);
         // Fetch MSB apply-op at msbsl by tx key (op.key = tx hash)
-        const msbViewSession = msb.state.base.view.checkout(op.value.msbsl);
-        const msbTxEntry = await msbViewSession.get(op.key);
-        await msbViewSession.close();
+        const msbTxEntry = await this.#msbClient.getSignedAtLength(op.key, op.value.msbsl);
         // MSB entry shape/size guards (protect protobuf decode + keep apply bounded)
         if (null === msbTxEntry || false === b4a.isBuffer(msbTxEntry.value)) return;
         if (msbTxEntry.value.byteLength > this.#config.maxMsbApplyOperationBytes) return;

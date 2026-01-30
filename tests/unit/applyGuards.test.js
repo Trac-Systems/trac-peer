@@ -236,7 +236,7 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
         const peerBlocked = await makePeer(1, 'peer-maxbytes-blocked');
         try {
             const maxBytes = peerBlocked.config.maxMsbApplyOperationBytes;
-            const msbLen = (await peerBlocked.msbClient.msb.state.base.view.checkout(1).get(txHashHex))?.value?.byteLength ?? null;
+            const msbLen = (await peerBlocked.msbClient.getSignedAtLength(txHashHex, 1))?.value?.byteLength ?? null;
             t.ok(msbLen !== null && msbLen > maxBytes, 'fixture MSB payload is larger than max bytes');
             await peerBlocked.base.append(op);
             await peerBlocked.base.update();
