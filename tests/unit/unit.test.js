@@ -5,4 +5,5 @@ test.pause();
 await import('./applyGuards.test.js');
 await import('./baseContractProtocol.test.js');
 await import('./cliTx.test.js');
+await import('./operations.test.js');
 test.resume();

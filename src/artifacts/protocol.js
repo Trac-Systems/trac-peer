@@ -1,17 +1,17 @@
-import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone, createHash } from "./functions.js";
-import {ProtocolApi} from './api.js';
+import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone, createHash } from "../utils/types.js";
+import {ProtocolApi} from '../api.js';
 import Wallet from 'trac-wallet';
 import b4a from 'b4a';
 import { createMessage } from 'trac-msb/src/utils/buffer.js';
 import { blake3 } from '@tracsystems/blake3'
-import { MSB_OPERATION_TYPE } from './msbClient.js';
+import { MSB_OPERATION_TYPE } from '../msbClient.js';
 
 class Protocol{
-    constructor(peer, base, options = {}) {
-        this.api = new ProtocolApi(peer, options);
+    constructor(peer, base, config) {
+        this.api = new ProtocolApi(peer, config);
         this.base = base;
         this.peer = peer;
-        this.options = options;
+        this.config = config;
         this.input = null;
         this.tokenized_input = null;
         this.fromBigIntString = formatNumberString;
@@ -19,7 +19,6 @@ class Protocol{
         this.safeJsonStringify = jsonStringify;
         this.safeJsonParse = jsonParse;
         this.safeClone = safeClone;
-        this.prepared_transactions_content = {};
         this.features = {};
     }
 
@@ -172,7 +171,7 @@ class Protocol{
         const content_hash = await createHash(this.safeJsonStringify(obj));
         const txvHex = await this.peer.msbClient.getTxvHex();
         const msbBootstrapHex = this.peer.msbClient.bootstrapHex;
-        const subnetBootstrapHex = (b4a.isBuffer(this.peer.bootstrap) ? this.peer.bootstrap.toString('hex') : (''+this.peer.bootstrap)).toLowerCase();
+        const subnetBootstrapHex = (b4a.isBuffer(this.peer.config.bootstrap) ? this.peer.config.bootstrap.toString('hex') : (''+this.peer.config.bootstrap)).toLowerCase();
         const tx = await this.generateTx(
             this.peer.msbClient.networkId,
             txvHex,
@@ -191,11 +190,10 @@ class Protocol{
                 wp : validator_pub_key
             }
         }
-        return await this.peer.contract_instance.execute(op, storage);
+        return await this.peer.contract.instance.execute(op, storage);
     }
 
     async broadcastTransaction(obj, sim = false, surrogate = null){
-        if(!this.peer.msbClient.isReady()) throw new Error('MSB is not ready.');
         const tx_enabled = await this.peer.base.view.get('txen');
         // Default to enabled if missing, consistent with apply() gating.
         if (null !== tx_enabled && true !== tx_enabled.value ) throw new Error('Tx is not enabled.');
@@ -210,7 +208,7 @@ class Protocol{
 
         const txvHex = await this.peer.msbClient.getTxvHex();
         const msbBootstrapHex = this.peer.msbClient.bootstrapHex;
-        const subnetBootstrapHex = (b4a.isBuffer(this.peer.bootstrap) ? this.peer.bootstrap.toString('hex') : (''+this.peer.bootstrap)).toLowerCase();
+        const subnetBootstrapHex = (b4a.isBuffer(this.peer.config.bootstrap) ? this.peer.config.bootstrap.toString('hex') : (''+this.peer.config.bootstrap)).toLowerCase();
         const content_hash = await createHash(this.safeJsonStringify(obj));
 
         let nonceHex, txHex, signatureHex, pubKeyHex;
@@ -253,8 +251,9 @@ class Protocol{
         };
 
         await this.peer.msbClient.broadcastTransaction(payload);
-        this.prepared_transactions_content[txHex] = { dispatch : obj, ipk : pubKeyHex, address : address };
-        this.peer.emit('tx', { tx : txHex });
+        if(this.peer.txPool.isNotFull() && !this.peer.txPool.contains(txHex)){
+            this.peer.txPool.add(txHex, { dispatch : obj, ipk : pubKeyHex, address : address });
+        }
         return payload;
     }
 
@@ -331,9 +330,9 @@ class SimStorage{
     }
 
     async del(key){
-        if(this.peer.contract_instance.isReservedKey(key)) throw new Error('del(key): ' + key + 'is reserved');
+        if(this.peer.contract.instance.isReservedKey(key)) throw new Error('del(key): ' + key + 'is reserved');
         delete this.values[key];
-        return this.peer.contract_instance.emptyPromise();
+        return this.peer.contract.instance.emptyPromise();
     }
 
     async get(key){
@@ -344,9 +343,9 @@ class SimStorage{
     }
 
     async put(key, value){
-        if(this.peer.contract_instance.isReservedKey(key)) throw new Error('put(key,value): ' + key + 'is reserved');
+        if(this.peer.contract.instance.isReservedKey(key)) throw new Error('put(key,value): ' + key + 'is reserved');
         this.values[key] = value;
-        return this.peer.contract_instance.emptyPromise();
+        return this.peer.contract.instance.emptyPromise();
     }
 }
 

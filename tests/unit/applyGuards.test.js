@@ -6,13 +6,12 @@ import fs from 'fs/promises';
 import PeerWallet from 'trac-wallet';
 import { safeEncodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
 import { blake3 } from '@tracsystems/blake3'
-import { Peer } from '../../src/index.js';
+import { Peer, createConfig, ENV } from '../../src/index.js';
 import Wallet from '../../src/wallet.js';
 import { mkdtempPortable, rmrfPortable } from '../helpers/tmpdir.js';
 
 class TestProtocol {
-    constructor(peer, base, options) {
-        this.prepared_transactions_content = {};
+    constructor(peer, base, config) {
     }
     async extendApi() {}
     getError(value) {
@@ -78,6 +77,7 @@ function makeMsbStub({ msbBootstrapBuf, signedLength, getEntry }) {
     };
 
     return {
+        async ready() {},
         config: {
             bootstrap: msbBootstrapBuf,
             addressPrefix: 'trac',
@@ -123,19 +123,17 @@ test('apply: tx msbsl stall guard skips waiting', async (t) => {
 
         const storeName = 'peer-stall-guard';
         const wallet = await prepareWallet(storesDirectory, storeName);
+        const config = createConfig(ENV.DEVELOPMENT, {
+            storesDirectory,
+            storeName,
+            maxMsbSignedLength: 10,
+        });
         const peer = new Peer({
-            stores_directory: storesDirectory,
-            store_name: storeName,
-            channel: 'unit-test',
+            config,
             msb,
             protocol: TestProtocol,
             contract: TestContract,
             wallet,
-            replicate: false,
-            enable_interactive_mode: false,
-            enable_background_tasks: false,
-            enable_updater: false,
-            max_msb_signed_length: 10,
         });
 
         try {
@@ -147,7 +145,7 @@ test('apply: tx msbsl stall guard skips waiting', async (t) => {
                 key: txHashHex,
                 value: {
                     dispatch: { type: 'ping', value: { msg: 'hi' } },
-                    msbsl: 100, // above max_msb_signed_length => should be skipped before any waiting
+                    msbsl: 100, // above maxMsbSignedLength => should be skipped before any waiting
                     ipk: makeHex32(2),
                     wp: makeHex32(3),
                 },
@@ -159,7 +157,7 @@ test('apply: tx msbsl stall guard skips waiting', async (t) => {
             await Promise.race([peer.base.append(op), timeout]);
 
             const txl = await peer.bee.get('txl');
-            t.is(txl, null, 'tx should not be indexed when msbsl exceeds max_msb_signed_length');
+            t.is(txl, null, 'tx should not be indexed when msbsl exceeds maxMsbSignedLength');
         } finally {
             await closePeer(peer);
         }
@@ -192,24 +190,22 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
             });
 
             const wallet = await prepareWallet(storesDirectory, storeName);
+            const config = createConfig(ENV.DEVELOPMENT, {
+                storesDirectory,
+                storeName,
+                maxMsbApplyOperationBytes: maxBytes,
+            });
             const peer = new Peer({
-                stores_directory: storesDirectory,
-                store_name: storeName,
-                channel: 'unit-test',
+                config,
                 msb,
                 protocol: TestProtocol,
                 contract: TestContract,
                 wallet,
-                replicate: false,
-                enable_interactive_mode: false,
-                enable_background_tasks: false,
-                enable_updater: false,
-                max_msb_apply_operation_bytes: maxBytes,
             });
             await peer.ready();
 
             // Bind an MSB operation that matches this specific peer's subnet bootstrap.
-            const subnetBootstrapBuf = peer.bootstrap;
+            const subnetBootstrapBuf = peer.config.bootstrap;
             msbOperation = safeEncodeApplyOperation({
                 type: 12,
                 address: b4a.from(invokerAddress, 'ascii'),
@@ -239,8 +235,8 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
 
         const peerBlocked = await makePeer(1, 'peer-maxbytes-blocked');
         try {
-            const maxBytes = peerBlocked.max_msb_apply_operation_bytes;
-            const msbLen = (await peerBlocked.msb.state.base.view.checkout(1).get(txHashHex))?.value?.byteLength ?? null;
+            const maxBytes = peerBlocked.config.maxMsbApplyOperationBytes;
+            const msbLen = (await peerBlocked.msbClient.getSignedAtLength(txHashHex, 1))?.value?.byteLength ?? null;
             t.ok(msbLen !== null && msbLen > maxBytes, 'fixture MSB payload is larger than max bytes');
             await peerBlocked.base.append(op);
             await peerBlocked.base.update();

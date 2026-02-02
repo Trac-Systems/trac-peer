@@ -1,4 +1,4 @@
-import BaseProtocol from "../protocol.js";
+import BaseProtocol from "../src/artifacts/protocol.js";
 import { bufferToBigInt, bigIntToDecimalString } from "trac-msb/src/utils/amountSerialization.js";
 
 class PokemonProtocol extends BaseProtocol {
@@ -30,6 +30,7 @@ class PokemonProtocol extends BaseProtocol {
 
   async customCommand(input) {
     if (typeof input !== "string") return;
+
     if (input.startsWith("/get")) {
       const m = input.match(/(?:^|\s)--key(?:=|\s+)(\"[^\"]+\"|'[^']+'|\S+)/);
       const raw = m ? m[1].trim() : null;
@@ -45,19 +46,21 @@ class PokemonProtocol extends BaseProtocol {
       console.log(v);
       return;
     }
+
     if (input.startsWith("/msb")) {
       const txv = await this.peer.msbClient.getTxvHex();
       const peerMsbAddress = this.peer.msbClient.pubKeyHexToAddress(this.peer.wallet.publicKey);
-      const entry = peerMsbAddress ? await this.peer.msb.state.getNodeEntryUnsigned(peerMsbAddress) : null;
-      const balance = entry?.balance ? bigIntToDecimalString(bufferToBigInt(entry.balance)) : null;
-      const fee = bigIntToDecimalString(bufferToBigInt(this.peer.msb.state.getFee()));
-      const validators = this.peer.msb.network?.validatorConnectionManager?.connectionCount?.() ?? 0;
+      const entry = await this.peer.msbClient.getNodeEntryUnsigned(peerMsbAddress);
+      const balance = entry?.balance ? bigIntToDecimalString(bufferToBigInt(entry.balance)) : 0;
+      const feeBuf = this.peer.msbClient.getFee();
+      const fee = feeBuf ? bigIntToDecimalString(bufferToBigInt(feeBuf)) : 0;
+      const validators = this.peer.msbClient.getConnectedValidatorsCount();
       console.log({
         networkId: this.peer.msbClient.networkId,
         msbBootstrap: this.peer.msbClient.bootstrapHex,
         txv,
-        msbSignedLength: this.peer.msb.state.getSignedLength(),
-        msbUnsignedLength: this.peer.msb.state.getUnsignedLength(),
+        msbSignedLength: this.peer.msbClient.getSignedLength(),
+        msbUnsignedLength: this.peer.msbClient.getUnsignedLength(),
         connectedValidators: validators,
         peerMsbAddress,
         peerMsbBalance: balance,

@@ -1,4 +1,4 @@
-import BaseContract from "../contract.js";
+import BaseContract from "../src/artifacts/contract.js";
 
 export const GEN1_POKEMON = [
   { id: 1, name: "Bulbasaur" },
@@ -155,8 +155,8 @@ export const GEN1_POKEMON = [
 ];
 
 class PokemonContract extends BaseContract {
-  constructor(protocol) {
-    super(protocol);
+  constructor(protocol, config) {
+    super(protocol, config);
     this.addFunction("catch");
   }
 
