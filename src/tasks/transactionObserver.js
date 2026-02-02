@@ -2,7 +2,7 @@ import b4a from 'b4a';
 import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
 import Scheduler from '../utils/scheduler.js';
 
-const PROCESS_INTERVAL_MS = 10
+const PROCESS_INTERVAL_MS = 50
 
 class TransactionObserver {
     #base
