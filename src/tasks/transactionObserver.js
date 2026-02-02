@@ -48,8 +48,8 @@ class TransactionObserver {
                 this.#txPool.delete(tx)
             } else {
                 const msbsl = this.#msbClient.getSignedLength()
-                const msbTx = this.#msbClient.getSignedAtLength(tx, msbsl)
-    
+                const msbTx = await this.#msbClient.getSignedAtLength(tx, msbsl)
+ 
                 if (b4a.isBuffer(msbTx?.value)) {
                     const decoded = safeDecodeApplyOperation(msbTx.value)
                     if (decoded?.type !== 12 || decoded?.txo === undefined) continue
