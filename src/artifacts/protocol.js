@@ -3,6 +3,7 @@ import {ProtocolApi} from '../api.js';
 import Wallet from 'trac-wallet';
 import b4a from 'b4a';
 import { createMessage } from 'trac-msb/src/utils/buffer.js';
+import { bufferToBigInt, bigIntToDecimalString } from "trac-msb/src/utils/amountSerialization.js";
 import { blake3 } from '@tracsystems/blake3'
 import { MSB_OPERATION_TYPE } from '../msbClient.js';
 
@@ -165,7 +166,42 @@ class Protocol{
         return b4a.toString(tx, 'hex');
     }
 
+    async assertRequesterHasMsbFeeBalance(pubKeyHex) {
+        const normalizedPubKeyHex = `${pubKeyHex ?? ""}`.toLowerCase();
+        if (!/^[0-9a-f]{64}$/.test(normalizedPubKeyHex)) {
+            throw new Error("Invalid requester public key (expected 32-byte hex).");
+        }
+
+        const requesterMsbAddress = this.peer.msbClient.pubKeyHexToAddress(normalizedPubKeyHex);
+        if (requesterMsbAddress === null) {
+            throw new Error("Invalid requester address (failed to derive MSB address).");
+        }
+
+        const feeBuf = this.peer.msbClient.getFee();
+        if (!b4a.isBuffer(feeBuf)) {
+            throw new Error("Invalid MSB fee is unavailable.");
+        }
+        const fee = bufferToBigInt(feeBuf);
+
+        const entry = await this.peer.msbClient.getNodeEntryUnsigned(requesterMsbAddress);
+        if (entry === null) {
+            throw new Error("Invalid requester address not found in MSB state.");
+        }
+        const balance = entry.balance ? bufferToBigInt(entry.balance) : 0n;
+
+        if (balance < fee) {
+            throw new Error(
+                `Invalid insufficient MSB funds (balance=${bigIntToDecimalString(balance)}, fee=${bigIntToDecimalString(fee)}).`
+            );
+        }
+
+        return { requesterMsbAddress, fee, balance };
+    }
+
     async simulateTransaction(validator_pub_key, obj, surrogate = null){
+        const requesterPubKeyHex = surrogate !== null ? surrogate.address : this.peer.wallet.publicKey;
+        await this.assertRequesterHasMsbFeeBalance(requesterPubKeyHex);
+
         const storage = new SimStorage(this.peer);
         let nonce = this.generateNonce();
         const content_hash = await createHash(this.safeJsonStringify(obj));
@@ -205,6 +241,9 @@ class Protocol{
         if(true === sim) {
             return await this.simulateTransaction(validator_pub_key, obj, surrogate);
         }
+
+        const requesterPubKeyHex = surrogate !== null ? surrogate.address : this.peer.wallet.publicKey;
+        await this.assertRequesterHasMsbFeeBalance(requesterPubKeyHex);
 
         const txvHex = await this.peer.msbClient.getTxvHex();
         const msbBootstrapHex = this.peer.msbClient.bootstrapHex;

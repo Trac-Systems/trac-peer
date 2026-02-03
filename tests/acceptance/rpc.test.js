@@ -63,6 +63,10 @@ async function httpJson(method, url, body = null) {
 }
 
 const createMsbStub = () => {
+  const fee = b4a.alloc(16);
+  fee[15] = 1;
+  const funded = b4a.alloc(16);
+  funded[15] = 10;
   return {
     async ready() {},
     config: { bootstrap: b4a.alloc(32), networkId: 918, addressPrefix: "trac", channel: b4a.from("test", "utf8") },
@@ -70,6 +74,8 @@ const createMsbStub = () => {
     state: {
       getIndexerSequenceState: async () => b4a.alloc(32),
       getSignedLength: () => 0,
+      getFee: () => fee,
+      getNodeEntryUnsigned: async (_address) => ({ balance: funded }),
       base: {
         view: {
           checkout() {

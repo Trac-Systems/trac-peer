@@ -6,23 +6,8 @@ import b4a from "b4a";
 
 import { Peer, Contract, Protocol, createConfig, ENV } from "../../src/index.js";
 import Wallet from "../../src/wallet.js";
+import { createHash, jsonStringify } from "../../src/utils/types.js";
 import { mkdtempPortable, rmrfPortable } from "../helpers/tmpdir.js";
-
-class JsonProtocol extends Protocol {
-  mapTxCommand(command) {
-    if (typeof command !== "string" || command.trim() === "") return null;
-    const raw = command.trim();
-    if (raw.startsWith("{")) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed.type === "string" && parsed.value !== undefined) {
-          return { type: parsed.type, value: parsed.value };
-        }
-      } catch (_e) {}
-    }
-    return null;
-  }
-}
 
 class CatchContract extends Contract {
   constructor(protocol, config) {
@@ -31,18 +16,15 @@ class CatchContract extends Contract {
   }
 
   async catch() {
-    await this.put(`app/pokedex/${this.address}`, { ok: true, tx: this.tx });
     return "ok";
   }
 }
 
-function makeMsbStub() {
+function makeMsbStubUnfunded() {
   const bootstrap = b4a.alloc(32).fill(7);
   const txv = b4a.alloc(32).fill(1);
   const fee = b4a.alloc(16);
   fee[15] = 1;
-  const funded = b4a.alloc(16);
-  funded[15] = 10;
   return {
     config: { bootstrap, addressPrefix: "trac", networkId: 918 },
     wallet: { address: "trac1test" },
@@ -63,7 +45,7 @@ function makeMsbStub() {
         return fee;
       },
       async getNodeEntryUnsigned(_address) {
-        return { balance: funded };
+        return null;
       },
       async getIndexerSequenceState() {
         return txv;
@@ -92,30 +74,42 @@ async function closePeer(peer) {
   } catch (_e) {}
 }
 
-test("cli tx: /tx --command JSON can simulate catch", async (t) => {
-  const tmpRoot = await mkdtempPortable(path.join(os.tmpdir(), "trac-peer-cli-tx-"));
+test("rpc sim: fails when requester has no MSB entry/balance", async (t) => {
+  const tmpRoot = await mkdtempPortable(path.join(os.tmpdir(), "trac-peer-sim-funds-"));
   const storesDirectory = tmpRoot.endsWith(path.sep) ? tmpRoot : tmpRoot + path.sep;
 
-  const msb = makeMsbStub();
-  const wallet = await prepareWallet(storesDirectory, "peer");
+  const peerWallet = await prepareWallet(storesDirectory, "peer");
+  const externalWallet = new Wallet();
+  await externalWallet.generateKeyPair();
 
   const config = createConfig(ENV.DEVELOPMENT, {
     storesDirectory,
     storeName: "peer",
-    bootstrap: b4a.alloc(32).fill(9),
+    apiTxExposed: true,
   });
+
   const peer = new Peer({
     config,
-    msb,
-    wallet,
-    protocol: JsonProtocol,
+    msb: makeMsbStubUnfunded(),
+    wallet: peerWallet,
+    protocol: Protocol,
     contract: CatchContract,
   });
 
   try {
     await peer.ready();
-    const res = await peer.protocol.instance.tx({ command: '{"type":"catch","value":{}}' }, true);
-    t.is(res, "ok");
+    const api = peer.protocol.instance.api;
+
+    const prepared_command = { type: "catch", value: {} };
+    const nonce = api.generateNonce();
+    const command_hash = await createHash(jsonStringify(prepared_command));
+    const tx = await api.generateTx(externalWallet.publicKey, command_hash, nonce);
+    const signature = externalWallet.sign(b4a.from(tx, "hex"));
+
+    await t.exception(
+      () => api.tx(tx, prepared_command, externalWallet.publicKey, signature, nonce, true),
+      /Invalid requester address not found in MSB state/i
+    );
   } finally {
     await closePeer(peer);
     await rmrfPortable(tmpRoot);
