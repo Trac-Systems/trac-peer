@@ -1,0 +1,17 @@
+{
+  "name": "__PACKAGE_NAME__",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/run-peer.mjs --env=dev",
+    "prod": "pear run -d scripts/run-peer.mjs --env=prod",
+    "prod:node": "node scripts/run-peer.mjs --env=prod"
+  },
+  "dependencies": {
+    "b4a": "^1.6.7",
+    "trac-msb": "__TRAC_MSB_VERSION__",
+    "trac-peer": "__TRAC_PEER_VERSION__",
+    "trac-wallet": "__TRAC_WALLET_VERSION__"
+  }
+}
