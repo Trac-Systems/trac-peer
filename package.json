@@ -101,7 +101,7 @@
     "tls": "npm:bare-node-tls",
     "trac-crypto-api": "^0.1.3",
     "trac-msb": "^0.2.9",
-    "trac-wallet": "^0.0.43-msb-r2.9",
+    "trac-wallet": "^1.0.1",
     "tty": "npm:bare-node-tty",
     "url": "npm:bare-node-url",
     "util": "npm:bare-node-util",
