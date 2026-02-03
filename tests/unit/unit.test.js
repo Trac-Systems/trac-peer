@@ -6,4 +6,6 @@ await import('./applyGuards.test.js');
 await import('./baseContractProtocol.test.js');
 await import('./cliTx.test.js');
 await import('./operations.test.js');
+await import('./simFunds.test.js');
+await import('./msbTxValidation.test.js');
 test.resume();

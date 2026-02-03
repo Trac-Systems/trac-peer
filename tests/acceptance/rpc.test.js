@@ -3,6 +3,9 @@ import path from "path";
 import os from "os";
 import fs from "fs/promises";
 import b4a from "b4a";
+import PeerWallet from "trac-wallet";
+import { safeEncodeApplyOperation } from "trac-msb/src/utils/protobuf/operationHelpers.js";
+import { OperationType } from "trac-msb/src/utils/constants.js";
 
 import { createServer } from "../../rpc/create_server.js";
 import { Peer, Protocol, Contract, createConfig, ENV } from "../../src/index.js";
@@ -63,13 +66,51 @@ async function httpJson(method, url, body = null) {
 }
 
 const createMsbStub = () => {
+  const fee = b4a.alloc(16);
+  fee[15] = 1;
+  const funded = b4a.alloc(16).fill(0xff);
+  const bootstrap = b4a.alloc(32).fill(7);
+  const txv = b4a.alloc(32).fill(1);
+  const dummyAddress = PeerWallet.encodeBech32mSafe("trac", b4a.alloc(32).fill(2));
+  const addressLength = dummyAddress.length;
+  const deployedByTx = b4a.alloc(32).fill(3);
+  const txStore = new Map();
   return {
     async ready() {},
-    config: { bootstrap: b4a.alloc(32), networkId: 918, addressPrefix: "trac", channel: b4a.from("test", "utf8") },
-    bootstrap: b4a.alloc(32),
+    config: { bootstrap, networkId: 918, addressPrefix: "trac", addressLength, channel: b4a.from("test", "utf8") },
+    bootstrap,
     state: {
-      getIndexerSequenceState: async () => b4a.alloc(32),
+      getIndexerSequenceState: async () => txv,
       getSignedLength: () => 0,
+      getFee: () => fee,
+      getNodeEntryUnsigned: async (_address) => ({ balance: funded }),
+      getNodeEntry: async (_address) => ({ balance: funded }),
+      get: async (key) => txStore.get(key) ?? null,
+      getRegisteredBootstrapEntry: async (bootstrapHex) => {
+        if (typeof bootstrapHex !== "string") return null;
+        if (!/^[0-9a-f]{64}$/i.test(bootstrapHex)) return null;
+        const entry = b4a.alloc(32 + addressLength);
+        deployedByTx.copy(entry, 0);
+        b4a.from(dummyAddress, "ascii").copy(entry, 32);
+
+        const bsBuf = b4a.from(bootstrapHex, "hex");
+        txStore.set(
+          deployedByTx.toString("hex"),
+          safeEncodeApplyOperation({
+            type: OperationType.BOOTSTRAP_DEPLOYMENT,
+            address: b4a.from(dummyAddress, "ascii"),
+            bdo: {
+              tx: deployedByTx,
+              txv,
+              bs: bsBuf,
+              ic: b4a.alloc(32),
+              in: b4a.alloc(32),
+              is: b4a.alloc(64),
+            },
+          })
+        );
+        return entry;
+      },
       base: {
         view: {
           checkout() {
