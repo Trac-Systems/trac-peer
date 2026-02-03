@@ -3,6 +3,7 @@ import path from "path";
 import os from "os";
 import fs from "fs/promises";
 import b4a from "b4a";
+import PeerWallet from "trac-wallet";
 
 import { Peer, Contract, Protocol, createConfig, ENV } from "../../src/index.js";
 import Wallet from "../../src/wallet.js";
@@ -25,8 +26,9 @@ function makeMsbStubUnfunded() {
   const txv = b4a.alloc(32).fill(1);
   const fee = b4a.alloc(16);
   fee[15] = 1;
+  const addressLength = PeerWallet.encodeBech32mSafe("trac", b4a.alloc(32).fill(2)).length;
   return {
-    config: { bootstrap, addressPrefix: "trac", networkId: 918 },
+    config: { bootstrap, addressPrefix: "trac", addressLength, networkId: 918 },
     wallet: { address: "trac1test" },
     network: {},
     state: {
@@ -43,6 +45,9 @@ function makeMsbStubUnfunded() {
       },
       getFee() {
         return fee;
+      },
+      async get(_key) {
+        return null;
       },
       async getNodeEntryUnsigned(_address) {
         return null;
@@ -108,7 +113,7 @@ test("rpc sim: fails when requester has no MSB entry/balance", async (t) => {
 
     await t.exception(
       () => api.tx(tx, prepared_command, externalWallet.publicKey, signature, nonce, true),
-      /Invalid requester address not found in MSB state/i
+      /Invalid MSB tx:.*Requester address not found in state/i
     );
   } finally {
     await closePeer(peer);

@@ -1,6 +1,8 @@
 import b4a from 'b4a';
 import PeerWallet from 'trac-wallet';
 import ReadyResource from 'ready-resource';
+import PartialTransaction from 'trac-msb/src/core/network/protocols/shared/validators/PartialTransaction.js';
+import { normalizeTransactionOperation } from 'trac-msb/src/utils/normalizers.js';
 
 export const MSB_OPERATION_TYPE = Object.freeze({
     BOOTSTRAP_DEPLOYMENT: 11,
@@ -9,14 +11,17 @@ export const MSB_OPERATION_TYPE = Object.freeze({
 
 export class MsbClient extends ReadyResource {
     #msb
+    #partialTransactionValidator
 
     constructor(msbInstance) {
         super();
         this.#msb = msbInstance || null;
+        this.#partialTransactionValidator = null;
     }
 
     async _open() {
-        return await this.#msb.ready()
+        await this.#msb.ready()
+        this.#partialTransactionValidator = new PartialTransaction(this.#msb.state, null, this.#msb.config)
     }
 
     #orchestratorCompatiblePayload(payload) {
@@ -107,6 +112,17 @@ export class MsbClient extends ReadyResource {
             return await viewSession.get(key);
         } finally {
             await viewSession.close();
+        }
+    }
+
+    async validateTransaction(payload) {
+        try {
+            const normalized = normalizeTransactionOperation(payload, this.#msb.config);
+            await this.#partialTransactionValidator.validate(normalized);
+            return true;
+        } catch (e) {
+            const msg = typeof e?.message === 'string' ? e.message : 'MSB transaction validation failed.';
+            throw new Error(`Invalid MSB tx: ${msg}`);
         }
     }
 
