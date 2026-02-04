@@ -69,7 +69,6 @@ export class MsbClient extends ReadyResource {
     }
 
     getUnsignedLength() {
-        if (typeof this.#msb.state.getUnsignedLength !== 'function') return null;
         return this.#msb.state.getUnsignedLength();
     }
 
@@ -79,7 +78,6 @@ export class MsbClient extends ReadyResource {
     }
 
     async getNodeEntryUnsigned(address) {
-        if (typeof this.#msb.state.getNodeEntryUnsigned !== 'function') return null;
         return await this.#msb.state.getNodeEntryUnsigned(address);
     }
 
@@ -92,9 +90,6 @@ export class MsbClient extends ReadyResource {
     }
 
     async tryConnect(pubKeyHex, role = 'validator') {
-        if (typeof this.#msb.network?.tryConnect !== 'function') {
-            throw new Error('MSB network does not support tryConnect.');
-        }
         return await this.#msb.network.tryConnect(pubKeyHex, role);
     }
 
@@ -128,24 +123,12 @@ export class MsbClient extends ReadyResource {
 
     async broadcastTransaction(payload) {
         const safePayload = this.#orchestratorCompatiblePayload(payload);
-        if (typeof this.#msb.broadcastTransactionCommand === 'function') {
-            return await this.#msb.broadcastTransactionCommand(safePayload);
-        }
-        if (this.#msb.network?.validatorMessageOrchestrator?.send) {
-            const ok = await this.#msb.network.validatorMessageOrchestrator.send(safePayload);
-            return { message: ok ? 'Transaction broadcasted successfully.' : 'Transaction broadcast failed.', tx: null };
-        }
-        throw new Error('MSB does not support transaction broadcasting.');
+        const ok = await this.#msb.network.validatorMessageOrchestrator.send(safePayload);
+        return { message: ok ? 'Transaction broadcasted successfully.' : 'Transaction broadcast failed.', tx: null };
     }
 
     async broadcastBootstrapDeployment(payload) {
         const safePayload = this.#orchestratorCompatiblePayload(payload);
-        if (this.#msb.network?.validatorMessageOrchestrator?.send) {
-            return await this.#msb.network.validatorMessageOrchestrator.send(safePayload);
-        }
-        if (typeof this.#msb.broadcastPartialTransaction === 'function') {
-            return await this.#msb.broadcastPartialTransaction(safePayload);
-        }
-        throw new Error('MSB does not support bootstrap deployment broadcasting.');
+        return await this.#msb.network.validatorMessageOrchestrator.send(safePayload);
     }
 }

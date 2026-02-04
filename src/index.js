@@ -236,18 +236,12 @@ export class Peer extends ReadyResource {
                     tryInvite().catch(() => {});
                 }
 
-                const remotePublicKey = b4a.toString(connection.remotePublicKey, 'hex');
-
-                this.connectedPeers.add(remotePublicKey);
                 const stream = this.store.replicate(connection);
                 stream.on('error', (error) => { });
                 wakeup.addStream(stream);
-                this.connectedNodes++;
 
                 connection.on('close', () => {
                     try{ message_channel.close() }catch(e){}
-                    this.connectedNodes--;
-                    this.connectedPeers.delete(remotePublicKey);
                 });
 
                 connection.on('error', (error) => { });
