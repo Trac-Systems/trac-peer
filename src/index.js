@@ -47,8 +47,6 @@ export class Peer extends ReadyResource {
         
         // In bare runtime, Buffer#fill(undefined) throws; default to 0 when channel not provided.
         this.bee = null;
-        this.connectedNodes = 1;
-        this.connectedPeers = new Set();
         this.readlineInstance = readlineInstance || null;
     }
 
