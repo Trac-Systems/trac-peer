@@ -1,4 +1,4 @@
-import BaseContract from "trac-peer/src/artifacts/contract.js";
+import { Contract as BaseContract } from "trac-peer";
 
 export const GEN1_CREATURES = [
   { id: 1, name: "Leafling" },
