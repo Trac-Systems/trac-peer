@@ -2,6 +2,8 @@
 
 This document explains how to run `trac-peer`, connect it to an existing MSB network, create/join a subnet, and test the built‑in demo app (“contract”) (`ping` + `set`), plus the HTTP RPC API used by wallets/apps.
 
+If you’re building your own app (Protocol + Contract) and want wallet/dapp integration details, see `APP_DEV.md`.
+
 It’s written to be usable even if you’re not deeply familiar with P2P/blockchain systems.
 
 If something doesn’t work, jump to **Troubleshooting** at the end.
@@ -373,9 +375,9 @@ Messages are replicated like any other subnet op.
 
 ---
 
-## HTTP RPC (wallet/app API)
+## HTTP RPC (wallet/dApp API)
 
-RPC is an HTTP server that runs alongside your peer and lets a wallet/app connect via URL (Ethereum-style).
+RPC is an HTTP server that runs alongside your peer and lets a wallet/dApp connect via URL (Ethereum-style).
 
 Important: operator/admin controls (deploy subnet, writer/indexer management, chat moderation) are **CLI-only** and are not exposed via RPC.
 
@@ -416,7 +418,7 @@ npm run peer:pear-rpc -- \
   - `GET /v1/contract/schema`
 - Read state:
   - `GET /v1/state?key=app%2Fkv%2Ffoo&confirmed=true`
-- Wallet tx flow:
+- Wallet/dApp tx flow:
   - `GET /v1/contract/nonce`
   - `POST /v1/contract/tx/prepare` body: `{ "prepared_command": { "type": "...", "value": {} }, "address": "<pubkey-hex32>", "nonce": "<hex32>" }`
   - `POST /v1/contract/tx` body: `{ "tx": "<hex32>", "prepared_command": { ... }, "address": "<pubkey-hex32>", "signature": "<hex64>", "nonce": "<hex32>", "sim": true|false }`
@@ -456,8 +458,8 @@ Where does step (1) happen?
 - In the demo runner (`scripts/run-peer.mjs`) it’s in the protocol class’s `mapTxCommand(...)` (example: `src/dev/pokemonProtocol.js`).
 - The base protocol method is `Protocol.mapTxCommand(...)` in `src/protocol.js`. For your own app you override that function.
 
-Wallet tx flow specifics:
-- The wallet sends a typed command (`prepared_command`) and asks the peer to compute `tx` via `POST /v1/contract/tx/prepare`.
+dApp tx flow specifics:
+- The dApp sends a typed command (`prepared_command`) and asks the peer to compute `tx` via `POST /v1/contract/tx/prepare`.
 - The wallet signs `tx` and submits it to `POST /v1/contract/tx` with `sim: true` to simulate (recommended), then `sim: false` to broadcast.
 
 ---
