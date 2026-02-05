@@ -71,54 +71,47 @@ const ensureKeypairFile = async (keyPairPath) => {
 };
 
 const args = toArgMap(argv);
-const envName = String(args.env || processRef?.env?.PEER_ENV || CONFIG.defaultEnv || "dev").toLowerCase();
-const envConfig = CONFIG.environments?.[envName];
-if (!envConfig) {
-  console.error(`Unknown environment: ${envName}`);
-  process.exit(1);
-}
-
-const peerEnv = envName === "dev" ? PEER_ENV.DEVELOPMENT : PEER_ENV.MAINNET;
-const msbEnv = envName === "dev" ? MSB_ENV.DEVELOPMENT : MSB_ENV.MAINNET;
+const peerEnv = PEER_ENV.DEVELOPMENT;
+const msbEnv = MSB_ENV.DEVELOPMENT;
 
 const peerStoresDirectory =
   (args["peer-stores-directory"] && String(args["peer-stores-directory"])) ||
-  envConfig.peer?.storesDirectory ||
+  CONFIG.peer?.storesDirectory ||
   "stores/";
 
 const peerStoreName =
   (args["peer-store-name"] && String(args["peer-store-name"])) ||
-  envConfig.peer?.storeName ||
+  CONFIG.peer?.storeName ||
   "peer";
 
 const subnetChannel =
   (args["subnet-channel"] && String(args["subnet-channel"])) ||
-  envConfig.peer?.subnetChannel ||
+  CONFIG.peer?.subnetChannel ||
   "trac-peer-subnet";
 
 const subnetBootstrapHex =
   (args["subnet-bootstrap"] && String(args["subnet-bootstrap"])) ||
-  envConfig.peer?.subnetBootstrap ||
+  CONFIG.peer?.subnetBootstrap ||
   null;
 
 const msbStoresDirectory =
   (args["msb-stores-directory"] && String(args["msb-stores-directory"])) ||
-  envConfig.msb?.storesDirectory ||
+  CONFIG.msb?.storesDirectory ||
   "stores/";
 
 const msbStoreName =
   (args["msb-store-name"] && String(args["msb-store-name"])) ||
-  envConfig.msb?.storeName ||
+  CONFIG.msb?.storeName ||
   `${peerStoreName}-msb`;
 
 const msbBootstrap =
   (args["msb-bootstrap"] && String(args["msb-bootstrap"])) ||
-  envConfig.msb?.bootstrap ||
+  CONFIG.msb?.bootstrap ||
   null;
 
 const msbChannel =
   (args["msb-channel"] && String(args["msb-channel"])) ||
-  envConfig.msb?.channel ||
+  CONFIG.msb?.channel ||
   null;
 
 const msbBootstrapHex = msbBootstrap ? String(msbBootstrap).trim().toLowerCase() : null;
@@ -201,7 +194,6 @@ if (!subnetBootstrap) {
 
 console.log("");
 console.log("==================== TRAC-PEER RUNNER ====================");
-console.log("Environment:", envName);
 console.log("MSB network bootstrap:", b4a.toString(msb.config.bootstrap, "hex") ?? null);
 console.log("MSB channel:", b4a.toString(msb.config.channel, "utf8"));
 console.log("MSB wallet address:", msb.wallet?.address ?? null);

@@ -10,6 +10,10 @@ The purpose of this setup is to provide a quick dev-only scaffold to build and t
 
 It is required to have a working [MSB](https://github.com/Trac-Systems/main_settlement_bus) and a funded [wallet](https://github.com/Trac-Systems/tap-wallet-extension). The funding doesnt happen in the subnetwork (in this context the peer "server") but on msb layer. It is possible to think of the subnetwork ([trac-peer](https://github.com/Trac-Systems/trac-peer)) as a beam for the application logic i.e.: contract and protocol while msb is the beam for traffic (transaction handling and fees). The currency that governs over msb is $TNK.
 
+## Premises
+
+The current configuration assumes a dev environment. 
+
 ## Quick start
 
 ```sh
@@ -17,7 +21,7 @@ npm install
 npm run dev
 ```
 
-`npm run dev` uses Pear.
+In the dev context
 
 ## Config
 

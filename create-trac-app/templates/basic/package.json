@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pear run -d scripts/run-peer.mjs --env=dev"
+    "dev": "pear run -d scripts/run-peer.mjs",
+    "dev-rpc": "pear run -d scripts/run-peer.mjs --rpc"
   },
   "dependencies": {
     "b4a": "^1.6.7",
