@@ -1,4 +1,4 @@
-import BaseProtocol from "trac-peer/src/artifacts/protocol.js";
+import { Protocol as BaseProtocol } from "trac-peer";
 import { bufferToBigInt, bigIntToDecimalString } from "trac-msb/src/utils/amountSerialization.js";
 
 class TuxemonProtocol extends BaseProtocol {
