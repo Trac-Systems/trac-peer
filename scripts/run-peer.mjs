@@ -9,8 +9,8 @@ import { startRpcServer } from "../rpc/rpc_server.js";
 import { DEFAULT_RPC_HOST, DEFAULT_RPC_PORT, DEFAULT_MAX_BODY_BYTES } from "../rpc/constants.js";
 import { Terminal } from "../src/terminal/index.js";
 import { ensureTextCodecs } from "../src/textCodec.js";
-import PokemonProtocol from "../dev/pokemonProtocol.js";
-import PokemonContract from "../dev/pokemonContract.js";
+import TuxemonProtocol from "../dev/tuxemonProtocol.js";
+import TuxemonContract from "../dev/tuxemonContract.js";
 
 let process = globalThis.process;
 if (globalThis.Pear !== undefined) {
@@ -225,8 +225,8 @@ const peer = new Peer({
   config: peerConfig,
   msb,
   wallet: new Wallet(),
-  protocol: PokemonProtocol,
-  contract: PokemonContract,
+  protocol: TuxemonProtocol,
+  contract: TuxemonContract,
 });
 await peer.ready();
 

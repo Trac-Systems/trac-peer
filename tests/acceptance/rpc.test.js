@@ -9,8 +9,8 @@ import { OperationType } from "trac-msb/src/utils/constants.js";
 
 import { createServer } from "../../rpc/create_server.js";
 import { Peer, Protocol, Contract, createConfig, ENV } from "../../src/index.js";
-import PokemonContract from "../../dev/pokemonContract.js";
-import PokemonProtocol from "../../dev/pokemonProtocol.js";
+import TuxemonContract from "../../dev/tuxemonContract.js";
+import TuxemonProtocol from "../../dev/tuxemonProtocol.js";
 import Wallet from "../../src/wallet.js";
 import { mkdtempPortable, rmrfPortable } from "../helpers/tmpdir.js";
 
@@ -218,7 +218,7 @@ test("rpc: body size limit returns 413", async (t) => {
   });
 });
 
-test("rpc: contract schema (pokemon)", async (t) => {
+test("rpc: contract schema (tuxemon)", async (t) => {
   await withTempDir(async ({ storesDirectory }) => {
     const storeName = "peer";
     const wallet = await prepareWallet(storesDirectory, storeName);
@@ -227,8 +227,8 @@ test("rpc: contract schema (pokemon)", async (t) => {
     const peer = new Peer({
       config,
       wallet,
-      protocol: PokemonProtocol,
-      contract: PokemonContract,
+      protocol: TuxemonProtocol,
+      contract: TuxemonContract,
       msb: createMsbStub(),
     });
 
@@ -242,7 +242,7 @@ test("rpc: contract schema (pokemon)", async (t) => {
       const r = await httpJson("GET", `${baseUrl}/v1/contract/schema`);
       t.is(r.status, 200);
       t.is(r.json?.schemaFormat, "json-schema");
-      t.is(r.json?.contract?.contractClass, "PokemonContract");
+      t.is(r.json?.contract?.contractClass, "TuxemonContract");
       t.ok(Array.isArray(r.json?.contract?.txTypes));
       t.ok(r.json.contract.txTypes.includes("catch"));
       t.is(typeof r.json?.api?.methods?.tx, "object");
@@ -264,8 +264,8 @@ test("rpc: wallet-signed tx simulate via prepare+sign+broadcast", async (t) => {
     const peer = new Peer({
       config,
       wallet: peerWallet,
-      protocol: PokemonProtocol,
-      contract: PokemonContract,
+      protocol: TuxemonProtocol,
+      contract: TuxemonContract,
       msb: createMsbStub(),
     });
 

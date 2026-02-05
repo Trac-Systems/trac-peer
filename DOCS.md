@@ -455,7 +455,7 @@ When you run `/tx --command "..."` in the CLI (or a wallet uses the RPC tx flow)
 5) Every subnet node applies the subnet op and runs contract logic locally, deriving the same results from the same ordered log.
 
 Where does step (1) happen?
-- In the demo runner (`scripts/run-peer.mjs`) it’s in the protocol class’s `mapTxCommand(...)` (example: `src/dev/pokemonProtocol.js`).
+- In the demo runner (`scripts/run-peer.mjs`) it’s in the protocol class’s `mapTxCommand(...)` (example: `src/dev/tuxemonProtocol.js`).
 - The base protocol method is `Protocol.mapTxCommand(...)` in `src/protocol.js`. For your own app you override that function.
 
 dApp tx flow specifics:

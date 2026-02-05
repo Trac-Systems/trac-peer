@@ -21,10 +21,10 @@ Clients do **not** “call contract functions directly”. They submit a **trans
 
 ## 2) Where apps live in this repo (today)
 
-The default runner is `scripts/run-peer.mjs`. It currently wires the demo “Pokemon” app:
+The default runner is `scripts/run-peer.mjs`. It currently wires the demo "Tuxemon" app:
 
-- `dev/pokemonProtocol.js`
-- `dev/pokemonContract.js`
+- `dev/tuxemonProtocol.js`
+- `dev/tuxemonContract.js`
 
 To run your own app locally, simplest workflow:
 
@@ -63,7 +63,7 @@ Recommended:
 - Do not overwrite reserved system keys (admin/chat/tx indexing, etc).
 
 Example keys:
-- `app/pokedex/<userPubKeyHex>`
+- `app/tuxedex/<userPubKeyHex>`
 - `app/counter/value`
 
 ---
@@ -225,7 +225,7 @@ curl -s -X POST http://127.0.0.1:5001/v1/contract/tx \
 Apps typically write under `app/...`. Read via:
 
 ```sh
-curl -s 'http://127.0.0.1:5001/v1/state?key=app%2Fpokedex%2F<wallet-pubkey-hex32>&confirmed=false' | jq
+curl -s 'http://127.0.0.1:5001/v1/state?key=app%tuxedex%2F<wallet-pubkey-hex32>&confirmed=false' | jq
 ```
 
 The `confirmed` flag controls whether you read from:
