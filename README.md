@@ -17,6 +17,10 @@ git clone -b trac-peer-r1 --single-branch git@github.com:Trac-Systems/trac-peer.
 Trac Peer must be used in combination the MSB and a Protocol/Contract pair in a unified setup.
 Please check our repos for sample setups.
 
+Docs:
+- `DOCS.md` — local MSB + peer setup, subnet workflow, RPC overview
+- `APP_DEV.md` — build apps (Protocol + Contract), wallet/dapp integration, RPC tx flow
+
 ### Local runner (interactive)
 
 If you already have an MSB network running (same `bootstrap` + `channel`), you can start a local MSB node (new store) that joins that network, and run `trac-peer` on top of it (this runner uses the `trac-msb` package, so it does not require a local `main_settlement_bus` repo checkout).
@@ -93,7 +97,7 @@ npm run peer:run -- \
 
 You can start an HTTP API alongside the interactive peer.
 
-This RPC is intended for **wallet/app connectivity** (URL + JSON), not for operating the peer node. Operator/admin actions remain CLI-only.
+This RPC is intended for **wallet/dApp connectivity** (URL + JSON), not for operating the peer node. Operator/admin actions remain CLI-only.
 
 ```sh
 npm run peer:run -- \

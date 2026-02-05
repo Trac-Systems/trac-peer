@@ -1,7 +1,7 @@
 import BaseProtocol from "../src/artifacts/protocol.js";
 import { bufferToBigInt, bigIntToDecimalString } from "trac-msb/src/utils/amountSerialization.js";
 
-class PokemonProtocol extends BaseProtocol {
+class TuxemonProtocol extends BaseProtocol {
   mapTxCommand(command) {
     if (typeof command !== "string" || command.trim() === "") return null;
     const raw = command.trim();
@@ -83,4 +83,4 @@ class PokemonProtocol extends BaseProtocol {
   }
 }
 
-export default PokemonProtocol;
+export default TuxemonProtocol;

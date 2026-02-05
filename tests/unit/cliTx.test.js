@@ -34,7 +34,7 @@ class CatchContract extends Contract {
   }
 
   async catch() {
-    await this.put(`app/pokedex/${this.address}`, { ok: true, tx: this.tx });
+    await this.put(`app/tuxedex/${this.address}`, { ok: true, tx: this.tx });
     return "ok";
   }
 }
