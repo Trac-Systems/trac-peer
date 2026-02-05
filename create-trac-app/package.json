@@ -1,9 +1,9 @@
 {
-  "name": "create-trac-peer",
+  "name": "create-trac-app",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "create-trac-peer": "bin/create-trac-peer.js"
+    "create-trac-app": "bin/create-trac-app.js"
   },
   "files": [
     "bin",

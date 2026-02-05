@@ -71,7 +71,7 @@ const ensureKeypairFile = async (keyPairPath) => {
 };
 
 const args = toArgMap(argv);
-const envName = String(args.env || processRef?.env?.PEER_ENV || CONFIG.defaultEnv || "prod").toLowerCase();
+const envName = String(args.env || processRef?.env?.PEER_ENV || CONFIG.defaultEnv || "dev").toLowerCase();
 const envConfig = CONFIG.environments?.[envName];
 if (!envConfig) {
   console.error(`Unknown environment: ${envName}`);
@@ -223,8 +223,8 @@ console.log("  - Fund this Peer MSB address (creates MSB node entry + covers fee
 console.log("    ", peerMsbAddress);
 console.log("- In this peer console:");
 console.log("  - /deploy_subnet");
-console.log('  - /tx --command "ping hello"');
-console.log('  - /get --key "app/ping/<tx-hash>" --confirmed false');
+console.log('  - /tx --command "catch"');
+console.log('  - /get --key "app/tuxedex/<peer-pubkey-hex>" --confirmed false');
 console.log("==========================================================");
 console.log("");
 

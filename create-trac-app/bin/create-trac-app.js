@@ -15,7 +15,7 @@ const TEMPLATE_DIR = path.resolve(__dirname, "../templates/basic");
 
 const args = process.argv.slice(2);
 if (args.includes("-h") || args.includes("--help")) {
-  console.log("Usage: create-trac-peer <project-directory>");
+  console.log("Usage: create-trac-app <project-directory>");
   process.exit(0);
 }
 
@@ -122,40 +122,21 @@ const main = async () => {
   const packageName = toPackageName(projectName);
 
   console.log("");
-  console.log("MSB network settings (prod)");
-  let prodMsbBootstrap = await ask("MSB bootstrap (hex32): ");
-  while (!isValidHex32(prodMsbBootstrap)) {
+  console.log("MSB network settings (dev)");
+  let msbBootstrap = await ask("MSB bootstrap (hex32): ");
+  while (!isValidHex32(msbBootstrap)) {
     console.log("Invalid bootstrap. Expected 64 hex characters.");
-    prodMsbBootstrap = await ask("MSB bootstrap (hex32): ");
+    msbBootstrap = await ask("MSB bootstrap (hex32): ");
   }
-  const prodMsbChannel = await ask("MSB channel: ");
-  if (!prodMsbChannel) {
+  const msbChannel = await ask("MSB channel: ");
+  if (!msbChannel) {
     console.error("MSB channel is required.");
     process.exit(1);
   }
-  const prodSubnetChannel = await askWithDefault("Subnet channel", "trac-peer-subnet");
-
-  console.log("");
-  const useSameDev = await confirm("Use same MSB settings for dev?", true);
-  let devMsbBootstrap = prodMsbBootstrap;
-  let devMsbChannel = prodMsbChannel;
-  if (!useSameDev) {
-    devMsbBootstrap = await ask("Dev MSB bootstrap (hex32): ");
-    while (!isValidHex32(devMsbBootstrap)) {
-      console.log("Invalid bootstrap. Expected 64 hex characters.");
-      devMsbBootstrap = await ask("Dev MSB bootstrap (hex32): ");
-    }
-    devMsbChannel = await ask("Dev MSB channel: ");
-    if (!devMsbChannel) {
-      console.error("Dev MSB channel is required.");
-      process.exit(1);
-    }
-  }
-  const devSubnetChannel = await askWithDefault("Dev subnet channel", `${prodSubnetChannel}-dev`);
+  const subnetChannel = await askWithDefault("Subnet channel", "trac-peer-subnet");
 
   console.log("");
   const peerStoreName = await askWithDefault("Peer store name", "peer");
-  const devPeerStoreName = `${peerStoreName}-dev`;
 
   console.log("");
   const restore = await confirm("Restore peer keypair from mnemonic?", false);
@@ -169,16 +150,11 @@ const main = async () => {
   const replacements = new Map([
     ["__APP_NAME__", projectName],
     ["__PACKAGE_NAME__", packageName],
-    ["__PROD_MSB_BOOTSTRAP__", prodMsbBootstrap.toLowerCase()],
-    ["__PROD_MSB_CHANNEL__", prodMsbChannel],
-    ["__PROD_SUBNET_CHANNEL__", prodSubnetChannel],
-    ["__DEV_MSB_BOOTSTRAP__", devMsbBootstrap.toLowerCase()],
-    ["__DEV_MSB_CHANNEL__", devMsbChannel],
-    ["__DEV_SUBNET_CHANNEL__", devSubnetChannel],
+    ["__MSB_BOOTSTRAP__", msbBootstrap.toLowerCase()],
+    ["__MSB_CHANNEL__", msbChannel],
+    ["__SUBNET_CHANNEL__", subnetChannel],
     ["__PEER_STORE_NAME__", peerStoreName],
-    ["__DEV_PEER_STORE_NAME__", devPeerStoreName],
-    ["__PROD_MSB_STORE_NAME__", `${peerStoreName}-msb`],
-    ["__DEV_MSB_STORE_NAME__", `${devPeerStoreName}-msb`],
+    ["__MSB_STORE_NAME__", `${peerStoreName}-msb`],
     ["__TRAC_PEER_VERSION__", TRAC_PEER_VERSION],
     ["__TRAC_MSB_VERSION__", TRAC_MSB_VERSION],
     ["__TRAC_WALLET_VERSION__", TRAC_WALLET_VERSION]
@@ -199,8 +175,7 @@ const main = async () => {
   console.log("Scaffolded:", resolvedDir);
   console.log("Next:");
   console.log("- npm install");
-  console.log("- npm run dev  (node)");
-  console.log("- npm run prod (pear)");
+  console.log("- npm run dev (pear)");
 
   rl.close();
 };
