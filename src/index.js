@@ -47,8 +47,6 @@ export class Peer extends ReadyResource {
         
         // In bare runtime, Buffer#fill(undefined) throws; default to 0 when channel not provided.
         this.bee = null;
-        this.connectedNodes = 1;
-        this.connectedPeers = new Set();
         this.readlineInstance = readlineInstance || null;
     }
 
@@ -236,18 +234,12 @@ export class Peer extends ReadyResource {
                     tryInvite().catch(() => {});
                 }
 
-                const remotePublicKey = b4a.toString(connection.remotePublicKey, 'hex');
-
-                this.connectedPeers.add(remotePublicKey);
                 const stream = this.store.replicate(connection);
                 stream.on('error', (error) => { });
                 wakeup.addStream(stream);
-                this.connectedNodes++;
 
                 connection.on('close', () => {
                     try{ message_channel.close() }catch(e){}
-                    this.connectedNodes--;
-                    this.connectedPeers.delete(remotePublicKey);
                 });
 
                 connection.on('error', (error) => { });
