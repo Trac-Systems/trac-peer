@@ -1,0 +1,15 @@
+{
+  "name": "create-trac-app",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "create-trac-app": "bin/create-trac-app.js"
+  },
+  "files": [
+    "bin",
+    "templates"
+  ],
+  "dependencies": {
+    "trac-wallet": "^1.0.1"
+  }
+}

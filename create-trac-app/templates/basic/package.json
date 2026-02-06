@@ -1,0 +1,29 @@
+{
+  "name": "__PACKAGE_NAME__",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pear run -d scripts/run-peer.mjs",
+    "dev-rpc": "pear run -d scripts/run-peer.mjs --rpc",
+    "dev:dapp": "vite --config trac-dapp-example/vite.config.mjs --root trac-dapp-example",
+    "build:dapp": "vite build --config trac-dapp-example/vite.config.mjs --root trac-dapp-example",
+    "preview:dapp": "vite preview --config trac-dapp-example/vite.config.mjs --root trac-dapp-example"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.7",
+    "@mui/material": "^7.3.7",
+    "b4a": "^1.6.7",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "trac-msb": "0.2.9",
+    "trac-peer": "0.4.1",
+    "trac-wallet": "1.0.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.2",
+    "vite": "^5.4.11"
+  }
+}
