@@ -1,6 +1,10 @@
-# __APP_NAME__
+## Usage
 
-Scaffolded with `create-trac-app`.
+The command will scaffold a trac app and run you through the initial wizard.
+
+```sh
+npx create-trac-app
+```
 
 ## Purpose
 
