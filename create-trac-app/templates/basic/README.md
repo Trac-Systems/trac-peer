@@ -48,4 +48,10 @@ As far as development is concerned, the expected files to change are: the [./src
 
 ## The dapp
 
-The dapp lives in a separate folder (called app) and, in this example, is a NestJS application. It's currently tightly coupled with the example contract. It interacts with the network through RPC.
+The dapp lives in `trac-dapp-example` and, in this example, is a Vite + React frontend. It interacts with the network through RPC.
+
+Run it from the project root (same `package.json`):
+
+```sh
+npm run dev:dapp
+```

@@ -25,7 +25,7 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 
-const POLL_MS = 3000;
+const POLL_MS = 5000;
 const DEFAULT_API_BASE = 'http://127.0.0.1:5001/v1';
 const API_BASE = (import.meta.env.VITE_API_BASE || DEFAULT_API_BASE).replace(/\/$/, '');
 
