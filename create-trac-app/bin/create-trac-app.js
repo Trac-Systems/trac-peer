@@ -5,10 +5,6 @@ import readline from "readline";
 import { fileURLToPath } from "url";
 import PeerWallet from "trac-wallet";
 
-const TRAC_PEER_VERSION = "^0.4.1";
-const TRAC_MSB_VERSION = "^0.2.9";
-const TRAC_WALLET_VERSION = "^1.0.1";
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const TEMPLATE_DIR = path.resolve(__dirname, "../templates/basic");
@@ -154,10 +150,7 @@ const main = async () => {
     ["__MSB_CHANNEL__", msbChannel],
     ["__SUBNET_CHANNEL__", subnetChannel],
     ["__PEER_STORE_NAME__", peerStoreName],
-    ["__MSB_STORE_NAME__", `${peerStoreName}-msb`],
-    ["__TRAC_PEER_VERSION__", TRAC_PEER_VERSION],
-    ["__TRAC_MSB_VERSION__", TRAC_MSB_VERSION],
-    ["__TRAC_WALLET_VERSION__", TRAC_WALLET_VERSION]
+    ["__MSB_STORE_NAME__", `${peerStoreName}-msb`]
   ]);
 
   copyDir(TEMPLATE_DIR, resolvedDir, replacements);
