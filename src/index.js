@@ -14,12 +14,14 @@ import { handlerFor } from './operations/index.js';
 import TransactionPool from './transaction/transactionPool.js';
 import { TransactionObserver } from './tasks/transactionObserver.js';
 import { Updater } from './tasks/updater.js';
+export { ensureTextCodecs } from './textCodec.js';
 export {default as Protocol} from "./artifacts/protocol.js";
 export {default as Contract} from "./artifacts/contract.js";
 export {default as Feature} from "./artifacts/feature.js";
 export {default as Wallet} from "./wallet.js";
 export { ENV, createConfig } from './config/env.js';
 export { Config } from './config/config.js';
+export { Terminal } from './terminal/index.js';
 
 export class Peer extends ReadyResource {
     constructor(options) {
