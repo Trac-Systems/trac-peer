@@ -19,7 +19,7 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "trac-msb": "0.2.9",
-    "trac-peer": "0.4.1",
+    "trac-peer": "0.4.4",
     "trac-wallet": "1.0.1"
   },
   "devDependencies": {
