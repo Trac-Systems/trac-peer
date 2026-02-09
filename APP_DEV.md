@@ -181,7 +181,9 @@ curl -s -X POST http://127.0.0.1:5001/v1/contract/tx/prepare \
 
 The response contains:
 - `tx` (hex32): the exact 32-byte tx hash that must be signed
-- `command_hash` (hex32): hash of the prepared command (used by MSB payload)
+- `prepared_command` (object): echo of the typed command `{ type, value }` (what the wallet should display)
+- `command_hash` (hex32): hash of the canonical JSON of `prepared_command`
+- `msb` (object): the MSB tx preimage fields the `tx` commits to (`networkId`, `txv`, `iw`, `ch`, `bs`, `mbs`, `in`, `operationType`)
 
 ### Step D — Sign locally in the wallet
 
@@ -222,10 +224,17 @@ curl -s -X POST http://127.0.0.1:5001/v1/contract/tx \
 
 ### Step G — Read app state
 
-Apps typically write under `app/...`. Read via:
+Apps typically write under `app/...` (app-defined). Read via:
+
+```sh
+curl -s 'http://127.0.0.1:5001/v1/state?key=<urlencoded-hyperbee-key>&confirmed=false' | jq
+```
+
+Example (Tuxemon demo app):
 
 ```sh
 curl -s 'http://127.0.0.1:5001/v1/state?key=app%tuxedex%2F<wallet-pubkey-hex32>&confirmed=false' | jq
+```
 ```
 
 The `confirmed` flag controls whether you read from:

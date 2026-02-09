@@ -288,6 +288,15 @@ test("rpc: wallet-signed tx simulate via prepare+sign+broadcast", async (t) => {
       });
       t.is(prep.status, 200);
       const tx = prep.json?.tx;
+      t.is(prep.json?.command_hash, prep.json?.msb?.ch);
+      t.is(prep.json?.msb?.in, nonce);
+      t.is(prep.json?.msb?.operationType, 12);
+      t.is(typeof prep.json?.msb?.networkId, "number");
+      t.is(typeof prep.json?.msb?.txv, "string");
+      t.is(typeof prep.json?.msb?.iw, "string");
+      t.is(typeof prep.json?.msb?.bs, "string");
+      t.is(typeof prep.json?.msb?.mbs, "string");
+      t.is(prep.json?.prepared_command?.type, prepared_command.type);
 
       const signature = externalWallet.sign(b4a.from(tx, "hex"));
       const simRes = await httpJson("POST", `${baseUrl}/v1/contract/tx`, {
