@@ -186,7 +186,7 @@ From there, the client computes locally:
 - `command_hash = blake3(JSON.stringify(prepared_command))` (hex32)
 - `tx = blake3(createMessage(networkId, txv, iw, command_hash, bs, mbs, nonce, operationType))` (hex32)
 
-### Step D — Sign locally in the wallet
+### Step D — Sign locally with the wallet
 
 Wallet signs the **bytes** of `tx` (32 bytes) with its private key to produce:
 - `signature` (hex64)
