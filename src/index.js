@@ -20,7 +20,6 @@ export {default as Contract} from "./artifacts/contract.js";
 export {default as Feature} from "./artifacts/feature.js";
 export {default as Wallet} from "./wallet.js";
 export { Terminal } from "./terminal/index.js";
-export { ensureTextCodecs } from "./textCodec.js";
 export { ENV, createConfig } from './config/env.js';
 export { Config } from './config/config.js';
 
