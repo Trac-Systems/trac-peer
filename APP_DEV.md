@@ -118,7 +118,7 @@ Endpoints (all JSON, all under `/v1`):
 - `GET /v1/status`
 - `GET /v1/contract/schema`
 - `GET /v1/contract/nonce`
-- `POST /v1/contract/tx/prepare`
+- `GET /v1/contract/tx/context` (returns MSB tx context)
 - `POST /v1/contract/tx`
 - `GET /v1/state?key=<urlencoded>&confirmed=true|false`
 
@@ -128,19 +128,20 @@ Important notes:
 
 ---
 
-## 6) Wallet → peer → contract flow (end-to-end)
+## 6) Client → peer → contract flow (end-to-end)
 
-This is the “Ethereum-style” flow: wallet discovers a peer URL, fetches a schema, prepares a tx, signs locally, then submits it.
+This is the “Ethereum-style” flow: a client (typically a dapp/backend) discovers a peer URL, fetches a schema, prepares a tx, requests a wallet signature, then submits it.
 
-### Where the dapp fits
+### Where the dapp fits (dapp constructs, wallet signs)
 
-- A **dapp** (web/mobile UI) talks to a peer’s RPC URL to fetch `GET /v1/contract/schema` and to read state via `GET /v1/state`.
-- For writes, the dapp asks the wallet to:
-  1) request `nonce` + `prepare` from the peer,
-  2) sign the returned `tx` hash locally,
-  3) submit `sim: true` then `sim: false` to the peer.
+- A **dapp** (web/mobile UI) can read: `GET /v1/contract/schema` and `GET /v1/state`.
+- For **writes**, the dapp (or a backend the dapp calls) typically:
+  1) fetches `nonce` + `tx/context` from the peer,
+  2) constructs the tx hash (`tx`) locally,
+  3) asks the wallet to **sign** the tx hash,
+  4) submits `sim: true` then `sim: false` to the peer.
 
-In other words: the dapp never needs the private key; it just passes data between the peer RPC and the wallet signer.
+In other words: the wallet only needs to sign; it does not need to talk to the peer RPC.
 
 ### Step A — Discover contract schema
 
@@ -148,42 +149,44 @@ In other words: the dapp never needs the private key; it just passes data betwee
 curl -s http://127.0.0.1:5001/v1/contract/schema | jq
 ```
 
-Wallet uses:
+Client uses:
 - `contract.txTypes` (what tx types exist)
 - `contract.ops[type]` (input structure for each type, when available)
 - `api.methods` (optional read/query methods exposed by the protocol api)
 
-### Step B — Get a nonce
+### Step B — Get a nonce (client)
 
 ```sh
 curl -s http://127.0.0.1:5001/v1/contract/nonce | jq
 ```
 
-### Step C — Prepare a tx hash to sign
+### Step C — Get tx context + build tx hash (client)
 
-The wallet constructs a typed command (this is app-specific):
+The client constructs a typed command (this is app-specific):
 
 ```json
 { "type": "catch", "value": {} }
 ```
 
-Then it asks the peer to compute the `tx` hash:
+Then the client asks the peer for the MSB tx context (no computation):
 
 ```sh
-curl -s -X POST http://127.0.0.1:5001/v1/contract/tx/prepare \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "prepared_command": { "type": "catch", "value": {} },
-    "address": "<wallet-pubkey-hex32>",
-    "nonce": "<nonce-hex32>"
-  }' | jq
+curl -s http://127.0.0.1:5001/v1/contract/tx/context | jq
 ```
 
-The response contains:
-- `tx` (hex32): the exact 32-byte tx hash that must be signed
-- `command_hash` (hex32): hash of the prepared command (used by MSB payload)
+The response contains an `msb` object with the fields the client needs to build the tx preimage:
+- `networkId`
+- `txv`
+- `iw` (peer writer key)
+- `bs` (subnet bootstrap)
+- `mbs` (MSB bootstrap)
+- `operationType` (currently `12`)
 
-### Step D — Sign locally in the wallet
+From there, the client computes locally:
+- `command_hash = blake3(JSON.stringify(prepared_command))` (hex32)
+- `tx = blake3(createMessage(networkId, txv, iw, command_hash, bs, mbs, nonce, operationType))` (hex32)
+
+### Step D — Sign locally with the wallet
 
 Wallet signs the **bytes** of `tx` (32 bytes) with its private key to produce:
 - `signature` (hex64)
@@ -222,10 +225,17 @@ curl -s -X POST http://127.0.0.1:5001/v1/contract/tx \
 
 ### Step G — Read app state
 
-Apps typically write under `app/...`. Read via:
+Apps typically write under `app/...` (app-defined). Read via:
 
 ```sh
-curl -s 'http://127.0.0.1:5001/v1/state?key=app%tuxedex%2F<wallet-pubkey-hex32>&confirmed=false' | jq
+curl -s 'http://127.0.0.1:5001/v1/state?key=<urlencoded-hyperbee-key>&confirmed=false' | jq
+```
+
+Example (Tuxemon demo app):
+
+```sh
+curl -s 'http://127.0.0.1:5001/v1/state?key=app%2Ftuxedex%2F<wallet-pubkey-hex32>&confirmed=false' | jq
+```
 ```
 
 The `confirmed` flag controls whether you read from:

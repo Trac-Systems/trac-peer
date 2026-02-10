@@ -418,9 +418,9 @@ npm run peer:pear-rpc -- \
   - `GET /v1/contract/schema`
 - Read state:
   - `GET /v1/state?key=app%2Fkv%2Ffoo&confirmed=true`
-- Wallet/dApp tx flow:
+- Client tx flow (dapp constructs, wallet signs):
   - `GET /v1/contract/nonce`
-  - `POST /v1/contract/tx/prepare` body: `{ "prepared_command": { "type": "...", "value": {} }, "address": "<pubkey-hex32>", "nonce": "<hex32>" }`
+  - `GET /v1/contract/tx/context` (returns MSB tx context for client-side tx derivation)
   - `POST /v1/contract/tx` body: `{ "tx": "<hex32>", "prepared_command": { ... }, "address": "<pubkey-hex32>", "signature": "<hex64>", "nonce": "<hex32>", "sim": true|false }`
 
 Notes:
@@ -446,7 +446,7 @@ All nodes in the subnet must run the same Protocol/Contract logic for determinis
 
 ## How `/tx` works (the lifecycle)
 
-When you run `/tx --command "..."` in the CLI (or a wallet uses the RPC tx flow), the flow is:
+When you run `/tx --command "..."` in the CLI (or a client uses the RPC tx flow), the flow is:
 
 1) The command string is mapped into an operation object: `{ type, value }`.
 2) trac-peer hashes and signs the operation and broadcasts a settlement tx to MSB.
@@ -458,9 +458,11 @@ Where does step (1) happen?
 - In the demo runner (`scripts/run-peer.mjs`) it’s in the protocol class’s `mapTxCommand(...)` (example: `src/dev/tuxemonProtocol.js`).
 - The base protocol method is `Protocol.mapTxCommand(...)` in `src/protocol.js`. For your own app you override that function.
 
-dApp tx flow specifics:
-- The dApp sends a typed command (`prepared_command`) and asks the peer to compute `tx` via `POST /v1/contract/tx/prepare`.
-- The wallet signs `tx` and submits it to `POST /v1/contract/tx` with `sim: true` to simulate (recommended), then `sim: false` to broadcast.
+Client tx flow specifics:
+- The client fetches MSB tx context from `GET /v1/contract/tx/context`.
+- The client computes `command_hash = blake3(JSON.stringify(prepared_command))`, then computes `tx` from the MSB preimage fields + `nonce`.
+- The wallet signs `tx`.
+- The client submits the signed payload to `POST /v1/contract/tx` with `sim: true` to simulate (recommended), then `sim: false` to broadcast.
 
 ---
 

@@ -12,6 +12,7 @@ import { Peer, Protocol, Contract, createConfig, ENV } from "../../src/index.js"
 import TuxemonContract from "../../dev/tuxemonContract.js";
 import TuxemonProtocol from "../../dev/tuxemonProtocol.js";
 import Wallet from "../../src/wallet.js";
+import { createHash, jsonStringify } from "../../src/utils/types.js";
 import { mkdtempPortable, rmrfPortable } from "../helpers/tmpdir.js";
 
 async function withTempDir(fn) {
@@ -205,10 +206,13 @@ test("rpc: body size limit returns 413", async (t) => {
       const baseUrl = rpc.baseUrl;
 
       const big = "x".repeat(100);
-      const r = await httpJson("POST", `${baseUrl}/v1/contract/tx/prepare`, {
+      const r = await httpJson("POST", `${baseUrl}/v1/contract/tx`, {
+        tx: "0".repeat(64),
         prepared_command: { type: big, value: {} },
         address: wallet.publicKey,
+        signature: "0".repeat(128),
         nonce: "0".repeat(64),
+        sim: true,
       });
       t.is(r.status, 413);
     } finally {
@@ -281,13 +285,25 @@ test("rpc: wallet-signed tx simulate via prepare+sign+broadcast", async (t) => {
       const nonce = nonceRes.json?.nonce;
 
       const prepared_command = { type: "catch", value: {} };
-      const prep = await httpJson("POST", `${baseUrl}/v1/contract/tx/prepare`, {
-        prepared_command,
-        address: externalWallet.publicKey,
-        nonce,
-      });
-      t.is(prep.status, 200);
-      const tx = prep.json?.tx;
+      const ctx = await httpJson("GET", `${baseUrl}/v1/contract/tx/context`);
+      t.is(ctx.status, 200);
+      t.is(ctx.json?.msb?.operationType, 12);
+      t.is(typeof ctx.json?.msb?.networkId, "number");
+      t.is(typeof ctx.json?.msb?.txv, "string");
+      t.is(typeof ctx.json?.msb?.iw, "string");
+      t.is(typeof ctx.json?.msb?.bs, "string");
+      t.is(typeof ctx.json?.msb?.mbs, "string");
+
+      const command_hash = await createHash(jsonStringify(prepared_command));
+      const tx = await peer.protocol.instance.generateTx(
+        ctx.json.msb.networkId,
+        ctx.json.msb.txv,
+        ctx.json.msb.iw,
+        command_hash,
+        ctx.json.msb.bs,
+        ctx.json.msb.mbs,
+        nonce
+      );
 
       const signature = externalWallet.sign(b4a.from(tx, "hex"));
       const simRes = await httpJson("POST", `${baseUrl}/v1/contract/tx`, {
