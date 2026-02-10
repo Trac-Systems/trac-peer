@@ -23,7 +23,6 @@ export { Terminal } from "./terminal/index.js";
 export { ensureTextCodecs } from "./textCodec.js";
 export { ENV, createConfig } from './config/env.js';
 export { Config } from './config/config.js';
-export { Terminal } from './terminal/index.js';
 
 export class Peer extends ReadyResource {
     constructor(options) {
