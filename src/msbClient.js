@@ -73,7 +73,6 @@ export class MsbClient extends ReadyResource {
     }
 
     getFee() {
-        if (typeof this.#msb.state.getFee !== 'function') return null;
         return this.#msb.state.getFee();
     }
 
@@ -83,7 +82,7 @@ export class MsbClient extends ReadyResource {
 
     getConnectedValidatorsCount() {
         try {
-            return this.#msb.network?.validatorConnectionManager?.connectionCount?.() ?? 0;
+            return this.#msb.network.validatorConnectionManager?.connectionCount?.() ?? 0;
         } catch (_e) {
             return 0;
         }
@@ -94,10 +93,8 @@ export class MsbClient extends ReadyResource {
     }
 
     async waitForSignedLengthAtLeast(targetSignedLength) {
-        const core = this.#msb.state?.base?.view?.core ?? null;
-        if (!core) throw new Error('MSB view core not available.');
-        while (core.signedLength < targetSignedLength) {
-            await new Promise((resolve) => core.once('append', resolve));
+        while (this.#msb.state.base.view.core.signedLength < targetSignedLength) {
+            await new Promise((resolve) => this.#msb.state.base.view.core.once('append', resolve));
         }
     }
 
