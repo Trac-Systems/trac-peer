@@ -8,4 +8,5 @@ await import('./cliTx.test.js');
 await import('./operations.test.js');
 await import('./simFunds.test.js');
 await import('./msbTxValidation.test.js');
+await import('./walletNetworkConfig.test.js');
 test.resume();

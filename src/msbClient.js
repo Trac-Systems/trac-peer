@@ -1,7 +1,7 @@
 import b4a from 'b4a';
 import PeerWallet from 'trac-wallet';
 import ReadyResource from 'ready-resource';
-import PartialTransaction from 'trac-msb/src/core/network/protocols/shared/validators/PartialTransaction.js';
+import PartialTransactionValidator from 'trac-msb/src/core/network/protocols/shared/validators/PartialTransactionValidator.js';
 import { normalizeTransactionOperation } from 'trac-msb/src/utils/normalizers.js';
 
 export const MSB_OPERATION_TYPE = Object.freeze({
@@ -21,7 +21,7 @@ export class MsbClient extends ReadyResource {
 
     async _open() {
         await this.#msb.ready()
-        this.#partialTransactionValidator = new PartialTransaction(this.#msb.state, null, this.#msb.config)
+        this.#partialTransactionValidator = new PartialTransactionValidator(this.#msb.state, null, this.#msb.config)
     }
 
     #orchestratorCompatiblePayload(payload) {
@@ -39,6 +39,10 @@ export class MsbClient extends ReadyResource {
 
     get addressPrefix() {
         return this.#msb.config.addressPrefix
+    }
+
+    get derivationPath() {
+        return this.#msb.config.derivationPath
     }
 
     get networkId() {

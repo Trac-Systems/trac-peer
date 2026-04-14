@@ -2,8 +2,8 @@ import PeerWallet from "trac-wallet"
 import b4a from "b4a";
 
 class Wallet extends PeerWallet {
-    constructor() {
-        super();
+    constructor(options = {}) {
+        super(options);
     }
 
     get publicKey() {
@@ -22,6 +22,10 @@ class Wallet extends PeerWallet {
         const msgBuf = b4a.isBuffer(message) ? message : b4a.from(String(message));
         const signatureBuf = super.sign(msgBuf);
         return b4a.toString(signatureBuf, "hex");
+    }
+
+    async generateKeyPair(mnemonic = null, derivationPath = this.derivationPath ?? null) {
+        await super.generateKeyPair(mnemonic, derivationPath);
     }
 
     verify(signature, message, publicKey = this.publicKey) {
