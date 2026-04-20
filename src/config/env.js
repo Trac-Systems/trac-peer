@@ -33,7 +33,7 @@ const configData = {
         bootstrap: null,
     },
     [ENV.TESTNET1]: {
-        channel: "1111trac1network1peer1testnet111",
+        channel: "1111trac1network1peer1testnet1111",
         storesDirectory: "stores/",
         storeName: "testnet",
         txPoolMaxSize: 1_000,
