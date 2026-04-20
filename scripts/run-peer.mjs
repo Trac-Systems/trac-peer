@@ -23,8 +23,18 @@ const runtimeArgs = typeof process !== "undefined" ? process.argv.slice(2) : [];
 const argv = pearApp?.args ?? runtimeArgs;
 const positionalStoreName = argv.find((a) => a !== undefined && !String(a).startsWith("--")) ?? null;
 
-const createMsb = (options) => {
-  const config = createMsbConfig(MSB_ENV.MAINNET, options)
+const resolveEnvironment = (network) => {
+  if (network === PEER_ENV.DEVELOPMENT) {
+    return { peer: PEER_ENV.DEVELOPMENT, msb: MSB_ENV.DEVELOPMENT };
+  }
+  if (network === PEER_ENV.TESTNET1 || network === "testnet") {
+    return { peer: PEER_ENV.TESTNET1, msb: MSB_ENV.TESTNET1 };
+  }
+  return { peer: PEER_ENV.MAINNET, msb: MSB_ENV.MAINNET };
+};
+
+const createMsb = (environment, options) => {
+  const config = createMsbConfig(environment, options)
   return new MainSettlementBus(config);
 }
 
@@ -54,14 +64,14 @@ const toArgMap = (argv) => {
 
 const ensureTrailingSlash = (value) => (value.endsWith("/") ? value : `${value}/`);
 
-const ensureKeypairFile = async (keyPairPath) => {
+const ensureKeypairFile = async (keyPairPath, walletOptions) => {
   if (fs.existsSync(keyPairPath)) return;
   fs.mkdirSync(path.dirname(keyPairPath), { recursive: true });
   await ensureTextCodecs();
-  const wallet = new PeerWallet();
+  const wallet = new PeerWallet(walletOptions);
   await wallet.ready;
   if (!wallet.secretKey) {
-    await wallet.generateKeyPair();
+    await wallet.generateKeyPair(null, walletOptions?.derivationPath ?? null);
     await wallet.ready;
   }
   wallet.exportToFile(keyPairPath, b4a.alloc(0));
@@ -78,6 +88,11 @@ const readHexFile = (filePath, byteLength) => {
 };
 
 const args = toArgMap(argv);
+const selectedEnvironment = resolveEnvironment(
+  (args["network"] && String(args["network"]).trim().toLowerCase()) ||
+  (process.env.NETWORK && String(process.env.NETWORK).trim().toLowerCase()) ||
+  PEER_ENV.MAINNET
+);
 
 const rpcEnabled =
   args["rpc"] === true || args["rpc"] === "true" || process.env.PEER_RPC === "true" || process.env.PEER_RPC === "1";
@@ -172,18 +187,6 @@ if (!msbBootstrapHex || !msbChannel) {
 // trac-peer currently requires an MSB instance to broadcast and to observe confirmed state.
 
 const effectiveMsbStoreName = msbStoreName ?? `${peerStoreNameRaw}-msb`;
-const msbStoresFullPath = path.join(ensureTrailingSlash(msbStoresDirectory), effectiveMsbStoreName);
-const msbKeyPairPath = path.join(msbStoresFullPath, "db", "keypair.json");
-await ensureKeypairFile(msbKeyPairPath);
-
-const peerKeyPairPath = path.join(
-  peerStoresDirectory,
-  peerStoreNameRaw,
-  "db",
-  "keypair.json"
-);
-
-await ensureKeypairFile(peerKeyPairPath);
 
 const subnetBootstrapFile = path.join(
   peerStoresDirectory,
@@ -208,11 +211,13 @@ if (subnetBootstrap) {
   }
 }
 
-const msb = createMsb({ bootstrap: msbBootstrap, channel: msbChannel, storeName: effectiveMsbStoreName, storesDirectory: msbStoresDirectory})
-await msb.ready();
+const msb = createMsb(selectedEnvironment.msb, { bootstrap: msbBootstrap, channel: msbChannel, storeName: effectiveMsbStoreName, storesDirectory: msbStoresDirectory})
+const walletOptions = {
+  networkPrefix: msb.config.addressPrefix,
+  derivationPath: msb.config.derivationPath
+};
 
-// DevProtocol and DevContract moved to shared src files
-const peerConfig = createPeerConfig(PEER_ENV.MAINNET, {
+const peerConfig = createPeerConfig(selectedEnvironment.peer, {
   storesDirectory: ensureTrailingSlash(peerStoresDirectory),
   storeName: peerStoreNameRaw,
   bootstrap: subnetBootstrap ? b4a.from(subnetBootstrap, "hex") : null,
@@ -221,10 +226,16 @@ const peerConfig = createPeerConfig(PEER_ENV.MAINNET, {
   apiTxExposed: apiTxExposedEffective,
 });
 
+await ensureKeypairFile(msb.config.keyPairPath, walletOptions);
+await ensureKeypairFile(peerConfig.keyPairPath, walletOptions);
+await msb.ready();
+
+// DevProtocol and DevContract moved to shared src files
+
 const peer = new Peer({
   config: peerConfig,
   msb,
-  wallet: new Wallet(),
+  wallet: new Wallet(walletOptions),
   protocol: TuxemonProtocol,
   contract: TuxemonContract,
 });

@@ -2,10 +2,6 @@ import PeerWallet from "trac-wallet"
 import b4a from "b4a";
 
 class Wallet extends PeerWallet {
-    constructor() {
-        super();
-    }
-
     get publicKey() {
         const pk = super.publicKey;
         if (!pk) return null;
