@@ -1,6 +1,7 @@
 import b4a from "b4a";
 import path from "path";
 import fs from "fs";
+import process from "process";
 import PeerWallet from "trac-wallet";
 import { Peer, Wallet, createConfig as createPeerConfig, ENV as PEER_ENV } from "../src/index.js";
 import { MainSettlementBus } from "trac-msb/src/index.js";
@@ -11,12 +12,6 @@ import { Terminal } from "../src/terminal/index.js";
 import { ensureTextCodecs } from "../src/textCodec.js";
 import TuxemonProtocol from "../dev/tuxemonProtocol.js";
 import TuxemonContract from "../dev/tuxemonContract.js";
-
-let process = globalThis.process;
-if (globalThis.Pear !== undefined) {
-  const { default: bareProcess } = await import("bare-process");
-  process = bareProcess;
-}
 
 const pearApp = typeof Pear !== "undefined" ? (Pear.app ?? Pear.config) : undefined;
 const runtimeArgs = typeof process !== "undefined" ? process.argv.slice(2) : [];
@@ -32,11 +27,6 @@ const resolveEnvironment = (network) => {
   }
   return { peer: PEER_ENV.MAINNET, msb: MSB_ENV.MAINNET };
 };
-
-const createMsb = (environment, options) => {
-  const config = createMsbConfig(environment, options)
-  return new MainSettlementBus(config);
-}
 
 const toArgMap = (argv) => {
   const out = {};
@@ -64,17 +54,26 @@ const toArgMap = (argv) => {
 
 const ensureTrailingSlash = (value) => (value.endsWith("/") ? value : `${value}/`);
 
-const ensureKeypairFile = async (keyPairPath, walletOptions) => {
-  if (fs.existsSync(keyPairPath)) return;
+const loadOrCreateWallet = async (keyPairPath, walletOptions) => {
   fs.mkdirSync(path.dirname(keyPairPath), { recursive: true });
   await ensureTextCodecs();
   const wallet = new PeerWallet(walletOptions);
   await wallet.ready;
+  if (fs.existsSync(keyPairPath)) {
+    wallet.importFromFile(keyPairPath, b4a.alloc(0));
+    return wallet;
+  }
   if (!wallet.secretKey) {
     await wallet.generateKeyPair(null, walletOptions?.derivationPath ?? null);
     await wallet.ready;
   }
   wallet.exportToFile(keyPairPath, b4a.alloc(0));
+  return wallet;
+};
+
+const ensureKeypairFile = async (keyPairPath, walletOptions) => {
+  if (fs.existsSync(keyPairPath)) return;
+  await loadOrCreateWallet(keyPairPath, walletOptions);
 };
 
 const readHexFile = (filePath, byteLength) => {
@@ -211,11 +210,18 @@ if (subnetBootstrap) {
   }
 }
 
-const msb = createMsb(selectedEnvironment.msb, { bootstrap: msbBootstrap, channel: msbChannel, storeName: effectiveMsbStoreName, storesDirectory: msbStoresDirectory})
+const msbConfig = createMsbConfig(selectedEnvironment.msb, {
+  bootstrap: msbBootstrap,
+  channel: msbChannel,
+  storeName: effectiveMsbStoreName,
+  storesDirectory: msbStoresDirectory,
+});
 const walletOptions = {
-  networkPrefix: msb.config.addressPrefix,
-  derivationPath: msb.config.derivationPath
+  networkPrefix: msbConfig.addressPrefix,
+  derivationPath: msbConfig.derivationPath
 };
+const msbWallet = await loadOrCreateWallet(msbConfig.keyPairPath, walletOptions);
+const msb = new MainSettlementBus(msbConfig, msbWallet);
 
 const peerConfig = createPeerConfig(selectedEnvironment.peer, {
   storesDirectory: ensureTrailingSlash(peerStoresDirectory),
@@ -226,7 +232,6 @@ const peerConfig = createPeerConfig(selectedEnvironment.peer, {
   apiTxExposed: apiTxExposedEffective,
 });
 
-await ensureKeypairFile(msb.config.keyPairPath, walletOptions);
 await ensureKeypairFile(peerConfig.keyPairPath, walletOptions);
 await msb.ready();
 
@@ -288,8 +293,16 @@ if (peer.config.enableInteractiveMode) {
   console.log("Interactive CLI disabled.");
 }
 
-process.on("SIGINT", async () => {
+let shuttingDown = false;
+
+const shutdown = async (signal) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
   if (rpcServer) await new Promise((resolve) => rpcServer.close(resolve));
   await Promise.allSettled([peer.close(), msb.close()]);
-  process.exit(130);
-});
+  process.exit(signal === "SIGINT" ? 130 : 143);
+};
+
+process.on("SIGINT", () => void shutdown("SIGINT"));
+process.on("SIGTERM", () => void shutdown("SIGTERM"));

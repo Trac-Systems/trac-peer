@@ -35,7 +35,13 @@ npm run peer:run -- --msb-bootstrap=<32-byte-hex> --msb-channel=<channel-string>
 
 ### Pear runner (interactive)
 
-Runs `trac-peer` using the Pear runtime (similar to `trac-msb`). You can control stores via flags (recommended); an optional first positional arg can be used as a “store label” fallback if `--peer-store-name` is omitted.
+Runs `trac-peer` through the Pear v2/v3 compatibility runner. With Pear v2 it delegates to the legacy
+`pear run` command; with Pear v3 (where `pear run` was removed), or when no Pear platform version can be
+detected, it starts the same entrypoint with the embedded `pear-runtime` module. The npm command and all
+application flags are identical in both modes.
+
+You can control stores via flags (recommended); an optional first positional arg can be used as a “store
+label” fallback if `--peer-store-name` is omitted.
 
 ```sh
 npm run peer:pear -- \

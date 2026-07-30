@@ -30,7 +30,8 @@ In practice:
 ## Requirements
 
 - Node.js + npm (recommended: a modern Node LTS).
-- `pear` is optional (you can run in pure Node). If you use Pear, add it to PATH as Pear suggests.
+- The Pear CLI is optional. `peer:pear` automatically uses legacy `pear run` when it detects Pear v2,
+  and uses the embedded `pear-runtime` worker for Pear v3 (or when Pear is not installed).
 - You need your **MSB bootstrap** (32‑byte hex / 64 hex characters) and **MSB channel** (string).
 
 ---
@@ -112,7 +113,10 @@ Notes:
 
 ## Start a peer (Pear runner)
 
-Pear runner is similar, but uses Pear runtime (like MSB does).
+The Pear compatibility runner uses the same command on Pear v2 and v3. It delegates to legacy
+`pear run` on v2; on v3, where that command no longer exists, it launches the peer as a Bare worker
+through the embedded `pear-runtime` module. If no Pear platform version can be detected, it safely
+uses the module path.
 
 Recommended: set store names explicitly (this avoids confusion when running multiple nodes on one machine).
 
@@ -323,7 +327,7 @@ npm run peer:run -- \
   --subnet-channel=trac-peer-subnet
 ```
 
-If you started Peer 1 with Pear, you can also start Peer 2 with Pear:
+If you started Peer 1 with the Pear compatibility runner, use the same runner for Peer 2:
 
 ```sh
 npm run peer:pear -- \
@@ -393,6 +397,8 @@ npm run peer:run-rpc -- \
 ```
 
 ### Start with RPC enabled (Pear)
+
+This command uses the same automatic Pear v2/v3 selection described above.
 
 ```sh
 npm run peer:pear-rpc -- \
