@@ -1,6 +1,9 @@
 import b4a from "b4a";
 import path from "path";
 
+const DEFAULT_HYPERBEE_CACHE_MAX_ENTRIES = 65_536;
+const DEFAULT_MAX_MSB_SIGNED_LENGTH_FUTURE_DELTA = 1_000_000;
+
 export class Config {
     #options;
 
@@ -41,11 +44,28 @@ export class Config {
         }
         this.maxTxDelay = maxTxDelay;
 
+        const hyperbeeCacheMaxEntries =
+            this.#select("hyperbeeCacheMaxEntries", options, defaults) ??
+            DEFAULT_HYPERBEE_CACHE_MAX_ENTRIES;
+        if (!Number.isSafeInteger(hyperbeeCacheMaxEntries) || hyperbeeCacheMaxEntries < 1) {
+            throw new Error("Peer: hyperbeeCacheMaxEntries must be a positive safe integer.");
+        }
+        this.hyperbeeCacheMaxEntries = hyperbeeCacheMaxEntries;
+
         const maxMsbSignedLength = this.#select("maxMsbSignedLength", options, defaults);
         if (!Number.isSafeInteger(maxMsbSignedLength)) {
             throw new Error("Peer: maxMsbSignedLength must be a safe integer.");
         }
         this.maxMsbSignedLength = maxMsbSignedLength;
+
+        const maxMsbSignedLengthFutureDelta =
+            this.#select("maxMsbSignedLengthFutureDelta", options, defaults) ??
+            DEFAULT_MAX_MSB_SIGNED_LENGTH_FUTURE_DELTA;
+        if (!Number.isSafeInteger(maxMsbSignedLengthFutureDelta) ||
+            maxMsbSignedLengthFutureDelta < 0) {
+            throw new Error("Peer: maxMsbSignedLengthFutureDelta must be a non-negative safe integer.");
+        }
+        this.maxMsbSignedLengthFutureDelta = maxMsbSignedLengthFutureDelta;
 
         const maxMsbApplyOperationBytes = this.#select("maxMsbApplyOperationBytes", options, defaults);
         if (!Number.isSafeInteger(maxMsbApplyOperationBytes)) {
