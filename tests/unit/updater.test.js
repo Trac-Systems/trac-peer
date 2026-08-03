@@ -343,3 +343,42 @@ test('installSignedAutobaseStore installs state append wrapper after session rea
     t.is(appendCalls.length, 1, 'state append created during ready is wrapped');
     t.is(appendCalls[0].opts.signature.length, 0, 'ready-created state append receives an empty signature buffer');
 });
+
+test('installSignedAutobaseStore covers Autobase migrated view cores', async (t) => {
+    const heads = [];
+    const viewCoreSession = {
+        manifest: { signers: [] },
+        core: {
+            header: { manifest: { signers: [] } },
+            storage: {
+                write() {
+                    return {
+                        setHead(head) {
+                            heads.push(head);
+                        }
+                    };
+                }
+            }
+        },
+        async ready() {},
+        async append() {}
+    };
+    const store = {
+        getViewCore() {
+            return viewCoreSession;
+        }
+    };
+
+    installSignedAutobaseStore(store);
+    const migrated = store.getViewCore();
+    await migrated.ready();
+    migrated.core.storage.write().setHead({
+        fork: 0,
+        length: 1,
+        rootHash: Buffer.alloc(32, 8),
+        signature: null
+    });
+
+    t.is(heads.length, 1, 'migrated view core storage transaction is wrapped');
+    t.is(heads[0].signature.length, 0, 'null prologue head signature becomes an empty signature buffer');
+});

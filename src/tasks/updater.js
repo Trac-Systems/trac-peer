@@ -30,6 +30,39 @@ const signingAppendOptions = (session, keyPairFor, opts = {}) => {
         : opts
 }
 
+const normalizeAutobaseHead = (head) =>
+    head && (head.signature === null || head.signature === undefined)
+        ? { ...head, signature: b4a.alloc(0) }
+        : head
+
+const installSignedAutobaseCoreStorage = (core) => {
+    if (!core?.storage || typeof core.storage.write !== 'function') return core
+    if (core.storage.__tracPeerSignedCoreTxInstalled === true) return core
+
+    const write = core.storage.write.bind(core.storage)
+    Object.defineProperty(core.storage, '__tracPeerSignedCoreTxInstalled', {
+        value: true,
+        enumerable: false,
+        configurable: false
+    })
+    core.storage.write = (...args) => {
+        const tx = write(...args)
+        if (!tx || typeof tx.setHead !== 'function' ||
+            tx.__tracPeerSignedCoreTxHeadInstalled === true) {
+            return tx
+        }
+        const setHead = tx.setHead.bind(tx)
+        Object.defineProperty(tx, '__tracPeerSignedCoreTxHeadInstalled', {
+            value: true,
+            enumerable: false,
+            configurable: false
+        })
+        tx.setHead = (head, ...headArgs) => setHead(normalizeAutobaseHead(head), ...headArgs)
+        return tx
+    }
+    return core
+}
+
 const installSignedAutobaseSessionState = (session, keyPairFor) => {
     if (!session?.state || typeof session.state.append !== 'function') return session
     if (session.state.__tracPeerSignedLocalAppendInstalled === true) return session
@@ -46,6 +79,7 @@ const installSignedAutobaseSessionState = (session, keyPairFor) => {
 
 const installSignedAutobaseSession = (session, keyPairFor) => {
     if (!session || typeof session.append !== 'function') return session
+    installSignedAutobaseCoreStorage(session.core)
     if (session.__tracPeerSignedLocalAppendInstalled === true) {
         installSignedAutobaseSessionState(session, keyPairFor)
         return session
@@ -71,6 +105,7 @@ const installSignedAutobaseSession = (session, keyPairFor) => {
         })
         session.ready = async (...args) => {
             const result = await ready(...args)
+            installSignedAutobaseCoreStorage(session.core)
             installSignedAutobaseSessionState(session, keyPairFor)
             return result
         }
@@ -122,6 +157,9 @@ const installSignedAutobaseStore = (store, keyPairFor = null) => {
     const getViewByName = typeof store.getViewByName === 'function'
         ? store.getViewByName.bind(store)
         : null
+    const getViewCore = typeof store.getViewCore === 'function'
+        ? store.getViewCore.bind(store)
+        : null
     const get = typeof store.get === 'function'
         ? store.get.bind(store)
         : null
@@ -135,6 +173,9 @@ const installSignedAutobaseStore = (store, keyPairFor = null) => {
     }
     if (getViewByName) {
         store.getViewByName = (...args) => installSignedAutobaseView(getViewByName(...args), resolveKeyPair)
+    }
+    if (getViewCore) {
+        store.getViewCore = (...args) => installSignedAutobaseSession(getViewCore(...args), resolveKeyPair)
     }
     if (get) {
         store.get = (...args) => installSignedAutobaseSession(get(...args), resolveKeyPair)
