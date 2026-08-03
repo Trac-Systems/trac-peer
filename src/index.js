@@ -14,7 +14,7 @@ import { MsbClient } from './msbClient.js';
 import { handlerFor } from './operations/index.js';
 import TransactionPool from './transaction/transactionPool.js';
 import { TransactionObserver } from './tasks/transactionObserver.js';
-import { Updater } from './tasks/updater.js';
+import { Updater, installNonNullAutobaseAck, installSignedAutobaseStore } from './tasks/updater.js';
 export { ensureTextCodecs } from './textCodec.js';
 export {default as Protocol} from "./artifacts/protocol.js";
 export {default as Contract} from "./artifacts/contract.js";
@@ -84,6 +84,7 @@ export class Peer extends ReadyResource {
             ackInterval : 0,
             valueEncoding: 'json',
             open: store => {
+                installSignedAutobaseStore(store)
                 this.bee = new Hyperbee(store.get('view'), {
                     extension: false,
                     keyEncoding: 'utf-8',
@@ -113,6 +114,7 @@ export class Peer extends ReadyResource {
                 await batch.close();
             }
         })
+        installNonNullAutobaseAck(this.base)
         this.base.on('warning', (e) => console.log(e))
     }
 
