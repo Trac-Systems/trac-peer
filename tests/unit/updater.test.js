@@ -1,11 +1,10 @@
 import test from 'brittle';
-import { Updater } from '../../src/tasks/updater.js';
+import { ACK_OPERATION_TYPE, Updater } from '../../src/tasks/updater.js';
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-test('updater acknowledges unsigned indexer entries without raw null append', async (t) => {
-    let ackCalls = 0;
-    let appendCalls = 0;
+test('updater acknowledges unsigned indexer entries with signed no-op values', async (t) => {
+    const appended = [];
 
     const updater = new Updater({
         base: {
@@ -17,11 +16,10 @@ test('updater acknowledges unsigned indexer entries without raw null append', as
                 }
             },
             async ack() {
-                ackCalls++;
+                throw new Error('autobase null ack path must not be used');
             },
             async append(value) {
-                appendCalls++;
-                throw new Error(`unexpected raw append: ${value}`);
+                appended.push(value);
             }
         }
     }, { updaterIntervalMs: 5 });
@@ -30,6 +28,7 @@ test('updater acknowledges unsigned indexer entries without raw null append', as
     await sleep(25);
     await updater.stop();
 
-    t.ok(ackCalls > 0, 'unsigned entries are acknowledged');
-    t.is(appendCalls, 0, 'raw null append is not used for acknowledgements');
+    t.ok(appended.length > 0, 'unsigned entries are acknowledged');
+    t.ok(appended.every(value => value !== null), 'raw null append is not used for acknowledgements');
+    t.is(appended[0].type, ACK_OPERATION_TYPE, 'acknowledgement uses the reserved no-op operation');
 });

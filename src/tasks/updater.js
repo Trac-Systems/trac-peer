@@ -1,6 +1,12 @@
 import Scheduler from '../utils/scheduler.js';
 
 const PROCESS_INTERVAL_MS = 10_000
+const ACK_OPERATION_TYPE = '_trac_peer_ack_v1'
+
+const createAckOperation = () => ({
+    type: ACK_OPERATION_TYPE,
+    value: { version: 1 }
+})
 
 class Updater {
     #base
@@ -34,7 +40,7 @@ class Updater {
         if (!this.#shouldRun()) return
 
         if (this.#base.view.core.length > this.#base.view.core.signedLength)
-            await this.#base.ack()
+            await this.#base.append(createAckOperation())
     }
 
     #createScheduler() {
@@ -56,4 +62,4 @@ class Updater {
     }
 }
 
-export { Updater }
+export { Updater, ACK_OPERATION_TYPE, createAckOperation }

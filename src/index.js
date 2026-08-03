@@ -79,7 +79,7 @@ export class Peer extends ReadyResource {
 
     async _boot() {
         this.base = new Autobase(this.store, this.config.bootstrap, {
-            ackInterval : 1000,
+            ackInterval : 0,
             valueEncoding: 'json',
             open: store => {
                 this.bee = new Hyperbee(store.get('view'), {
