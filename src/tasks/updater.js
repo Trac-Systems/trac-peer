@@ -43,6 +43,9 @@ const installSignedAutobaseCoreStorage = (core) => {
     const createSession = typeof core.storage.createSession === 'function'
         ? core.storage.createSession.bind(core.storage)
         : null
+    const createAtomicSession = typeof core.storage.createAtomicSession === 'function'
+        ? core.storage.createAtomicSession.bind(core.storage)
+        : null
     Object.defineProperty(core.storage, '__tracPeerSignedCoreTxInstalled', {
         value: true,
         enumerable: false,
@@ -51,6 +54,10 @@ const installSignedAutobaseCoreStorage = (core) => {
     if (createSession) {
         core.storage.createSession = (name, head, ...args) =>
             createSession(name, normalizeAutobaseHead(head), ...args)
+    }
+    if (createAtomicSession) {
+        core.storage.createAtomicSession = (atom, head, ...args) =>
+            createAtomicSession(atom, normalizeAutobaseHead(head), ...args)
     }
     core.storage.write = (...args) => {
         const tx = write(...args)
