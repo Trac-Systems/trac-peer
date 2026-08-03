@@ -78,6 +78,7 @@ export class Peer extends ReadyResource {
     }
 
     async _boot() {
+        installSignedAutobaseStore(this.store, () => this.base?.local?.keyPair ?? null)
         this.base = new Autobase(this.store, this.config.bootstrap, {
             // MAYHEM PATCH: disable Autobase's implicit null ACK; updater appends
             // a signed no-op instead so Pear/Bare never encodes a null head.
