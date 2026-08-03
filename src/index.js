@@ -14,7 +14,7 @@ import { MsbClient } from './msbClient.js';
 import { handlerFor } from './operations/index.js';
 import TransactionPool from './transaction/transactionPool.js';
 import { TransactionObserver } from './tasks/transactionObserver.js';
-import { Updater, installNonNullAutobaseAck, installSignedAutobaseStore } from './tasks/updater.js';
+import { Updater, installNonNullAutobaseAck, installSignedAutobaseStore, installSignedCorestoreStorageFactory } from './tasks/updater.js';
 export { ensureTextCodecs } from './textCodec.js';
 export {default as Protocol} from "./artifacts/protocol.js";
 export {default as Contract} from "./artifacts/contract.js";
@@ -78,6 +78,7 @@ export class Peer extends ReadyResource {
     }
 
     async _boot() {
+        installSignedCorestoreStorageFactory(this.store)
         installSignedAutobaseStore(this.store, () => this.base?.local?.keyPair ?? null)
         this.base = new Autobase(this.store, this.config.bootstrap, {
             // MAYHEM PATCH: disable Autobase's implicit null ACK; updater appends

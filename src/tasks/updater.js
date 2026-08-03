@@ -84,6 +84,29 @@ const installSignedAutobaseCoreStorage = (core) => {
     return core
 }
 
+const installSignedCorestoreStorageFactory = (store) => {
+    const storage = store?.storage ?? store
+    if (!storage || storage.__tracPeerSignedStorageFactoryInstalled === true) return store
+
+    Object.defineProperty(storage, '__tracPeerSignedStorageFactoryInstalled', {
+        value: true,
+        enumerable: false,
+        configurable: false
+    })
+
+    for (const method of ['create', 'resume', '_create', '_resumeFromPointers']) {
+        if (typeof storage[method] !== 'function') continue
+        const original = storage[method].bind(storage)
+        storage[method] = (...args) => {
+            const result = original(...args)
+            return result && typeof result.then === 'function'
+                ? result.then(installSignedAutobaseStorage)
+                : installSignedAutobaseStorage(result)
+        }
+    }
+    return store
+}
+
 const installSignedAutobaseSessionState = (session, keyPairFor) => {
     if (!session?.state || typeof session.state.append !== 'function') return session
     if (session.state.__tracPeerSignedLocalAppendInstalled === true) return session
@@ -288,4 +311,4 @@ class Updater {
     }
 }
 
-export { Updater, ACK_OPERATION_TYPE, createAckOperation, installNonNullAutobaseAck, installSignedAutobaseStore }
+export { Updater, ACK_OPERATION_TYPE, createAckOperation, installNonNullAutobaseAck, installSignedAutobaseStore, installSignedCorestoreStorageFactory }
