@@ -3,6 +3,8 @@ import Scheduler from '../utils/scheduler.js';
 const PROCESS_INTERVAL_MS = 10_000
 const ACK_OPERATION_TYPE = '_trac_peer_ack_v1'
 
+// MAYHEM PATCH: ACKs must be ordinary signed operations. append(null) can crash
+// under the Pear/Bare hypercore-storage encoder.
 const createAckOperation = () => ({
     type: ACK_OPERATION_TYPE,
     value: { version: 1 }

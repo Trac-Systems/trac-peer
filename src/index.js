@@ -79,6 +79,8 @@ export class Peer extends ReadyResource {
 
     async _boot() {
         this.base = new Autobase(this.store, this.config.bootstrap, {
+            // MAYHEM PATCH: disable Autobase's implicit null ACK; updater appends
+            // a signed no-op instead so Pear/Bare never encodes a null head.
             ackInterval : 0,
             valueEncoding: 'json',
             open: store => {
