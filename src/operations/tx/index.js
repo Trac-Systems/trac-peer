@@ -36,6 +36,11 @@ export class TxOperation {
         if(false === this.#validator.validate(op)) return;
         // Stall guard: don't allow a writer to pin apply waiting on an absurd MSB height
         if (op.value.msbsl > this.#config.maxMsbSignedLength) return;
+        const localMsbSignedLength = this.#msbClient.getSignedLength();
+        if (localMsbSignedLength > 0 &&
+            op.value.msbsl > localMsbSignedLength + this.#config.maxMsbSignedLengthFutureDelta) {
+            return;
+        }
         // Wait for local MSB view to reach the referenced signed length
         await this.#msbClient.waitForSignedLengthAtLeast(op.value.msbsl);
         // Fetch MSB apply-op at msbsl by tx key (op.key = tx hash)
