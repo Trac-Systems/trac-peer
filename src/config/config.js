@@ -1,6 +1,8 @@
 import b4a from "b4a";
 import path from "path";
 
+const DEFAULT_MAX_MSB_SIGNED_LENGTH_FUTURE_DELTA = 1_000_000;
+
 export class Config {
     #options;
 
@@ -46,6 +48,15 @@ export class Config {
             throw new Error("Peer: maxMsbSignedLength must be a safe integer.");
         }
         this.maxMsbSignedLength = maxMsbSignedLength;
+
+        const maxMsbSignedLengthFutureDelta =
+            this.#select("maxMsbSignedLengthFutureDelta", options, defaults) ??
+            DEFAULT_MAX_MSB_SIGNED_LENGTH_FUTURE_DELTA;
+        if (!Number.isSafeInteger(maxMsbSignedLengthFutureDelta) ||
+            maxMsbSignedLengthFutureDelta < 0) {
+            throw new Error("Peer: maxMsbSignedLengthFutureDelta must be a non-negative safe integer.");
+        }
+        this.maxMsbSignedLengthFutureDelta = maxMsbSignedLengthFutureDelta;
 
         const maxMsbApplyOperationBytes = this.#select("maxMsbApplyOperationBytes", options, defaults);
         if (!Number.isSafeInteger(maxMsbApplyOperationBytes)) {
