@@ -99,7 +99,7 @@
     "timers": "npm:bare-node-timers",
     "tls": "npm:bare-node-tls",
     "trac-crypto-api": "^0.1.5",
-    "trac-msb": "github:Trac-Systems/main_settlement_bus#7220c257d8c493456714791e03f7021dbcfc7c85",
+    "trac-msb": "github:Trac-Systems/main_settlement_bus#ea72a9c82a85059c014387cb21f759d2419bed3c",
     "trac-wallet": "^1.0.4",
     "url": "npm:bare-node-url",
     "util": "npm:bare-node-util",
