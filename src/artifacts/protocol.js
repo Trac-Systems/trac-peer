@@ -1,4 +1,4 @@
-import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone, createHash } from "../utils/types.js";
+import { formatNumberString, resolveNumberString, jsonStringify, jsonParse, safeClone, createTxContentHash } from "../utils/types.js";
 import {ProtocolApi} from '../api.js';
 import Wallet from 'trac-wallet';
 import b4a from 'b4a';
@@ -167,7 +167,7 @@ class Protocol{
 
     async simulateTransaction(validator_pub_key, obj, surrogate = null){
         const storage = new SimStorage(this.peer);
-        const content_hash = await createHash(this.safeJsonStringify(obj));
+        const content_hash = (surrogate !== null && typeof surrogate.ch === 'string') ? surrogate.ch : await createTxContentHash(this.safeJsonStringify(obj), this.peer.config.txContentHash);
         const txvHex = await this.peer.msbClient.getTxvHex();
         const msbBootstrapHex = this.peer.msbClient.bootstrapHex;
         const subnetBootstrapHex = (b4a.isBuffer(this.peer.config.bootstrap) ? this.peer.config.bootstrap.toString('hex') : (''+this.peer.config.bootstrap)).toLowerCase();
@@ -240,7 +240,7 @@ class Protocol{
         const txvHex = await this.peer.msbClient.getTxvHex();
         const msbBootstrapHex = this.peer.msbClient.bootstrapHex;
         const subnetBootstrapHex = (b4a.isBuffer(this.peer.config.bootstrap) ? this.peer.config.bootstrap.toString('hex') : (''+this.peer.config.bootstrap)).toLowerCase();
-        const content_hash = await createHash(this.safeJsonStringify(obj));
+        const content_hash = (surrogate !== null && typeof surrogate.ch === 'string') ? surrogate.ch : await createTxContentHash(this.safeJsonStringify(obj), this.peer.config.txContentHash);
 
         let nonceHex, txHex, signatureHex, pubKeyHex;
         if(surrogate !== null) {
