@@ -7,7 +7,8 @@ import PeerWallet from 'trac-wallet';
 import { safeEncodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
 import { blake3 } from '@tracsystems/blake3'
 import { Peer, createConfig, ENV } from '../../src/index.js';
-import { createHash, createLegacyHash, createTxContentHash, acceptedTxContentHashes, TX_CONTENT_HASH } from '../../src/utils/types.js';
+import { createHash, createLegacyHash, createTxContentHash, acceptedTxContentHashes, isAcceptedTxContentHash, TX_CONTENT_HASH } from '../../src/utils/types.js';
+import Protocol from '../../src/artifacts/protocol.js';
 import Wallet from '../../src/wallet.js';
 import { mkdtempPortable, rmrfPortable } from '../helpers/tmpdir.js';
 
@@ -385,4 +386,28 @@ test('apply: tx content hash modes', async (t) => {
         t.is(await applyTxWithContentHash(t, storesDirectory, { storeName: 'ch-strict-utf8', mode: 'utf8-strict', signedDispatch: dispatch, appliedDispatch: dispatch }), 1, 'strict mode accepts UTF-8 digest');
         t.is(await applyTxWithContentHash(t, storesDirectory, { storeName: 'ch-strict-legacy', mode: 'utf8-strict', signedDispatch: dispatch, appliedDispatch: dispatch, legacy: true }), null, 'strict mode rejects legacy digest');
     });
+});
+
+test('surrogate without ch: content hash is matched against the signed tx', async (t) => {
+    const obj = { type: 'ping', value: { msg: 'hello' } };
+    const json = JSON.stringify(obj);
+    const makeProtocol = (mode) => new Protocol({
+        config: { txContentHash: mode, bootstrap: b4a.alloc(32).fill(1) },
+        msbClient: { networkId: 918, bootstrapHex: makeHex32(2), async getTxvHex() { return makeHex32(3); } },
+        writerLocalKey: makeHex32(4),
+    }, null, {});
+    const nonce = makeHex32(5);
+    for (const mode of ['utf8', 'legacy', 'utf8-strict']) {
+        const protocol = makeProtocol(mode);
+        const txFor = async (ch) => protocol.generateTx(918, makeHex32(3), makeHex32(4), ch, b4a.alloc(32).fill(1).toString('hex'), makeHex32(2), nonce);
+        const utf8 = await createHash(json);
+        const legacy = await createLegacyHash(json);
+        t.is(await protocol.resolveTxContentHash(obj, { tx: await txFor(utf8), nonce }), utf8, `${mode}: UTF-8 signed tx`);
+        t.is(await protocol.resolveTxContentHash(obj, { tx: await txFor(utf8), nonce, ch: 'ab'.repeat(32) }), 'ab'.repeat(32), `${mode}: explicit ch wins`);
+        const expectedLegacy = mode === 'utf8-strict' ? utf8 : legacy;
+        t.is(await protocol.resolveTxContentHash(obj, { tx: await txFor(legacy), nonce }), expectedLegacy, `${mode}: legacy signed tx`);
+        t.is(await protocol.resolveTxContentHash(obj), await createTxContentHash(json, mode), `${mode}: own tx`);
+        t.ok(await isAcceptedTxContentHash(json, utf8.toUpperCase(), mode), `${mode}: UTF-8 accepted`);
+        t.is(await isAcceptedTxContentHash(json, legacy, mode), mode !== 'utf8-strict', `${mode}: legacy accepted unless strict`);
+    }
 });

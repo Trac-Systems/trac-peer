@@ -100,6 +100,11 @@ export async function createTxContentHash(json, mode) {
     return mode === TX_CONTENT_HASH.LEGACY ? createLegacyHash(json) : createHash(json);
 }
 
+// True when contentHashHex is an accepted content hash for json (e.g. re-validating a persisted transaction).
+export async function isAcceptedTxContentHash(json, contentHashHex, mode) {
+    return (await acceptedTxContentHashes(json, mode)).includes(`${contentHashHex}`.toLowerCase());
+}
+
 // Content hashes accepted when verifying a transaction.
 export async function acceptedTxContentHashes(json, mode) {
     const hashes = [await createHash(json)];
