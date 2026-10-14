@@ -7,6 +7,7 @@ import PeerWallet from 'trac-wallet';
 import { safeEncodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
 import { blake3 } from '@tracsystems/blake3'
 import { Peer, createConfig, ENV } from '../../src/index.js';
+import { createHash, createLegacyHash, createTxContentHash, acceptedTxContentHashes, TX_CONTENT_HASH } from '../../src/utils/types.js';
 import Wallet from '../../src/wallet.js';
 import { mkdtempPortable, rmrfPortable } from '../helpers/tmpdir.js';
 
@@ -314,5 +315,74 @@ test('apply: tx MSB payload size guard blocks otherwise-valid tx', async (t) => 
         } finally {
             await closePeer(peerAllowed);
         }
+    });
+});
+
+test('content hash: string input is hashed as UTF-8 bytes', async (t) => {
+    const json = JSON.stringify({ type: 'transfer', value: { to: 'abcdef', amount: '1' } });
+    t.is(await createHash(json), b4a.toString(await blake3(b4a.from(json, 'utf8')), 'hex'));
+    t.not(await createHash('abc'), await createHash('xyz'));
+    t.not(await createHash('{"to":"aa"}'), await createHash('{"to":"ff"}'));
+    t.is(await createHash(b4a.from('abc', 'utf8')), await createHash('abc'), 'bytes and string give the same digest');
+    t.is(await createTxContentHash(json, TX_CONTENT_HASH.UTF8), await createHash(json));
+    t.is(await createTxContentHash(json, TX_CONTENT_HASH.LEGACY), await createLegacyHash(json));
+    t.alike(await acceptedTxContentHashes(json, TX_CONTENT_HASH.UTF8_STRICT), [await createHash(json)]);
+    t.alike(await acceptedTxContentHashes(json, TX_CONTENT_HASH.UTF8), [await createHash(json), await createLegacyHash(json)]);
+    t.exception(() => createConfig(ENV.DEVELOPMENT, { txContentHash: 'nope' }), /txContentHash/);
+});
+
+async function applyTxWithContentHash(t, storesDirectory, { storeName, mode, signedDispatch, appliedDispatch, legacy }) {
+    const msbBootstrapBuf = b4a.alloc(32).fill(7);
+    const txHashHex = makeHex32(1);
+    const ipkHex = makeHex32(2);
+    const wpHex = makeHex32(3);
+    const invokerAddress = PeerWallet.encodeBech32mSafe('trac', b4a.from(ipkHex, 'hex'));
+    const validatorAddress = PeerWallet.encodeBech32mSafe('trac', b4a.from(wpHex, 'hex'));
+    const signedJson = JSON.stringify(signedDispatch);
+    const ch = legacy ? await createLegacyHash(signedJson) : await createHash(signedJson);
+    let msbOperation = null;
+    const msb = makeMsbStub({
+        msbBootstrapBuf,
+        signedLength: 1,
+        async getEntry(key) {
+            if (key !== txHashHex || !msbOperation) return null;
+            return { value: msbOperation };
+        },
+    });
+    const wallet = await prepareWallet(storesDirectory, storeName);
+    const options = { storesDirectory, storeName };
+    if (mode !== undefined) options.txContentHash = mode;
+    const peer = new Peer({ config: createConfig(ENV.DEVELOPMENT, options), msb, protocol: TestProtocol, contract: TestContract, wallet });
+    await peer.ready();
+    try {
+        msbOperation = safeEncodeApplyOperation({
+            type: 12,
+            address: b4a.from(invokerAddress, 'ascii'),
+            txo: {
+                tx: b4a.from(txHashHex, 'hex'),
+                bs: peer.config.bootstrap,
+                mbs: msbBootstrapBuf,
+                ch: b4a.from(ch, 'hex'),
+                va: b4a.from(validatorAddress, 'ascii'),
+            },
+        });
+        await peer.base.append({ type: 'tx', key: txHashHex, value: { dispatch: appliedDispatch, msbsl: 1, ipk: ipkHex, wp: wpHex } });
+        await peer.base.update();
+        return (await peer.bee.get('txl'))?.value ?? null;
+    } finally {
+        await closePeer(peer);
+    }
+}
+
+test('apply: tx content hash modes', async (t) => {
+    await withTempDir(async ({ storesDirectory }) => {
+        const dispatch = { type: 'ping', value: { msg: 'hello' } };
+        const other = { type: 'ping', value: { msg: 'jelly' } };
+        t.is(await applyTxWithContentHash(t, storesDirectory, { storeName: 'ch-default-utf8', signedDispatch: dispatch, appliedDispatch: dispatch }), 1, 'default mode accepts UTF-8 digest');
+        t.is(await applyTxWithContentHash(t, storesDirectory, { storeName: 'ch-default-legacy', signedDispatch: dispatch, appliedDispatch: dispatch, legacy: true }), 1, 'default mode accepts legacy digest (history replay)');
+        t.is(await applyTxWithContentHash(t, storesDirectory, { storeName: 'ch-legacy-mode-utf8', mode: 'legacy', signedDispatch: dispatch, appliedDispatch: dispatch }), 1, 'legacy mode accepts UTF-8 digest');
+        t.is(await applyTxWithContentHash(t, storesDirectory, { storeName: 'ch-utf8-other', signedDispatch: dispatch, appliedDispatch: other }), null, 'UTF-8 digest of a different dispatch is not applied');
+        t.is(await applyTxWithContentHash(t, storesDirectory, { storeName: 'ch-strict-utf8', mode: 'utf8-strict', signedDispatch: dispatch, appliedDispatch: dispatch }), 1, 'strict mode accepts UTF-8 digest');
+        t.is(await applyTxWithContentHash(t, storesDirectory, { storeName: 'ch-strict-legacy', mode: 'utf8-strict', signedDispatch: dispatch, appliedDispatch: dispatch, legacy: true }), null, 'strict mode rejects legacy digest');
     });
 });

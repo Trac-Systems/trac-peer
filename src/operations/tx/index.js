@@ -1,7 +1,7 @@
 import { BaseCheck } from '../../base/check.js';
 import b4a from 'b4a';
 import { safeDecodeApplyOperation } from 'trac-msb/src/utils/protobuf/operationHelpers.js';
-import { jsonStringify, safeClone, createHash } from '../../utils/types.js';
+import { jsonStringify, safeClone, acceptedTxContentHashes } from '../../utils/types.js';
 
 export class TxOperation {
     #validator
@@ -59,8 +59,9 @@ export class TxOperation {
         if (null === decoded.txo.bs || decoded.txo.bs.toString('hex') !== subnetBootstrapHex) return;
         if (null === decoded.txo.mbs || decoded.txo.mbs.toString('hex') !== this.#msbClient.bootstrapHex) return;
         // Cross-check: content hash matches the subnet dispatch payload (blake3)
-        const contentHash = await createHash(jsonStringify(op.value.dispatch));
-        if (null === decoded.txo.ch || decoded.txo.ch.toString('hex') !== contentHash) return;
+        // UTF-8 digest; legacy digest still accepted so existing history replays unchanged (not in 'utf8-strict').
+        const contentHashes = await acceptedTxContentHashes(jsonStringify(op.value.dispatch), this.#config.txContentHash);
+        if (null === decoded.txo.ch || !contentHashes.includes(decoded.txo.ch.toString('hex'))) return;
         // Cross-check: requester identity matches ipk
         const invokerAddress = decoded.address ? decoded.address.toString('ascii') : null;
         const invokerPubKeyHex = invokerAddress ? this.#msbClient.addressToPubKeyHex(invokerAddress) : null;

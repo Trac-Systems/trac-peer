@@ -1,5 +1,5 @@
 import b4a from "b4a";
-import { jsonStringify, createHash } from "./utils/types.js";
+import { jsonStringify, acceptedTxContentHashes } from "./utils/types.js";
 
 export class ProtocolApi {
 
@@ -190,7 +190,7 @@ export class ProtocolApi {
      *
      * let address = your_ed25519_wallet.getAccountAddress()
      * let nonce = api.generateNonce()
-     * let tx_hash = api.generateTx(address, a_blake3_function(JSON.stringify(api.prepareTxCommand(command))), nonce)
+     * let tx_hash = api.generateTx(address, blake3_hex(utf8_bytes(JSON.stringify(api.prepareTxCommand(command)))), nonce)
      * let signature = your_ed25519_wallet.sign(tx + nonce)
      * // simulating
      * let sim_result = api.tx(tx_hash, api.prepareTxCommand(command), address, signature, nonce, true)
@@ -221,10 +221,21 @@ export class ProtocolApi {
         if(b4a.toString(b4a.from(nonce, 'hex'), 'hex') !== nonce) throw new Error('Invalid nonce.');
         const verified = this.peer.wallet.verify(signature, b4a.from(tx, 'hex'), address);
         if(false === verified) throw new Error('Invalid signature.');
-        const content_hash = await createHash(this.peer.protocol.instance.safeJsonStringify(prepared_command));
-        let _tx = await this.generateTx(address, content_hash, nonce);
-        if(tx !== _tx) throw new Error('Invalid TX.');
-        const surrogate = { tx : _tx, nonce : ''+nonce, signature : ''+signature, address : ''+address };
+        // Accept the content hash the client signed: UTF-8 digest, or the legacy digest from older clients
+        // (unless the peer runs with txContentHash 'utf8-strict').
+        const content_hashes = await acceptedTxContentHashes(this.peer.protocol.instance.safeJsonStringify(prepared_command), this.peer.config.txContentHash);
+        let content_hash = null;
+        let _tx = null;
+        for(const candidate of content_hashes){
+            const candidate_tx = await this.generateTx(address, candidate, nonce);
+            if(tx === candidate_tx){
+                content_hash = candidate;
+                _tx = candidate_tx;
+                break;
+            }
+        }
+        if(null === _tx) throw new Error('Invalid TX.');
+        const surrogate = { tx : _tx, nonce : ''+nonce, signature : ''+signature, address : ''+address, ch : content_hash };
         const res = await this.peer.protocol.instance.broadcastTransaction(
             {
                 type: prepared_command.type,
