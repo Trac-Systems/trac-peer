@@ -14,6 +14,9 @@ import { handlerFor } from './operations/index.js';
 import TransactionPool from './transaction/transactionPool.js';
 import { TransactionObserver } from './tasks/transactionObserver.js';
 import { Updater } from './tasks/updater.js';
+import { createReadRecovery } from './network/readRecovery.js';
+import { createSubnetStallWatch } from './tasks/subnetStallWatch.js';
+export { createReadRecovery, createSubnetStallWatch };
 export { ensureTextCodecs } from './textCodec.js';
 export {default as Protocol} from "./artifacts/protocol.js";
 export {default as Contract} from "./artifacts/contract.js";
@@ -33,8 +36,11 @@ export class Peer extends ReadyResource {
 
         this.keyPair = null;
         this.store = new Corestore(this.config.fullStoresDirectory);
-        this.msbClient = new MsbClient(msb);
+        this.msbClient = new MsbClient(msb, { readSliceMs: this.config.msbReadSliceMs });
+        this.msbClient.on('read-stall', event => this.emit('msb-read-stall', event));
         this.swarm = null;
+        this.recoverSubnet = null;
+        this.subnetStallWatch = null;
         this.base = null;
         this.key = null;
         this.txPool = new TransactionPool(this.config);
@@ -68,6 +74,17 @@ export class Peer extends ReadyResource {
         await this.initContract();
 
         if (this.config.replicate) await this._replicate();
+        if (this.config.subnetStallTimeout > 0) {
+            this.subnetStallWatch = createSubnetStallWatch({
+                base: this.base,
+                stallMs: this.config.subnetStallTimeout,
+                recover: event => {
+                    this.emit('subnet-stall', event);
+                    this.recoverSubnet?.(event);
+                },
+            });
+            this.subnetStallWatch.start();
+        }
         if (this.config.enableUpdater) {
             this.updaterTask = new Updater({ base: this.base }, this.config)
             this.updaterTask.start()
@@ -124,6 +141,7 @@ export class Peer extends ReadyResource {
     }
 
     async close() {
+        if (this.subnetStallWatch) this.subnetStallWatch.stop();
         if (this.txObserverTask) this.txObserverTask.stop()
         if (this.updaterTask) this.updaterTask.stop()
         if (this.swarm) {
@@ -247,7 +265,11 @@ export class Peer extends ReadyResource {
                 connection.on('error', (error) => { });
             });
 
-            this.swarm.join(this.config.channel, { server: true, client: true });
+            const discovery = this.swarm.join(this.config.channel, { server: true, client: true });
+            this.recoverSubnet = createReadRecovery({
+                base: this.base, swarm: this.swarm, topic: this.config.channel,
+                discovery, label: 'SUBNET', rotate: false,
+            });
             await this.swarm.flush();
         }
     }
