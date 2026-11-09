@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.4.14",
+  "version": "0.4.15",
   "type": "module",
   "pear": {
     "name": "trac-peer",
@@ -100,7 +100,7 @@
     "timers": "npm:bare-node-timers",
     "tls": "npm:bare-node-tls",
     "trac-crypto-api": "^0.1.5",
-    "trac-msb": "github:Trac-Systems/main_settlement_bus#208c90bd31e53e05762f37e6911e5f98e20774c1",
+    "trac-msb": "github:Trac-Systems/main_settlement_bus#7f98f44619e026571ea9dd7f69d1962abff78161",
     "trac-wallet": "^1.0.4",
     "url": "npm:bare-node-url",
     "util": "npm:bare-node-util",
