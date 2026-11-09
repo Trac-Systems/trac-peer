@@ -4,6 +4,7 @@ import ReadyResource from 'ready-resource';
 import PartialTransactionValidator from 'trac-msb/src/core/network/protocols/shared/validators/PartialTransactionValidator.js';
 import { normalizeTransactionOperation } from 'trac-msb/src/utils/normalizers.js';
 import { createReadRecovery } from './network/readRecovery.js';
+import { hypercoreStallfixStatus } from './utils/hypercoreStallfix.js';
 
 export const MSB_OPERATION_TYPE = Object.freeze({
     BOOTSTRAP_DEPLOYMENT: 11,
@@ -38,6 +39,17 @@ export class MsbClient extends ReadyResource {
                 base: this.#msb.state.base, swarm, topic, label: 'MSB', rotate: false,
                 now: this.#now, log: this.#log,
             });
+        }
+    }
+
+    /** MSB replication health: trac-msb's own report when it has one, else the loaded Hypercore's marker. */
+    replicationStatus() {
+        try {
+            const own = this.#msb?.replicationStatus?.();
+            if (own) return own;
+            return { hypercoreStallfix: hypercoreStallfixStatus(this.#msb?.state?.base?.core), stall: null };
+        } catch {
+            return null;
         }
     }
 
