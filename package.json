@@ -78,7 +78,7 @@
     "https": "npm:bare-node-https",
     "hyperbee": "^2.24.2",
     "hypercore": "11.8.3",
-    "hypercore-crypto": "^3.4.0",
+    "hypercore-crypto": "^3.6.1",
     "hyperdht": "^6.20.5",
     "hyperswarm": "^4.11.5",
     "inspector": "npm:bare-node-inspector",
