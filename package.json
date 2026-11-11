@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.4.14",
+  "version": "0.4.15",
   "type": "module",
   "pear": {
     "name": "trac-peer",
@@ -19,6 +19,7 @@
     "./src/*": "./src/*"
   },
   "scripts": {
+    "postinstall": "node scripts/hypercore-stallfix/apply.mjs",
     "peer:run": "node scripts/run-peer.mjs",
     "peer:run-rpc": "node scripts/run-peer.mjs --rpc",
     "peer:smoke": "node scripts/smoke-msb-sync.mjs",
@@ -77,7 +78,7 @@
     "https": "npm:bare-node-https",
     "hyperbee": "^2.24.2",
     "hypercore": "11.8.3",
-    "hypercore-crypto": "^3.4.0",
+    "hypercore-crypto": "^3.6.1",
     "hyperdht": "^6.20.5",
     "hyperswarm": "^4.11.5",
     "inspector": "npm:bare-node-inspector",
@@ -99,7 +100,7 @@
     "timers": "npm:bare-node-timers",
     "tls": "npm:bare-node-tls",
     "trac-crypto-api": "^0.1.5",
-    "trac-msb": "github:Trac-Systems/main_settlement_bus#23ce0d7fa0e428856bda2c307bfec5cedf3c16f8",
+    "trac-msb": "github:Trac-Systems/main_settlement_bus#7f98f44619e026571ea9dd7f69d1962abff78161",
     "trac-wallet": "^1.0.4",
     "url": "npm:bare-node-url",
     "util": "npm:bare-node-util",
