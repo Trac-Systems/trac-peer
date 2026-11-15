@@ -6,6 +6,21 @@ Release 1 (R1) must be used alongside Trac Network R1 releases to maintain contr
 
 Trac Peer is utilizing the [Pear Runtime and Holepunch](https://pears.com/).
 
+## HyperDHT LAN dependency check (0.4.17)
+
+Version 0.4.17 pins trac-msb 0.2.28 and requires bogon `^1.3.0`. HyperDHT 6.29 or newer crashes with
+`isReserved is not a function` during relayed same-host or LAN connections if it resolves bogon 1.1.0. This affects
+plain peers too. `postinstall` checks every reachable HyperDHT copy, including nested ones, before applying the
+existing version-checked Hypercore stall fix. A dependency's lockfile or overrides do not constrain consumers.
+
+After an install with scripts disabled, run `node node_modules/trac-peer/scripts/check-hyperdht-bogon.cjs`, then
+`node node_modules/trac-peer/scripts/hypercore-stallfix/apply.mjs` and repeat the latter with `--check`. Update the
+application's lockfile if the check fails. `npm run test:hyperdht-bogon` exercises a local relay and two plain peers
+on loopback ports 59100–59199 without joining any Trac network.
+
+The package also pins `compact-encoding` 2.18.0, matching trac-msb. The older 2.16.1 pin lacks the IPv4/IPv6 address
+encoders HyperDHT 6.29.6 uses, so a standalone trac-peer lockfile could fail a plain connection even with a fixed bogon.
+
 ## Install
 
 ```shell
