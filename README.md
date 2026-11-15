@@ -8,7 +8,7 @@ Trac Peer is utilizing the [Pear Runtime and Holepunch](https://pears.com/).
 
 ## HyperDHT LAN dependency check (0.4.17)
 
-Version 0.4.17 pins trac-msb 0.2.28 and requires bogon `^1.3.0`. HyperDHT 6.29 or newer crashes with
+Version 0.4.17 pins trac-msb 0.2.28 and requires bogon `^1.2.0` (the first release with `isReserved`). HyperDHT 6.29 or newer crashes with
 `isReserved is not a function` during relayed same-host or LAN connections if it resolves bogon 1.1.0. This affects
 plain peers too. `postinstall` checks every reachable HyperDHT copy, including nested ones, before applying the
 existing version-checked Hypercore stall fix. A dependency's lockfile or overrides do not constrain consumers.
