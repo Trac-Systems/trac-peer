@@ -1,7 +1,7 @@
 {
   "name": "trac-peer",
   "main": "src/index.js",
-  "version": "0.4.16",
+  "version": "0.4.17",
   "type": "module",
   "pear": {
     "name": "trac-peer",
@@ -19,7 +19,7 @@
     "./src/*": "./src/*"
   },
   "scripts": {
-    "postinstall": "node scripts/hypercore-stallfix/apply.mjs",
+    "postinstall": "node scripts/check-hyperdht-bogon.cjs && node scripts/hypercore-stallfix/apply.mjs",
     "peer:run": "node scripts/run-peer.mjs",
     "peer:run-rpc": "node scripts/run-peer.mjs --rpc",
     "peer:smoke": "node scripts/smoke-msb-sync.mjs",
@@ -27,11 +27,13 @@
     "peer:pear-rpc": "node scripts/pear-runner.mjs --rpc",
     "test:unit:node": "brittle-node -t 60000 tests/unit/unit.test.js",
     "test:unit:bare": "brittle-bare -t 60000 tests/unit/unit.test.js",
-    "test:unit:all": "(npm run test:unit:node && npm run test:unit:bare) || exit 1",
+    "test:unit:all": "(npm run test:hyperdht-bogon && npm run test:unit:node && npm run test:unit:bare) || exit 1",
     "test:acceptance:node": "brittle-node -t 120000 tests/acceptance/acceptance.test.js",
     "test:acceptance:bare": "brittle-bare -t 120000 tests/acceptance/acceptance.test.js",
     "test:acceptance:all": "(npm run test:acceptance:node && npm run test:acceptance:bare) || exit 1",
-    "test:all": "npm run test:unit:all && npm run test:acceptance:all"
+    "test:all": "npm run test:unit:all && npm run test:acceptance:all",
+    "check:dependencies": "node scripts/check-hyperdht-bogon.cjs",
+    "test:hyperdht-bogon": "node --test tests/hyperdht-bogon-check.test.cjs && node tests/hyperdht-lan-repro.cjs"
   },
   "dependencies": {
     "@tracsystems/blake3": "^0.0.15",
@@ -63,9 +65,10 @@
     "bare-worker": "3.0.0",
     "bare-zlib": "1.2.5",
     "bip39": "3.1.0",
+    "bogon": "^1.2.0",
     "buffer": "npm:bare-node-buffer",
     "child_process": "npm:bare-node-child-process",
-    "compact-encoding": "2.16.1",
+    "compact-encoding": "2.18.0",
     "console": "npm:bare-node-console",
     "corestore": "7.4.4",
     "crypto": "npm:bare-node-crypto",
@@ -100,7 +103,7 @@
     "timers": "npm:bare-node-timers",
     "tls": "npm:bare-node-tls",
     "trac-crypto-api": "^0.1.5",
-    "trac-msb": "github:Trac-Systems/main_settlement_bus#a8226b4ddfd5fab4643aadd02dee9f09b5355509",
+    "trac-msb": "github:Trac-Systems/main_settlement_bus#a8fdbc9b3c55a9d33a1b7c6e8c300cfbd42bd7f6",
     "trac-wallet": "^1.0.4",
     "url": "npm:bare-node-url",
     "util": "npm:bare-node-util",
